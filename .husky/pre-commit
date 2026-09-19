@@ -1,0 +1,28 @@
+#!/bin/sh
+# Runs from the repo root regardless of where you staged files from.
+# Only lints/formats the folder(s) that actually have staged changes —
+# each folder's own lint-staged config (in its package.json) decides what
+# happens to its files.
+
+CHANGED=$(git diff --cached --name-only --diff-filter=ACMR)
+
+run_backend=false
+run_frontend=false
+
+echo "$CHANGED" | grep -q '^backend/' && run_backend=true
+echo "$CHANGED" | grep -q '^frontend/' && run_frontend=true
+
+if [ "$run_backend" = false ] && [ "$run_frontend" = false ]; then
+  echo "No frontend/ or backend/ changes staged — skipping lint-staged."
+  exit 0
+fi
+
+if [ "$run_backend" = true ]; then
+  echo "-> backend changed, running backend lint-staged"
+  (cd backend && npx lint-staged) || exit 1
+fi
+
+if [ "$run_frontend" = true ]; then
+  echo "-> frontend changed, running frontend lint-staged"
+  (cd frontend && npx lint-staged) || exit 1
+fi

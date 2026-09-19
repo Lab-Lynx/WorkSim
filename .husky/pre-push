@@ -1,0 +1,34 @@
+#!/bin/sh
+# Only runs the test suite for the folder(s) whose files actually changed
+# vs origin/main — no reason to wait on backend tests for a frontend-only
+# branch, or vice versa.
+
+git fetch origin main --quiet
+
+if git rev-parse --verify origin/main >/dev/null 2>&1; then
+  CHANGED=$(git diff --name-only origin/main...HEAD)
+else
+  echo "origin/main not found — treating this as a first push, running everything once."
+  CHANGED="backend/ frontend/"
+fi
+
+run_backend=false
+run_frontend=false
+
+echo "$CHANGED" | grep -q '^backend/' && run_backend=true
+echo "$CHANGED" | grep -q '^frontend/' && run_frontend=true
+
+if [ "$run_backend" = false ] && [ "$run_frontend" = false ]; then
+  echo "No frontend/ or backend/ changes vs origin/main — skipping tests."
+  exit 0
+fi
+
+if [ "$run_backend" = true ]; then
+  echo "-> running backend tests"
+  (cd backend && npx vitest run --changed origin/main) || exit 1
+fi
+
+if [ "$run_frontend" = true ]; then
+  echo "-> running frontend tests"
+  (cd frontend && npx vitest run --changed origin/main) || exit 1
+fi

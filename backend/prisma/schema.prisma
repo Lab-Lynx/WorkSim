@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Minimal placeholder — added only because RefreshToken needs a real FK
+/// target for the login/refresh demo to work end to end. This is NOT a
+/// decision about your actual user model; extend or replace it freely once
+/// the team locks in the real shape (roles, profile fields, etc.).
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("user")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+}
+
+/// One row per issued refresh token, so a token can be revoked (logout,
+/// reuse detection, "log out of all devices") instead of just trusting any
+/// signature-valid JWT until it expires. The raw token never touches the
+/// DB — only its SHA-256 hash — so a DB leak alone doesn't leak usable
+/// tokens.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}

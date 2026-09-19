@@ -1,0 +1,19 @@
+{
+  "name": "work-simulator",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Monorepo root — orchestrates git hooks and per-folder scripts. Actual app code lives in frontend/ and backend/, each with its own independent package.json.",
+  "scripts": {
+    "prepare": "husky",
+    "install:all": "npm install && npm install --prefix frontend && npm install --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "lint:frontend": "npm run lint --prefix frontend",
+    "lint:backend": "npm run lint --prefix backend",
+    "test:frontend": "npm run test --prefix frontend",
+    "test:backend": "npm run test --prefix backend"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
