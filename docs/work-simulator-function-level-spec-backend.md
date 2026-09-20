@@ -11,14 +11,17 @@ The implementation AI must use this document together with [5. API Specification
 - Do not redesign the already-built access/refresh-cookie authentication mechanism.
 - Do not introduce GitHub-only login. GitHub is a separate connection used for repository access.
 - Do not store raw GitHub or payment secrets in logs or API responses.
-- Do not add Django or Voxide functionality in V1.
+- Django is a full V1 starter template alongside React and Node/Express (D-05). Voxide is a mandated external voice-command layer sequenced strictly after V1 (V2); not a V1 build task (D-07).
+- Registration DOES log the user in by issuing tokens and setting httpOnly cookies (matches built auth and UC-01; D-10).
+- Email verification blocks starting subscription checkout (EP-13) (Q-04 resolved; D-01).
+- Chapa renewals are platform-triggered (7-day reminder + charge at period end); `Q-05` subscription-level ref half remains open (D-08).
+- GitHub OAuth scope includes `write:repo_hook`; the platform registers the `workflow_run` webhook on the user's repo in EP-22 (Q-08 resolved; D-09).
+- Password reset revokes all other active sessions (Q-11 resolved; D-12).
+- Mentor is available during `in_progress` AND `submitted_v1` (revision phase) (Q-10c resolved; D-04). Q-10a and Q-10b remain open.
+- Already-used email verification link returns a soft "already verified" 200 success, not a 410 error (D-11).
 - Do not invent a ticket-template selection algorithm. `Q-09` remains open; the implementation must expose that choice as a small isolated strategy/configuration point rather than silently inventing product behavior.
-- Do not invent Chapa recurring-billing mechanics beyond the behavior already specified. `Q-05` remains open.
-- Do not invent GitHub webhook attachment/scope behavior. `Q-08` remains open and must be isolated behind the GitHub integration boundary.
-- Do not invent password-reset session revocation. `Q-11` remains open.
 - Do not invent cookie `SameSite` or CSRF behavior. `Q-12` remains open and must be verified against the existing auth implementation before deployment.
 - Do not invent submission timeout values. `Q-13` remains open; the timeout mechanism must be configurable.
-- Do not invent the mentor message limit or maximum message length. `Q-10` remains open; keep both configurable.
 - Do not make the client choose submission attempt 1 or 2. The server derives the attempt from ticket state.
 - Do not make the client choose the mentor hint level. The server derives it from the stored transcript.
 - Do not activate a subscription from the Chapa browser return URL. Only the verified webhook can activate it.
@@ -37,17 +40,17 @@ The backend specification is grouped by implementation responsibility rather tha
 |---|---|---|
 | Authentication | `src/services/auth.service.ts`, auth controller/routes | register, login, refresh, logout, logout-all, verify, resend, forgot, reset, change-password |
 | User/profile | `src/services/user.service.ts`, users controller/routes | get/update current user |
-| Email | `src/services/email.service.ts` | verification/reset/failure email dispatch |
-| Subscription/payment | `src/services/subscription.service.ts`, Chapa integration, webhook controller | checkout, webhook processing, status, cancel, payment history |
-| GitHub | `src/services/github.service.ts`, GitHub integration, OAuth controller | OAuth URL/callback, connection, disconnect, repo creation |
+| Email | `src/services/email.service.ts` | verification/reset/failure/reminder email dispatch |
+| Subscription/payment | `src/services/subscription.service.ts`, `src/services/subscription-renewal.service.ts`, Chapa integration, webhook/payment controllers | checkout, renewal job, webhook processing, status, cancel, payment history |
+| GitHub | `src/services/github.service.ts`, GitHub integration, OAuth controller | OAuth URL/callback, connection, disconnect, repo creation, webhook attachment |
 | Tickets | `src/services/ticket.service.ts` | assign, current/detail, start, abandon |
-| Ticket generation | `src/services/ticket-generation.service.ts` | template loading, Gemini ticket generation |
+| Ticket generation | `src/services/ticket-generation.service.ts` | template loading (React, Node/Express, Django), Gemini ticket generation |
 | Mentor | `src/services/mentor.service.ts` | send message, hint-stage calculation, Gemini call |
 | Submission | `src/services/submission.service.ts` | submit/resubmit, status/detail, retry |
 | Evaluation | `src/services/evaluation.service.ts` | evaluator input, Groq evaluation, rubric calculation |
-| GitHub CI webhook | `src/services/github-webhook.service.ts` | signature verification, workflow-run processing |
+| GitHub CI webhook | `src/services/github-webhook.service.ts`, `webhooks/github.controller.ts` | signature verification, workflow-run processing |
 | Profile | `src/services/profile.service.ts` | completed-ticket projection |
-| Shared backend | middleware, serializers, error helpers | validation/auth/subscription/GitHub/ownership guards |
+| Shared backend | middleware, `src/serializers/*.serializer.ts`, `src/validators/*.validators.ts`, error helpers | validation/auth/subscription/GitHub/ownership guards, response serializers |
 | Configuration | backend config files | AI, Chapa, GitHub, email, limits, timeouts |
 
 ---
@@ -64,7 +67,7 @@ The backend specification is grouped by implementation responsibility rather tha
 | Output | Created `User` domain record; callers must serialize only the public fields required by the endpoint. |
 | Throws | `ApiError(409, "Email already in use")` for a unique-email conflict; validation is handled before service invocation where applicable. |
 | Side effects | Prisma `User` insert; password hashing; then verification-email dispatch is performed by the endpoint/application flow. |
-| Rules | Trim/normalize the email consistently with the existing auth implementation. Never store plaintext password. Never log password. `name` is required by API validation even though DB column is nullable for existing rows. |
+| Rules | Trim/normalize the email consistently with the existing auth implementation. Never store plaintext password. Never log password. `name` is required by API validation even though DB column is nullable for existing rows. Successful registration logs the user in and issues session cookies (D-10; matches UC-01 and real auth controller). |
 | Edge cases | Concurrent duplicate registration must still resolve to a 409 through the DB unique constraint. Email-send failure must not roll back account creation because EP-01 explicitly permits resend through EP-07. |
 | Test file | `tests/services/auth.service.test.ts` |
 
@@ -146,10 +149,10 @@ The backend specification is grouped by implementation responsibility rather tha
 | Purpose | Consume an email-verification token and set `User.emailVerifiedAt`. |
 | Inputs | Raw token from the verification link. |
 | Output | Verification timestamp. |
-| Throws | 400 for unknown/malformed token; 410 for expired or already-used token. |
+| Throws | 400 for unknown/malformed token; 410 for expired unused token. |
 | Side effects | Reads hashed token; sets `usedAt`; updates `User.emailVerifiedAt`. |
-| Rules | Hash the supplied token before lookup. Token consumption and user update should be atomic. |
-| Edge cases | Expired token, used token, concurrent double-click, user already verified. A used token must not be reusable. |
+| Rules | Hash the supplied token before lookup. Token consumption and user update should be atomic. If token is already used (`usedAt` is not null, or account already verified), respond 200 with soft "already verified" message and current `emailVerifiedAt` (D-11; matches UC-02). Only an unused, expired token returns 410. |
+| Edge cases | Expired unused token (410), already-used token (200 soft success), concurrent double-click, user already verified. |
 | Test file | `tests/services/auth.service.test.ts` |
 
 ## resendVerificationEmail — `src/services/auth.service.ts`
@@ -187,10 +190,10 @@ The backend specification is grouped by implementation responsibility rather tha
 | Purpose | Consume a valid reset token and replace the user's password hash. |
 | Inputs | Raw reset token and plaintext new password. |
 | Output | None. |
-| Throws | 400 unknown/malformed token; 410 expired/used token; validation error for invalid password. |
-| Side effects | Updates `User.passwordHash`; marks token `usedAt`. Session revocation after reset remains Q-11 and must not be invented here. |
-| Rules | Verify token expiry and unused state before changing the password. Hash with bcrypt. Never log plaintext password/token. |
-| Edge cases | Double-submit, concurrent token use, token expiry between read and update. Token consumption and password update should be transactional. |
+| Throws | 400 unknown/malformed token; 410 expired or already-used token; validation error for invalid password. |
+| Side effects | Updates `User.passwordHash`; marks token `usedAt`; revokes all active refresh tokens for that user, forcing re-login everywhere (Q-11 resolved; D-12, matches UC-05 and EP-09). |
+| Rules | Verify token expiry and unused state before changing the password. Hash with bcrypt. Never log plaintext password/token. Revoke all existing sessions on password reset. |
+| Edge cases | Double-submit, concurrent token use, token expiry between read and update. Token consumption, password update, and session revocation should be transactional. |
 | Test file | `tests/services/auth.service.test.ts` |
 
 ## changePassword — `src/services/auth.service.ts`
@@ -275,6 +278,19 @@ Same contract as `sendVerificationEmail`, but for the reset URL. Token must neve
 | Edge cases | Email provider failure must not undo a successfully persisted payment/subscription state transition; log the operational failure. |
 | Test file | `tests/services/email.service.test.ts` |
 
+## sendRenewalReminderEmail — `src/services/email.service.ts`
+
+| Field | Detail |
+|---|---|
+| Signature | `sendRenewalReminderEmail(to: string, currentPeriodEnd: Date): Promise<void>` |
+| Purpose | Send a transactional "your subscription renews in 7 days" email. |
+| Inputs | User email and renewal timestamp (`currentPeriodEnd`). |
+| Output | None. |
+| Side effects | External email send. |
+| Rules | Sent only once per billing cycle (DR-11). Do not include sensitive payment secrets. |
+| Edge cases | Email provider failure must not abort the renewal job; log failure for retry. |
+| Test file | `tests/services/email.service.test.ts` |
+
 ---
 
 # 8.5 Subscription & Chapa
@@ -287,10 +303,10 @@ Same contract as `sendVerificationEmail`, but for the reset URL. Token must neve
 | Purpose | Create a pending payment and request Chapa's hosted checkout. |
 | Inputs | Authenticated user ID. |
 | Output | Hosted Chapa checkout URL. |
-| Throws | 409 if an `active`/`past_due` subscription already exists; 502 if Chapa checkout creation fails. |
+| Throws | 403 if email is not verified (`emailVerifiedAt` is null; Q-04 / FR-15 / D-01); 409 if an `active`/`past_due` subscription already exists; 502 if Chapa checkout creation fails. |
 | Side effects | Reads subscription state; creates `Payment(status=pending)` with server-configured amount/currency; calls Chapa. |
-| Rules | Amount/currency come from server configuration, never request input. Store only Chapa transaction reference and billing fields defined by Doc 4. Never store card data. Do not activate subscription here. |
-| Edge cases | Concurrent checkout requests, Chapa timeout after payment row creation, duplicate transaction reference, existing canceled subscription with future access. The DB uniqueness and subscription constraints remain authoritative. |
+| Rules | Requires verified email (`emailVerifiedAt` set). Amount/currency come from server configuration, never request input. Store only Chapa transaction reference and billing fields defined by Doc 4. Never store card data. Do not activate subscription here. |
+| Edge cases | Unverified user (403), concurrent checkout requests, Chapa timeout after payment row creation, duplicate transaction reference, existing canceled subscription with future access. The DB uniqueness and subscription constraints remain authoritative. |
 | Test file | `tests/services/subscription.service.test.ts` |
 
 ## processChapaWebhook — `src/services/subscription.service.ts`
@@ -358,6 +374,20 @@ Same contract as `sendVerificationEmail`, but for the reset URL. Token must neve
 | Edge cases | No subscription; canceled-but-not-expired; past_due-but-not-expired; exactly-at-period-end should be false. |
 | Test file | `tests/services/subscription.service.test.ts` |
 
+## processUpcomingRenewals — `src/services/subscription-renewal.service.ts`
+
+| Field | Detail |
+|---|---|
+| Signature | `processUpcomingRenewals(): Promise<{ remindersSent: number; chargesAttempted: number; chargesSucceeded: number; chargesFailed: number }>` |
+| Purpose | Process scheduled platform-triggered subscription renewals (7-day reminders and period-end charges; resolves Q-05 trigger half; D-08). |
+| Inputs | None (time-triggered scheduled job). |
+| Output | Summary count of reminders sent, charges attempted, succeeded, and failed. |
+| Throws | None directly; errors for individual subscriptions are caught and logged so one failure does not abort the entire batch. |
+| Side effects | Email dispatch (`sendRenewalReminderEmail`); Chapa API charge call; updates `Subscription` (sets `renewalReminderSentAt`, extends `currentPeriodEnd`, or sets `past_due`); creates `Payment` records. |
+| Rules | Reminders: query subscriptions with `status = active`, `currentPeriodEnd` exactly 7 days away (calendar-day match), and `renewalReminderSentAt` is null (or older than current period start). Send reminder email and set `renewalReminderSentAt` (DR-11).<br>Charges: query subscriptions with `status = active` and `currentPeriodEnd <= now()`. Trigger Chapa charge via API. On success: extend `currentPeriodEnd` by one month and reset/update reminder state for next cycle. On failure: follow existing FR-22 / EP-14 path (set subscription `past_due`, record failed payment, send payment failure email via `sendPaymentFailureEmail`). Canceled subscriptions (`status = canceled`) are NEVER charged. |
+| Edge cases | Chapa charge fails mid-run; job runs twice in one day (idempotent: reminder protected by `renewalReminderSentAt`, charge protected by period check); a subscription is canceled between being queued and the job running (must re-verify `status = active` immediately before charging). |
+| Test file | `tests/services/subscription-renewal.service.test.ts` |
+
 ---
 
 # 8.6 GitHub OAuth, Connection & Repository
@@ -372,7 +402,7 @@ Same contract as `sendVerificationEmail`, but for the reset URL. Token must neve
 | Output | GitHub authorize URL. |
 | Throws | 402 when paid access is missing. |
 | Side effects | Creates/signed state using the existing selected state mechanism; no DB table is required by the schema. |
-| Rules | Requested scope must come from one configuration value. Exact scope remains Q-08. Never put access tokens in the URL. |
+| Rules | Requested scope covers repository creation and push, and repo-hook registration (`write:repo_hook`; Q-08 resolved; D-09). Never put access tokens in the URL. |
 | Edge cases | Existing connection, expired state, configuration missing. |
 | Test file | `tests/services/github.service.test.ts` |
 
@@ -419,12 +449,12 @@ Same contract as `sendVerificationEmail`, but for the reset URL. Token must neve
 |---|---|
 | Signature | `createStarterRepo(userId: string, starterTemplate: StarterTemplate, repoName?: string): Promise<StarterRepo>` |
 | Purpose | Create the user's one GitHub repository from a supported starter template and persist its metadata. |
-| Inputs | User ID, `react` or `node_express`, optional repo name. |
+| Inputs | User ID, `react`, `node_express`, or `django` (D-05), optional repo name. |
 | Output | StarterRepo. |
 | Throws | 400 invalid template/name; 402 no paid access; 403 missing/invalid GitHub connection; 409 repo already exists or GitHub name collision; 502 upstream GitHub failure. |
-| Side effects | GitHub repository creation/template operation; DB `StarterRepo` insert. |
-| Rules | One repo per user. Django is not accepted. If GitHub rejects the stored token, delete the `GitHubConnection` row and return 403. Do not create the DB row until the external repo is successfully created. |
-| Edge cases | Concurrent create requests; GitHub succeeds but DB insert fails; GitHub name collision; invalid token; unsupported template. External operation/idempotency handling must avoid silently creating multiple repos. |
+| Side effects | GitHub repository creation/template operation; registers `workflow_run` webhook on the user's repo pointed at EP-33 (`POST /webhooks/github`) using `write:repo_hook` (Q-08 resolved; D-09); DB `StarterRepo` insert. |
+| Rules | One repo per user. React, Node/Express, and Django are all supported V1 templates (D-05). If GitHub rejects the stored token, delete the `GitHubConnection` row and return 403. Do not report success if webhook registration fails; clean up or retry so the repo is never left without CI reporting. |
+| Edge cases | Concurrent create requests; GitHub succeeds but DB insert fails; GitHub name collision (409 conflict, no auto-suffix; D-13); webhook registration fails; invalid token; unsupported template. |
 | Test file | `tests/services/github.service.test.ts` |
 
 ## createTicketBranch — `src/services/github.service.ts`
@@ -467,7 +497,7 @@ Same contract as `sendVerificationEmail`, but for the reset URL. Token must neve
 | Inputs | Template key. |
 | Output | Typed template definition containing fixed structure such as category, difficulty, touched files, acceptance criteria structure and test checklist structure. |
 | Throws | Internal configuration/template error when key is missing or malformed. |
-| Rules | Template definitions are code-owned, not DB rows. Unknown keys must fail loudly. |
+| Rules | Template definitions are code-owned, not DB rows. Templates exist for React, Node/Express, and Django (D-05). Unknown keys must fail loudly. |
 | Edge cases | Duplicate keys, malformed template, missing required fields. |
 | Test file | `tests/services/ticket-generation.service.test.ts` |
 
@@ -490,9 +520,9 @@ Same contract as `sendVerificationEmail`, but for the reset URL. Token must neve
 | Purpose | Ask Gemini to fill the specific wording/scenario inside the fixed team-authored template structure. |
 | Inputs | Template and generation context. |
 | Output | Validated `TicketContent`. |
-| Throws | Upstream Gemini failure → caller maps to 502 `"Could not generate a ticket, please try again"`. |
-| Side effects | Gemini API call only. |
-| Rules | Gemini may fill wording/scenario but must not invent or remove the fixed structure. Validate model output against the required `TicketContent` shape before persistence. |
+| Throws | Upstream Gemini failure → caller maps to 502 `"Could not generate a ticket, please try again"`. No AI-generated fallback content is invented on failure (hard-fail/retryable; D-14). |
+| Side effects | Gemini API call only (confirmed model provider; D-06). |
+| Rules | Gemini fills wording/scenario within the fixed team-authored structure. Validate model output against the required `TicketContent` shape before persistence. |
 | Edge cases | Malformed model output, missing required field, extra fields, timeout, refusal/error, content inconsistent with template. Invalid generated output must not create a Ticket row. |
 | Test file | `tests/services/ticket-generation.service.test.ts` |
 
@@ -585,9 +615,9 @@ Same contract as `sendVerificationEmail`, but for the reset URL. Token must neve
 | Purpose | Validate ticket access/state/rate limit, build mentor context, call Gemini, then persist both messages. |
 | Inputs | User ID, ticket ID, validated message content. |
 | Output | Both persisted messages. |
-| Throws | 402, 404, 409 when ticket is not `in_progress`, 429 rate limit, 502 Gemini failure. |
-| Side effects | Gemini call; two `MentorMessage` inserts after successful response. |
-| Rules | If Gemini fails, neither the user message nor mentor reply is persisted. Do not let client select hint level. Full transcript is the source for context. |
+| Throws | 402, 404, 409 when ticket is not `in_progress` or `submitted_v1` (mentor available in both working and revision phases; Q-10c resolved; D-04), 429 rate limit, 502 Gemini failure. |
+| Side effects | Gemini call; two `MentorMessage` inserts after successful response. Single JSON reply, not a stream (D-15). |
+| Rules | Mentor is available while ticket is `in_progress` or `submitted_v1` (revision phase after first review feedback). If Gemini fails, neither the user message nor mentor reply is persisted. Do not let client select hint level. Full transcript is the source for context. |
 | Edge cases | Concurrent messages, rate-limit race, Gemini timeout, malformed Gemini response, empty content, ticket transitions while AI call is running. |
 | Test file | `tests/services/mentor.service.test.ts` |
 
@@ -795,10 +825,11 @@ Controllers must stay thin. They parse request context, call the service, serial
 - **Signature:** `(req: Request, res: Response, next: NextFunction) => Promise<void>`
 - Validate body through `validate.middleware`.
 - Call `registerUser`.
+- Issue access and refresh tokens, setting httpOnly cookies (registration logs the user in; matches UC-01 and real implementation; D-10).
 - Create/send verification email through the application flow.
 - Return EP-01's exact 201 envelope.
 - Never return `passwordHash`.
-- On email-send failure, preserve the created account and still return successful registration according to EP-01.
+- On email-send failure, preserve the created account and session, still returning successful registration according to EP-01.
 
 ### login
 - Call `authenticateUser`.
@@ -825,7 +856,7 @@ Controllers must stay thin. They parse request context, call the service, serial
 ### verifyEmail
 - Validate token body.
 - Call `verifyEmail`.
-- Return timestamp.
+- Return timestamp (200). If token was already used, return 200 with soft "already verified" message and current `emailVerifiedAt` (D-11). Only unused expired tokens return 410.
 
 ### resendVerification
 - Validate email.
@@ -840,6 +871,7 @@ Controllers must stay thin. They parse request context, call the service, serial
 ### resetPassword
 - Validate token/password.
 - Call `resetPassword`.
+- Revoke all other active sessions (refresh tokens) for the user (forces re-login everywhere; Q-11 resolved; D-12).
 - Return EP-09 response.
 
 ### changePassword
@@ -871,7 +903,7 @@ Controllers must stay thin. They parse request context, call the service, serial
 ## Subscription controller — `src/controllers/subscription.controller.ts`
 
 ### createCheckout
-- Require authenticated user.
+- Require authenticated user with verified email (403 if unverified; Q-04 / D-01).
 - Call `createCheckout`.
 - Return 201 checkout URL.
 - Never read price/card data from request.
@@ -884,11 +916,19 @@ Controllers must stay thin. They parse request context, call the service, serial
 - Call `cancelSubscription`.
 - Return updated public Subscription.
 
+**Test file:** `tests/controllers/subscription.controller.test.ts`
+
+---
+
+## Payment controller — `src/controllers/payment.controller.ts`
+
 ### getPayments
+- Thin controller delegating to `subscription.service.ts` (D-16).
+- Require authenticated user.
 - Call `listPayments`.
 - Serialize payment history without Chapa reference.
 
-**Test file:** `tests/controllers/subscription.controller.test.ts`
+**Test file:** `tests/controllers/payment.controller.test.ts`
 
 ---
 
@@ -1090,7 +1130,9 @@ Controllers must stay thin. They parse request context, call the service, serial
 
 # 8.15 Serializers / Response Mapping
 
-## serializeUser
+Serializers live in `src/serializers/*.serializer.ts` (one serializer per shared response shape defined in Doc 5 §5.3.0). This prevents `passwordHash`, `accessTokenEncrypted`, and internal keys from leaking by construction (D-16).
+
+## serializeUser — `src/serializers/user.serializer.ts`
 
 Return only:
 `id`, `name`, `email`, `role`, `emailVerifiedAt`, `createdAt`.
@@ -1098,36 +1140,36 @@ Return only:
 Never return:
 `passwordHash`, refresh-token values, reset/verification tokens, OAuth access tokens.
 
-## serializeSubscription
+## serializeSubscription — `src/serializers/subscription.serializer.ts`
 
 Return only:
 `id`, `status`, `currentPeriodEnd`, `canceledAt`.
 
-Never return Chapa subscription references.
+Never return Chapa subscription references or internal fields like `renewalReminderSentAt` (backend-only; DR-11).
 
-## serializePayment
+## serializePayment — `src/serializers/payment.serializer.ts`
 
 Return:
 `id`, `amount`, `currency`, `status`, `paidAt`, `createdAt`.
 
 Never return `chapaTxRef`.
 
-## serializeRepo
+## serializeRepo — `src/serializers/repo.serializer.ts`
 
 Return:
 `fullName`, `starterTemplate`, `defaultBranch`.
 
-## serializeTicket
+## serializeTicket — `src/serializers/ticket.serializer.ts`
 
 Flatten `Ticket.content` into the API Ticket object defined in Doc 5 while preserving:
 `id`, `status`, `templateKey`, `title`, `scenario`, `category`, `difficulty`, `touchedFiles`, `acceptanceCriteria`, `testChecklist`, `branchName`, `repo`, timestamps.
 
-## serializeSubmission
+## serializeSubmission — `src/serializers/submission.serializer.ts`
 
 Return:
 `id`, `attempt`, `status`, `prNumber`, `prUrl`, `headSha`, `ciPassed`, `ciRunUrl`, `failureReason`, `submittedAt`, `evaluation`, and `diff` only when `includeDiff=true`.
 
-## serializeEvaluation
+## serializeEvaluation — `src/serializers/evaluation.serializer.ts`
 
 Attempt 1:
 - feedback
@@ -1139,6 +1181,13 @@ Attempt 2:
 - all four category scores
 - weighted total
 - createdAt
+
+**Note on field naming (intentional serializer mapping; D-25):** the DB columns use the `*Score` / `totalScore` suffix (`requirementsMetScore`, `correctnessTestsScore`, `codeQualityScore`, `problemSolvingScore`, `totalScore`), while the API Evaluation object maps these to `scores.requirementsMet`, `scores.correctnessTests`, `scores.codeQuality`, `scores.problemSolving`, and `scores.total`. This rename is intentional serializer behavior, not a bug to align.
+
+## serializeMentorMessage — `src/serializers/mentor-message.serializer.ts`
+
+Return:
+`id`, `role`, `content`, `createdAt`.
 
 ---
 
@@ -1162,7 +1211,7 @@ Attempt 2:
 | EP-14 | `handleChapaWebhook` | signature verifier + `processChapaWebhook` |
 | EP-15 | `getSubscription` | `getSubscriptionStatus` |
 | EP-16 | `cancelSubscription` | `cancelSubscription` |
-| EP-17 | `getPayments` | `listPayments` |
+| EP-17 | `getPayments` (`payment.controller.ts`) | `listPayments` |
 | EP-18 | `connect` | `createGitHubAuthorizeUrl` |
 | EP-19 | `callback` | `handleGitHubCallback` |
 | EP-20 | `getConnection` | `getGitHubConnection` |
@@ -1428,4 +1477,6 @@ Before a backend function is considered complete, the implementation AI/verifier
 
 *This backend document is intentionally implementation-specific without inventing unresolved product decisions. Where Docs 2, 4 or 5 leave a behavior open, the implementation must isolate that behavior behind configuration or an integration boundary and leave the decision visible rather than silently choosing one.*
 
-*Next: proceed to → [8. Function-Level Specification — Frontend]*
+*Next: proceed to → [9. Backend Test Plan](./work-simulator-test-plan-backend.md)*
+
+*(Frontend function-level spec is Doc 10: [10. Function-Level Specification — Frontend](./work-simulator-function-level-spec-frontend.md).)*

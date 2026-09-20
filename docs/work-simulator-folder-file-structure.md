@@ -7,7 +7,9 @@ check against. Files inherited from the existing backend/frontend
 templates are not repeated here.*
 
 This document defines the files Work Simulator adds or changes for V1.
-It is based on docs 2, 4, 5 and 6. Doc 3 (Use Cases) is not required to
+It is based on docs 2, 4, 5 and 6, and aligns backend file names with
+[8. Function-Level Spec — Backend](./work-simulator-function-level-spec-backend.md)
+and the Doc 10 frontend shared modules. Doc 3 (Use Cases) is not required to
 produce this file because docs 2, 4, 5 and 6 already provide the FR,
 entity, endpoint, page, component and hook references needed for the
 structure.
@@ -19,10 +21,11 @@ template files. It lists project additions/changes and marks
 generated/configuration artifacts where their exact generated name is
 not settled by the source docs.
 
-**Locked V1 exclusions:** no Django files, no Voxide files, no admin
+**Locked V1 exclusions:** no Voxide files (V2 mandated external — see doc 1 §1.5; ~~FR-53~~ deferred), no admin
 files, no account-deletion files, no upload files, no public-profile
 files, no search/filter/bulk-operation files, no localization files, no
 self-service refund files, and no separate notification subsystem.
+Django **is** in V1 (starter template + ticket-templates).
 
 ------------------------------------------------------------------------
 
@@ -41,19 +44,23 @@ self-service refund files, and no separate notification subsystem.
 
 ``` text
 docs/
-├── work-simulator-problem-solution-v2.md   # existing Doc 1
-├── work-simulator-functional-requirements.md # existing Doc 2
-├── work-simulator-use-cases.md               # Doc 3 when created
-├── work-simulator-database-requirements.md  # existing Doc 4
-├── work-simulator-api-spec.md               # existing Doc 5
-├── work-simulator-frontend-ui.md             # existing Doc 6
-└── work-simulator-folder-file-structure.md  # this Doc 7
+├── work-simulator-problem-solution-v2.md          # Doc 1
+├── work-simulator-requirements.md                 # Doc 2
+├── work-simulator-use-cases.md                    # Doc 3
+├── work-simulator-database.md                     # Doc 4
+├── work-simulator-api-spec.md                     # Doc 5
+├── work-simulator-frontend-ui.md                  # Doc 6
+├── work-simulator-folder-file-structure.md        # this Doc 7
+├── work-simulator-function-level-spec-backend.md  # Doc 8
+├── work-simulator-test-plan-backend.md            # Doc 9
+├── work-simulator-function-level-spec-frontend.md # Doc 10
+├── work-simulator-test-plan-frontend.md           # Doc 11
+└── decisions-log.md                               # optional; not part of the numbered series
 ```
 
-The exact filenames for Docs 1--4 are shown only where already supplied
-by the documents/links. If the repository uses different existing
-filenames, Doc 7 should follow those existing names rather than silently
-renaming them.
+These are the real filenames in the series. Backend function-level spec is
+doc 8; backend test plan is doc 9; frontend function-level spec is doc 10;
+frontend test plan is doc 11.
 
 ------------------------------------------------------------------------
 
@@ -112,12 +119,17 @@ backend/src/controllers/
 ├── mentor.controller.ts
 ├── submission.controller.ts
 ├── profile.controller.ts
-└── webhook.controller.ts
+└── webhooks/
+    ├── chapa.controller.ts
+    └── github.controller.ts
 ```
 
 Controller responsibilities follow the endpoint groups above.
 Controllers own HTTP concerns: request validation input, authorization
 context, status codes, response envelope, and delegation to services.
+`payment.controller.ts` remains a thin file for EP-17.
+Webhook controllers share `webhook.routes.ts` (EP-14 → Chapa; EP-33 →
+GitHub).
 
 ### 7.2.3 Backend Services
 
@@ -129,15 +141,15 @@ backend/src/services/
 ├── email.service.ts
 ├── chapa.service.ts
 ├── subscription.service.ts
+├── subscription-renewal.service.ts
 ├── github.service.ts
 ├── ticket.service.ts
-├── ticket-generator.service.ts
+├── ticket-generation.service.ts
 ├── mentor.service.ts
 ├── submission.service.ts
-├── github-ci.service.ts
-├── evaluator.service.ts
-├── profile.service.ts
-└── webhook.service.ts
+├── github-webhook.service.ts
+├── evaluation.service.ts
+└── profile.service.ts
 ```
 
 Responsibilities:
@@ -152,27 +164,32 @@ Responsibilities:
 -   `chapa.service.ts` --- hosted checkout and Chapa-side
     subscription/payment operations.
 -   `subscription.service.ts` --- subscription state, access-window
-    calculations, cancellation, and renewal-period updates.
+    calculations, cancellation, renewal-period updates, and
+    `processChapaWebhook` (EP-14).
+-   `subscription-renewal.service.ts` --- scheduled upcoming-renewal
+    reminders and period-end charges (doc 5 §5.7 / D-08).
 -   `github.service.ts` --- OAuth exchange, scope checks, encrypted
     token persistence, repository creation, branch/PR/diff access, and
     GitHub error mapping.
 -   `ticket.service.ts` --- assignment, state transitions, branch
     creation coordination, abandonment, and active-ticket rules.
--   `ticket-generator.service.ts` --- loads team-authored template files
+-   `ticket-generation.service.ts` --- loads team-authored template files
     and asks Gemini to fill the specific scenario wording without
     inventing the template structure.
 -   `mentor.service.ts` --- progressive-hint mentor conversation and
     per-ticket rate-limit enforcement.
 -   `submission.service.ts` --- attempt selection, PR reuse/creation,
     diff capture, submission persistence, and retry behavior.
--   `github-ci.service.ts` --- CI lookup and `workflow_run` result
-    handling.
--   `evaluator.service.ts` --- Groq evaluation, transcript inclusion,
+-   `github-webhook.service.ts` --- GitHub webhook signature verification
+    and `workflow_run` processing (EP-33); hands off to evaluation.
+-   `evaluation.service.ts` --- Groq evaluation, transcript inclusion,
     first-pass feedback, final rubric scoring, and weighted total.
 -   `profile.service.ts` --- completed-ticket practice-record
     projection.
--   `webhook.service.ts` --- webhook verification, idempotency, payment
-    state updates, and CI webhook processing.
+
+There is no combined `webhook.service.ts` and no `github-ci.service.ts`.
+Chapa webhook processing lives in `subscription.service.ts`; GitHub CI
+webhook processing lives in `github-webhook.service.ts`.
 
 ### 7.2.4 Backend Validation Schemas
 
@@ -194,7 +211,7 @@ Required validations include:
 -   registration/profile name: trimmed, minimum 2 characters;
 -   password creation/reset/change: minimum 8 characters;
 -   email fields: valid email format;
--   repository template: `react | node_express`;
+-   repository template: `react | node_express | django`;
 -   repository name: optional/defaulted according to EP-22;
 -   mentor content: non-empty and bounded by the implementation limit
     from Q-10;
@@ -207,21 +224,37 @@ Required validations include:
 
 ``` text
 backend/src/integrations/
-├── chapa/
-│   └── chapa.client.ts
-├── github/
-│   └── github.client.ts
-├── gemini/
-│   └── gemini.client.ts
-└── groq/
-    └── groq.client.ts
+├── chapa.ts
+├── github.ts
+├── gemini.ts
+└── groq.ts
 ```
 
-These isolate external API calls from application services.
+These isolate external API calls from application services (flat files,
+aligned with doc 8).
 
-No `voxide/` integration is created because FR-53 remains unresolved.
+No `voxide` integration is created. Voxide is a V2 mandated external
+integration (doc 1 §1.5); ~~FR-53~~ is deferred — no V1 files.
 
-### 7.2.6 Backend Security/Crypto Helpers
+### 7.2.6 Backend Serializers
+
+``` text
+backend/src/serializers/
+├── user.serializer.ts
+├── subscription.serializer.ts
+├── payment.serializer.ts
+├── repo.serializer.ts
+├── ticket.serializer.ts
+├── submission.serializer.ts
+├── evaluation.serializer.ts
+└── mentor-message.serializer.ts
+```
+
+One serializer per shared response shape in doc 5 §5.3.0. Controllers
+and services use these to produce API objects (including Evaluation
+field renames from DB columns).
+
+### 7.2.7 Backend Security/Crypto Helpers
 
 ``` text
 backend/src/lib/
@@ -249,7 +282,7 @@ Responsibilities:
 
 The rubric weights are application constants, not database fields.
 
-### 7.2.7 Ticket Template Files
+### 7.2.8 Ticket Template Files
 
 Team-authored ticket structure is stored in code. The database stores
 only `Ticket.templateKey` plus the generated ticket snapshot in
@@ -260,8 +293,10 @@ backend/src/ticket-templates/
 ├── index.ts
 ├── react/
 │   └── <team-authored-react-ticket-template-files>
-└── node-express/
-    └── <team-authored-node-express-ticket-template-files>
+├── node-express/
+│   └── <team-authored-node-express-ticket-template-files>
+└── django/
+    └── <team-authored-django-ticket-template-files>
 ```
 
 The exact individual template filenames are **not specified by docs 2,
@@ -269,21 +304,26 @@ The exact individual template filenames are **not specified by docs 2,
 template set. They must not be invented in Doc 7.
 
 The template loader must expose a stable key matching
-`Ticket.templateKey`.
+`Ticket.templateKey`. `StarterTemplate` includes `react`,
+`node_express`, and `django`.
 
-### 7.2.8 Backend Webhook Handling
+### 7.2.9 Backend Webhook Handling
 
-The webhook routes/services are explicitly separate from ordinary
-authenticated API routes.
+Webhook routes are explicitly separate from ordinary authenticated API
+routes. Controllers live under `controllers/webhooks/`; processing lives
+in domain services (not a combined `webhook.service.ts`).
 
 ``` text
-backend/src/webhooks/
-├── chapa.webhook.ts
-└── github.workflow-run.webhook.ts
+backend/src/routes/webhook.routes.ts
+backend/src/controllers/webhooks/
+├── chapa.controller.ts      # EP-14
+└── github.controller.ts     # EP-33
 ```
 
--   `chapa.webhook.ts` handles EP-14.
--   `github.workflow-run.webhook.ts` handles EP-33.
+-   EP-14: `chapa.controller.ts` → signature verification +
+    `subscription.service.ts` (`processChapaWebhook`) / Chapa helpers.
+-   EP-33: `github.controller.ts` → `github-webhook.service.ts` +
+    `evaluation.service.ts`.
 
 The Chapa route must receive the raw body before the normal JSON parser
 so signature verification can operate on the raw request body.
@@ -292,7 +332,7 @@ The GitHub workflow-run webhook must update the matching submission/CI
 state and ignore events for commits with no submission, as specified in
 Doc 5.
 
-### 7.2.9 Backend Email Templates
+### 7.2.10 Backend Email Templates
 
 ``` text
 backend/src/emails/
@@ -518,7 +558,8 @@ asserted as mandatory.
 
 ``` text
 frontend/src/config/
-└── rubric.ts
+├── rubric.ts
+└── app.config.ts
 ```
 
 `rubric.ts` exposes the fixed four-category weights used by the UI:
@@ -529,6 +570,33 @@ frontend/src/config/
 -   problem-solving & communication --- 15%.
 
 The UI must not calculate a different rubric.
+
+`app.config.ts` holds frontend timing and app constants from Doc 6
+(polling intervals, timeouts, resend cooldown, etc.).
+
+### 7.3.12 Frontend Types, Lib Helpers and Schemas (Doc 10)
+
+``` text
+frontend/src/types/
+└── api.ts
+
+frontend/src/lib/
+├── query-keys.ts
+├── ticket-phase.ts
+├── subscription-view.ts
+├── navigation.ts
+├── format.ts
+└── github.ts
+
+frontend/src/schemas/
+├── auth.schemas.ts
+└── github.schemas.ts
+```
+
+These align with Doc 10's proposed shared frontend modules: API types,
+query-key factories, ticket-phase and subscription view helpers,
+navigation/format/github utilities, and Zod schemas for auth and GitHub
+forms.
 
 ------------------------------------------------------------------------
 
@@ -603,24 +671,25 @@ GITHUB_CALLBACK_URL
 GITHUB_TOKEN_ENCRYPTION_KEY
 GEMINI_API_KEY
 GROQ_API_KEY
-FRONTEND_URL
+CLIENT_URL
 ```
 
 Only add names that match the project's existing configuration
 convention. The docs establish the integrations and secrets
-conceptually, but do not define the final variable naming convention for
-every key.
+conceptually; the CORS/client origin key is `CLIENT_URL` (not
+`FRONTEND_URL`). `CHAPA_RETURN_URL` remains.
 
 ### 7.4.4 Starter Template Configuration
 
-The codebase contains the two V1 starter templates:
+The codebase contains the three V1 starter templates:
 
 ``` text
 React
 Node/Express
+Django
 ```
 
-Django is not added until the team explicitly confirms it.
+`StarterTemplate` enum values: `react`, `node_express`, `django`.
 
 ------------------------------------------------------------------------
 
@@ -658,7 +727,8 @@ This table is the implementation cross-check for Doc 5.
   EP-13             `subscription.routes.ts`   `subscription.controller.ts`   `chapa.service.ts` +
                                                                               `subscription.service.ts`
 
-  EP-14             `webhook.routes.ts`        `webhook.controller.ts`        `webhook.service.ts` +
+  EP-14             `webhook.routes.ts`        `webhooks/chapa.controller.ts` `subscription.service.ts`
+                                                                              (`processChapaWebhook`) +
                                                                               `chapa.service.ts`
 
   EP-15             `subscription.routes.ts`   `subscription.controller.ts`   `subscription.service.ts`
@@ -680,7 +750,7 @@ This table is the implementation cross-check for Doc 5.
   EP-22             `github.routes.ts`         `github.controller.ts`         `github.service.ts`
 
   EP-23             `ticket.routes.ts`         `ticket.controller.ts`         `ticket.service.ts` +
-                                                                              `ticket-generator.service.ts` +
+                                                                              `ticket-generation.service.ts` +
                                                                               `github.service.ts`
 
   EP-24             `ticket.routes.ts`         `ticket.controller.ts`         `ticket.service.ts`
@@ -702,8 +772,8 @@ This table is the implementation cross-check for Doc 5.
 
   EP-32             `submission.routes.ts`     `submission.controller.ts`     `submission.service.ts`
 
-  EP-33             `webhook.routes.ts`        `webhook.controller.ts`        `github-ci.service.ts` +
-                                                                              `evaluator.service.ts`
+  EP-33             `webhook.routes.ts`        `webhooks/github.controller.ts` `github-webhook.service.ts` +
+                                                                              `evaluation.service.ts`
 
   EP-34             `profile.routes.ts`        `profile.controller.ts`        `profile.service.ts`
   -------------------------------------------------------------------------------------------------------------
@@ -732,14 +802,17 @@ symmetrical.
   ----------------------------------- -----------------------------------
   `subscription.controller.ts`,       FR-15, FR-16, FR-18, FR-20, FR-21,
   `subscription.service.ts`,          FR-22
+  `subscription-renewal.service.ts`,  
   `chapa.service.ts`                  
 
   `payment.controller.ts`,            FR-23
   `PaymentHistory.tsx`,               
   `usePayments.ts`                    
 
-  `webhook.service.ts`,               FR-18, FR-19
-  `webhook.routes.ts`                 
+  `webhooks/chapa.controller.ts`,     FR-18, FR-19
+  `webhook.routes.ts`,                
+  `subscription.service.ts`           
+  (`processChapaWebhook`)             
 
   `SubscriptionCard.tsx`,             FR-15--FR-23
   `BillingPage.tsx`,                  
@@ -752,7 +825,7 @@ symmetrical.
   Files                               Requirements
   ----------------------------------- -----------------------------------
   `github.service.ts`,                FR-25--FR-29
-  `github.client.ts`, GitHub          
+  `github.ts`, GitHub                 
   pages/components/hooks              
 
   `github-token.ts`                   encrypted-at-rest GitHub credential
@@ -767,10 +840,10 @@ symmetrical.
   Files                               Requirements
   ----------------------------------- -----------------------------------
   `ticket.service.ts`,                FR-30--FR-36
-  `ticket-generator.service.ts`,      
+  `ticket-generation.service.ts`,     
   ticket routes/controllers           
 
-  ticket templates                    FR-31
+  ticket templates (incl. django/)    FR-31
 
   `TicketPage.tsx` and ticket         FR-32--FR-36
   components                          
@@ -781,7 +854,7 @@ symmetrical.
   -----------------------------------------------------------------------
   Files                               Requirements
   ----------------------------------- -----------------------------------
-  `mentor.service.ts`, Gemini client, FR-37--FR-41
+  `mentor.service.ts`, `gemini.ts`,   FR-37--FR-41
   mentor routes/controller            
 
   `MentorPanel.tsx`, mentor hooks     FR-37--FR-41
@@ -795,10 +868,10 @@ symmetrical.
   `submission.service.ts`, GitHub     FR-42
   client/service                      
 
-  `github-ci.service.ts`,             FR-43, FR-49
-  workflow-run webhook                
+  `github-webhook.service.ts`,        FR-43, FR-49
+  `webhooks/github.controller.ts`     
 
-  `evaluator.service.ts`, Groq client FR-44, FR-46, FR-47
+  `evaluation.service.ts`, `groq.ts`  FR-44, FR-46, FR-47
 
   `SubmissionCard.tsx`,               FR-36, FR-44--FR-49
   `EvaluationView.tsx`,               
@@ -826,7 +899,7 @@ symmetrical.
   FR-14         No V1 file
   FR-24         No V1 file
   FR-52         No V1 file
-  FR-53         No V1 file
+  ~~FR-53~~     No V1 file (Voxide → V2; doc 1 §1.5)
 
 ------------------------------------------------------------------------
 
@@ -861,9 +934,24 @@ frontend/src/
 │   ├── useSetupProgress.ts
 │   ├── useUnsavedChangesWarning.ts
 │   └── useDocumentTitle.ts
-└── lib/api/
-    ├── client.ts
-    └── errors.ts
+├── types/
+│   └── api.ts
+├── config/
+│   ├── rubric.ts
+│   └── app.config.ts
+├── schemas/
+│   ├── auth.schemas.ts
+│   └── github.schemas.ts
+└── lib/
+    ├── api/
+    │   ├── client.ts
+    │   └── errors.ts
+    ├── query-keys.ts
+    ├── ticket-phase.ts
+    ├── subscription-view.ts
+    ├── navigation.ts
+    ├── format.ts
+    └── github.ts
 ```
 
 These files collectively implement:
@@ -921,10 +1009,10 @@ contract it depends on exists.
 
 ### Phase 2 --- External clients
 
-7.  `backend/src/integrations/chapa/chapa.client.ts`
-8.  `backend/src/integrations/github/github.client.ts`
-9.  `backend/src/integrations/gemini/gemini.client.ts`
-10. `backend/src/integrations/groq/groq.client.ts`
+7.  `backend/src/integrations/chapa.ts`
+8.  `backend/src/integrations/github.ts`
+9.  `backend/src/integrations/gemini.ts`
+10. `backend/src/integrations/groq.ts`
 
 ### Phase 3 --- Pure/domain services
 
@@ -933,87 +1021,96 @@ contract it depends on exists.
 13. `email.service.ts`
 14. `user.service.ts`
 15. `subscription.service.ts`
-16. `chapa.service.ts`
-17. `github.service.ts`
-18. ticket template loader/index
-19. `ticket-generator.service.ts`
-20. `ticket.service.ts`
-21. `mentor.service.ts`
-22. `github-ci.service.ts`
-23. `evaluator.service.ts`
-24. `submission.service.ts`
-25. `profile.service.ts`
-26. `webhook.service.ts`
+16. `subscription-renewal.service.ts`
+17. `chapa.service.ts`
+18. `github.service.ts`
+19. ticket template loader/index (react, node-express, django)
+20. `ticket-generation.service.ts`
+21. `ticket.service.ts`
+22. `mentor.service.ts`
+23. `github-webhook.service.ts`
+24. `evaluation.service.ts`
+25. `submission.service.ts`
+26. `profile.service.ts`
 
-### Phase 4 --- Validation
+### Phase 4 --- Validation and serializers
 
 27. `user.validators.ts`
 28. `github.validators.ts`
 29. `ticket.validators.ts`
 30. `mentor.validators.ts`
 31. `submission.validators.ts`
+32. serializers (`user`, `subscription`, `payment`, `repo`, `ticket`, `submission`, `evaluation`, `mentor-message`)
 
 ### Phase 5 --- Controllers and routes
 
-32. `user.controller.ts`
-33. `subscription.controller.ts`
-34. `payment.controller.ts`
-35. `github.controller.ts`
-36. `ticket.controller.ts`
-37. `mentor.controller.ts`
-38. `submission.controller.ts`
-39. `profile.controller.ts`
-40. `webhook.controller.ts`
-41. route registrations
+33. `user.controller.ts`
+34. `subscription.controller.ts`
+35. `payment.controller.ts`
+36. `github.controller.ts`
+37. `ticket.controller.ts`
+38. `mentor.controller.ts`
+39. `submission.controller.ts`
+40. `profile.controller.ts`
+41. `webhooks/chapa.controller.ts`
+42. `webhooks/github.controller.ts`
+43. route registrations
 
 ### Phase 6 --- Frontend API foundation
 
-42. `frontend/src/lib/api/client.ts`
-43. `frontend/src/lib/api/errors.ts`
-44. auth hooks
-45. billing hooks
-46. GitHub hooks
-47. ticket hooks
-48. mentor hooks
-49. submission hooks
-50. profile hooks
-51. cross-cutting hooks
+44. `frontend/src/types/api.ts`
+45. `frontend/src/lib/api/client.ts`
+46. `frontend/src/lib/api/errors.ts`
+47. `frontend/src/lib/query-keys.ts`
+48. `frontend/src/config/app.config.ts` (+ `rubric.ts`)
+49. `frontend/src/schemas/auth.schemas.ts`
+50. `frontend/src/schemas/github.schemas.ts`
+51. `frontend/src/lib/ticket-phase.ts`, `subscription-view.ts`, `navigation.ts`, `format.ts`, `github.ts`
+52. auth hooks
+53. billing hooks
+54. GitHub hooks
+55. ticket hooks
+56. mentor hooks
+57. submission hooks
+58. profile hooks
+59. cross-cutting hooks
 
 ### Phase 7 --- Shared frontend structure
 
-52. `AuthLayout.tsx`
-53. `AppLayout.tsx`
-54. `FullPageLoader.tsx`
-55. `EmailVerificationBanner.tsx`
-56. `SubscriptionBanner.tsx`
-57. route wrappers
-58. common components
-59. billing components
-60. GitHub components
-61. dashboard components
-62. ticket components
-63. profile components
+60. `AuthLayout.tsx`
+61. `AppLayout.tsx`
+62. `FullPageLoader.tsx`
+63. `EmailVerificationBanner.tsx`
+64. `SubscriptionBanner.tsx`
+65. route wrappers
+66. common components
+67. billing components
+68. GitHub components
+69. dashboard components
+70. ticket components
+71. profile components
 
 ### Phase 8 --- Pages
 
-64. authentication pages
-65. billing pages
-66. GitHub setup page
-67. dashboard
-68. ticket page
-69. profile
-70. settings
-71. not-found page
+72. authentication pages
+73. billing pages
+74. GitHub setup page
+75. dashboard
+76. ticket page
+77. profile
+78. settings
+79. not-found page
 
 ### Phase 9 --- Integration wiring
 
-72. route registration and App entry wiring
-73. Chapa return URL wiring
-74. GitHub OAuth callback wiring
-75. Chapa webhook raw-body wiring
-76. GitHub `workflow_run` webhook wiring
-77. frontend polling and cache invalidation
-78. error/status mapping verification
+80. route registration and App entry wiring
+81. Chapa return URL wiring
+82. GitHub OAuth callback wiring
+83. Chapa webhook raw-body wiring
+84. GitHub `workflow_run` webhook wiring
+85. subscription-renewal job wiring
+86. frontend polling and cache invalidation
+87. error/status mapping verification
 
 ### Phase 10 --- Final structural verification
 
@@ -1023,8 +1120,11 @@ Before implementation PRs are merged:
     explicitly marked existing;
 -   every PG-01--PG-13 has a file;
 -   every frontend hook listed in Doc 6 exists;
+-   Doc 10's shared frontend modules (types, config, lib helpers, schemas)
+    exist;
 -   every new DB entity in Doc 4 exists in Prisma;
--   no Voxide/Django/deferred V1 files appear;
+-   no Voxide or deferred V1 files appear (Django starter/templates **are**
+    in V1);
 -   no endpoint introduces a second auth/token mechanism;
 -   no client-side payment confirmation bypasses the Chapa webhook;
 -   no submission path creates a third attempt;
@@ -1032,7 +1132,7 @@ Before implementation PRs are merged:
 -   no frontend path offers diff-paste instead of the required GitHub
     PR/diff;
 -   no new file silently introduces a requirement not present in docs 2,
-    4, 5 or 6.
+    4, 5, 6 or 8/10.
 
 ------------------------------------------------------------------------
 
@@ -1067,13 +1167,19 @@ Before implementation PRs are merged:
 
   Domain components listed in 6.3     New project components
 
-  Ticket templates                    New team-authored code artifacts;
+  Ticket templates                    New team-authored code artifacts
+                                      (react/, node-express/, django/);
                                       exact filenames TBD by actual
                                       template set
 
-  Voxide                              No file
+  Serializers (7.2.6)                 New; one per doc 5 §5.3.0 shape
 
-  Django                              No file
+  Doc 10 frontend shared modules      New (`types/api.ts`, `app.config.ts`,
+                                      lib helpers, auth/github schemas)
+
+  Voxide                              No V1 file (V2; doc 1 §1.5)
+
+  Django starter/templates            In V1
 
   V2/V3 features                      No V1 files
   -----------------------------------------------------------------------
@@ -1119,4 +1225,6 @@ each form a continuous sequence across the whole series. Never renumber
 once used. If an item is dropped, mark it `~~ID~~ (deprecated, see ID)`
 instead.*
 
-Next: proceed to → \[8. Function-Level Spec\]
+Next: proceed to → [8. Function-Level Spec — Backend](./work-simulator-function-level-spec-backend.md)
+
+*(Frontend function-level spec is doc 10; frontend test plan is doc 11.)*

@@ -1,16 +1,16 @@
-# 8. Function-Level Specification — Frontend
+# 10. Function-Level Specification — Frontend
 
-Project: Work Simulator · Links back to: [8. Function-Level Specification — Backend](./work-simulator-function-level-spec-backend.md)
+Project: Work Simulator · Links back to: [8. Function-Level Specification — Backend](./work-simulator-function-level-spec-backend.md) · Links forward to: [11. Test Plan & Test Files — Frontend](./work-simulator-test-plan-frontend.md)
 
 This is the frontend implementation-level specification for Work Simulator V1. It is written against Docs 2, 5, 6 and the frontend portions of Doc 7, and it mirrors the structure of the backend function-level spec. Doc 6 defines what each page looks like and says; this document defines the functions, hooks, components and helpers that make it behave that way.
 
 The implementation AI must use this document together with [5. API Specification], [6. Frontend — UI, Pages & Components], [7. Folder & File Structure], and the real existing frontend template/code. Where the template's real code contradicts a statement here, stop and record it as an assumption or open question instead of silently choosing (Doc 7, rule 2).
 
 **How to read this document**
-- Section numbers restart in this file (A-55). Sections of the backend spec are cited as "backend 8.x".
-- Types are named, not written inline as unions inside tables. The named types are defined once in 8.3 (`SubmissionAttempt` is `1` or `2`, and so on).
+- Section numbers in this file are numbered 10.x (Doc 10, renumbered per D-20). Sections of the backend spec are cited as "backend 8.x" (Doc 8).
+- Types are named, not written inline as unions inside tables. The named types are defined once in 10.3 (`SubmissionAttempt` is `1` or `2`, and so on).
 - Every function has a `Test file`. Paths mirror the source path under `frontend/tests/` (A-58).
-- "Doc 7" means the file is already listed in Doc 7 section 7.3. "Proposed addition" means Doc 7 does not list it (see 8.2).
+- "Doc 7" means the file is listed in Doc 7 section 7.3 (including the 10 frontend helper files added per D-27; see 10.2).
 
 **Important source-of-truth rules**
 
@@ -21,20 +21,20 @@ The implementation AI must use this document together with [5. API Specification
 - Do not let the client choose the submission attempt or the mentor hint level. EP-30 sends no body. The attempt used for EP-31 and EP-32 comes from the submission data on screen, never from user input.
 - Do not show a score for attempt 1. Do not offer a third submission. Do not introduce a `scored` ticket status. Do not offer a paste-a-diff fallback.
 - Rubric weights come only from `frontend/src/config/rubric.ts`. The UI never calculates a total. It shows `scores.total` as the API returned it.
-- Do not add Django or Voxide UI, and do not add any V2/V3 UI (no public profile links, search, uploads, admin, MFA, localization).
+- Do not add Voxide UI (deferred to V2 per D-05/D-07), and do not add any V2/V3 UI (no public profile links, search, uploads, admin, MFA, localization). Django starter template is supported in V1 alongside React and Node/Express per D-05.
 - Do not invent behavior for open questions. Each stays isolated in one constant or one branch:
   - `Q-14` (price display), `Q-15` (what a `past_due` user can do), `Q-16` (OAuth `access_denied`), `Q-17` (Markdown), `Q-18` (support contact) — from Doc 6.
-  - `Q-04` (verification gating), `Q-08` (permission wording), `Q-10` (mentor limit and length), `Q-11` (sessions after a password change), `Q-12` (cookie `SameSite`/CSRF), `Q-13` (submission timeouts) — from Docs 4 and 5.
+  - `Q-04` (resolved by D-01: unverified users get 403 on checkout EP-13; dashboard/tickets accessible), `Q-08` (permission wording), `Q-10a/b` (mentor limit and length; Q-10c resolved by D-04: mentor allowed in `in_progress` and `submitted_v1` revision phase), `Q-11` (resolved by D-12: resetPassword revokes sessions), `Q-12` (cookie `SameSite`/CSRF), `Q-13` (submission timeouts) — from Docs 4 and 5.
 - Every ownership failure shows the same "not found" state. The UI never hints that another user's resource exists.
 - Frontend validation is a convenience. The server stays authoritative, and every server error must still be shown.
-- Mutations never retry automatically. The single exception is the replay of one request that the server rejected with 401 before processing it, after a successful session refresh (8.4).
+- Mutations never retry automatically. The single exception is the replay of one request that the server rejected with 401 before processing it, after a successful session refresh (10.4).
 - API text (mentor replies, feedback, `failureReason`, diffs) is data. It is rendered as text, never as HTML.
 
 ---
 
-## 8.1 Frontend Function Map
+## 10.1 Frontend Function Map
 
-The specification is grouped by implementation responsibility, in the order files should be built (8.29).
+The specification is grouped by implementation responsibility, in the order files should be built (10.29).
 
 | Area | Main files | High-scrutiny functions |
 |---|---|---|
@@ -54,11 +54,11 @@ The specification is grouped by implementation responsibility, in the order file
 
 ---
 
-# 8.2 Files This Spec Needs That Doc 7 Does Not List
+# 10.2 Files This Spec Needs That Doc 7 Does Not List
 
-Doc 7 lists every page, component and hook, but no home for shared types, Zod schemas, the timing constants that Doc 6 (A-42) requires "in one config file", or the pure helpers below. Putting that logic inside components would duplicate it across pages and make it untestable. These files are **proposed additions** and need a Doc 7 amendment (8.33). No product behavior is added by them.
+Doc 7 originally listed pages, components and hooks, but omitted shared types, Zod schemas, timing constants, and pure helpers. Per D-27, these ten files are formalized in Doc 7 section 7.3. No product behavior is added by them.
 
-| Proposed file | Holds | Needed by |
+| File | Holds | Needed by |
 |---|---|---|
 | `frontend/src/types/api.ts` | TypeScript types for the Doc 5 shared objects and envelope | every hook and component |
 | `frontend/src/config/app.config.ts` | polling, timeout, cooldown and cache constants; the mentor length constant | client, hooks, pages |
@@ -71,13 +71,13 @@ Doc 7 lists every page, component and hook, but no home for shared types, Zod sc
 | `frontend/src/schemas/auth.schemas.ts` | Zod schemas for register, login, forgot, reset, change-password, profile, resend | auth pages, SettingsPage |
 | `frontend/src/schemas/github.schemas.ts` | Zod schema for the repo form | RepoCreateForm |
 
-The route table, the `QueryClient` defaults and the session-expiry wiring live in the template's existing App/router entry files. Doc 7 does not name them (Doc 7 phase 9, items 72 and 77), so they are specified as behavior in 8.23, not as new files.
+The route table, the `QueryClient` defaults and the session-expiry wiring live in the template's existing App/router entry files. Doc 7 does not name them (Doc 7 phase 9, items 72 and 77), so they are specified as behavior in 10.23, not as new files.
 
 ---
 
-# 8.3 Shared Types and Constants
+# 10.3 Shared Types and Constants
 
-## 8.3.1 `frontend/src/types/api.ts` (proposed addition)
+## 10.3.1 `frontend/src/types/api.ts` (Doc 7, D-27)
 
 These mirror Doc 5 section 5.3.0 exactly. Types are compile-time only; the client checks the envelope at run time and nothing more (A-59).
 
@@ -105,7 +105,7 @@ export interface Payment {
   paidAt: ISODateString | null; createdAt: ISODateString;
 }
 
-export type StarterTemplate = 'react' | 'node_express';
+export type StarterTemplate = 'react' | 'node_express' | 'django';
 export interface Repo { fullName: string; starterTemplate: StarterTemplate; defaultBranch: string }
 export interface GitHubConnectionSummary { connected: boolean; githubLogin: string | null; repo: Repo | null }
 
@@ -142,7 +142,7 @@ export interface ProfileItem {
 export type LoginNotice = 'session_expired' | 'password_reset' | 'logged_out_all';
 ```
 
-## 8.3.2 `frontend/src/config/app.config.ts` (proposed addition)
+## 10.3.2 `frontend/src/config/app.config.ts` (Doc 7, D-27)
 
 Every value here is a constant, not a product decision. Values marked "Doc 6" come from Doc 6 A-42 and are tunable after testing. Values marked "pending" have no answer yet and must not be replaced with a made-up number.
 
@@ -164,7 +164,7 @@ Every value here is a constant, not a product decision. Values marked "Doc 6" co
 | `COPY_FEEDBACK_MS` | `2000` (how long "Copied" is announced) | A-74 |
 | `MENTOR_MESSAGE_MAX_CHARS` | `null` (typed as a number or `null`) | pending, Q-10b. `null` hides the counter |
 
-## 8.3.3 `frontend/src/config/rubric.ts` (Doc 7)
+## 10.3.3 `frontend/src/config/rubric.ts` (Doc 7)
 
 | Field | Detail |
 |---|---|
@@ -175,7 +175,7 @@ Every value here is a constant, not a product decision. Values marked "Doc 6" co
 | Edge cases | Adding or reweighting a category is a change to Doc 2 first, never a code change here. |
 | Test file | `frontend/tests/config/rubric.test.ts` |
 
-## 8.3.4 `frontend/src/lib/query-keys.ts` (proposed addition)
+## 10.3.4 `frontend/src/lib/query-keys.ts` (Doc 7, D-27)
 
 | Field | Detail |
 |---|---|
@@ -188,7 +188,7 @@ Every value here is a constant, not a product decision. Values marked "Doc 6" co
 
 ---
 
-# 8.4 API Foundation
+# 10.4 API Foundation
 
 Files: `frontend/src/lib/api/client.ts` and `frontend/src/lib/api/errors.ts` (Doc 7). These are the only files that talk HTTP. Hooks and pages never call `fetch` directly.
 
@@ -319,7 +319,7 @@ export interface ApiClientConfig { baseUrl: string; onSessionExpired: () => void
 | Signature | `handleGlobalApiError(error: unknown, queryClient: QueryClient): void` |
 | Purpose | Keep cached access state honest when any call is refused. |
 | Side effects | For `ApiError` status 402: `invalidateQueries(queryKeys.subscription)`. For status 403: `invalidateQueries(queryKeys.githubConnection)`. Nothing else. |
-| Rules | Never shows UI, never navigates. Pages show the message through `mapApiError`. Registered on the `QueryClient`'s query and mutation `onError` (8.23). |
+| Rules | Never shows UI, never navigates. Pages show the message through `mapApiError`. Registered on the `QueryClient`'s query and mutation `onError` (10.23). |
 | Edge cases | Invalidating must never trigger a request that itself returns 402 or 403 (EP-15 and EP-20 do not), so there is no loop. |
 | Test file | `frontend/tests/lib/api/errors.test.ts` |
 
@@ -334,11 +334,11 @@ export interface ApiClientConfig { baseUrl: string; onSessionExpired: () => void
 
 ---
 
-# 8.5 Pure Helpers and Schemas
+# 10.5 Pure Helpers and Schemas
 
 These have no React, router or network code. They are the most testable part of the frontend and carry the rules that are easiest to get subtly wrong.
 
-## getTicketPhase — `frontend/src/lib/ticket-phase.ts` (proposed addition)
+## getTicketPhase — `frontend/src/lib/ticket-phase.ts` (Doc 7, D-27)
 
 ```ts
 export type TicketPhaseKey =
@@ -362,7 +362,7 @@ export interface TicketPhaseInfo {
 | Purpose | Decide everything the ticket workspace shows and allows, from `ticket.status` plus the latest submission's `status`. This encodes the Doc 6 PG-10 phase table. |
 | Inputs | The ticket and its 0–2 submission summaries from EP-25 (any order). |
 | Output | `TicketPhaseInfo` as in the table below. The same file exports `TICKET_PHASE_LABELS`, a record from every `TicketPhaseKey` to its label in that table, which `StatusBadge` uses. |
-| Rules | "Latest submission" is the one with the highest `attempt`. Only the ticket's own `status` selects the row family; the submission `status` only refines it. `isProcessing` is `true` when the latest submission is `awaiting_ci` or `evaluating`. The composer stays disabled in every phase after `in_progress` because EP-28 rejects messages then (Q-10c). If Q-10c is reversed, only the `mentor` column changes. |
+| Rules | "Latest submission" is the one with the highest `attempt`. Only the ticket's own `status` selects the row family; the submission `status` only refines it. `isProcessing` is `true` when the latest submission is `awaiting_ci` or `evaluating`. Per D-04 (resolving Q-10c), the mentor is available during `in_progress` and `submitted_v1` (specifically `feedback_ready`, where the user revises code based on attempt 1 feedback before resubmitting). In `resubmitted`, `done`, `abandoned`, or `assigned`, the mentor is disabled. |
 | Edge cases | `submitted_v1` or `resubmitted` with the expected submission missing from the list: return the matching `*_processing` phase (the ticket query is refetching) and never throw. An unknown `status` string at run time: return `in_progress`-safe defaults with `primaryAction: null`, `canAbandon: false`, `mentor: 'read_only'`. The `final_review_finalizing` phase exists because attempt 2 can be `completed` a moment before the ticket reads `done` (PG-10 state list, A-70). |
 | Test file | `frontend/tests/lib/ticket-phase.test.ts` |
 
@@ -371,7 +371,7 @@ export interface TicketPhaseInfo {
 | `assigned` | none | `ready_to_start` | Ready to start | `start` | none | `not_started` | true | `ticket` |
 | `in_progress` | none | `in_progress` | In progress | `submit` | none | `enabled` | true | `ticket` |
 | `submitted_v1` | #1 `awaiting_ci`, `evaluating`, or missing | `first_review_processing` | First review in progress | none | none | `unavailable_after_submit` | false | `submissions` |
-| `submitted_v1` | #1 `completed` | `feedback_ready` | Feedback ready | `resubmit` | none | `unavailable_after_submit` | false | `submissions` |
+| `submitted_v1` | #1 `completed` | `feedback_ready` | Feedback ready | `resubmit` | none | `enabled` | false | `submissions` |
 | `submitted_v1` | #1 `failed` | `first_review_failed` | Review failed | `retry` | 1 | `unavailable_after_submit` | false | `submissions` |
 | `resubmitted` | #2 `awaiting_ci`, `evaluating`, or missing | `final_review_processing` | Final review in progress | none | none | `unavailable_after_submit` | false | `submissions` |
 | `resubmitted` | #2 `failed` | `final_review_failed` | Final review failed | `retry` | 2 | `unavailable_after_submit` | false | `submissions` |
@@ -389,7 +389,7 @@ export interface TicketPhaseInfo {
 | Rules | Never used on `TicketPage`, which uses `getTicketPhase` (A-69). |
 | Test file | `frontend/tests/lib/ticket-phase.test.ts` |
 
-## getSubscriptionView — `frontend/src/lib/subscription-view.ts` (proposed addition)
+## getSubscriptionView — `frontend/src/lib/subscription-view.ts` (Doc 7, D-27)
 
 ```ts
 export type SubscriptionViewKind =
@@ -421,7 +421,7 @@ export interface SubscriptionView {
 | `canceled` | true | `canceled_access` | none |
 | `canceled` | false | `ended` | `subscribe` |
 
-## getSafeRedirectPath and buildLoginRedirect — `frontend/src/lib/navigation.ts` (proposed addition)
+## getSafeRedirectPath and buildLoginRedirect — `frontend/src/lib/navigation.ts` (Doc 7, D-27)
 
 | Field | Detail |
 |---|---|
@@ -431,7 +431,7 @@ export interface SubscriptionView {
 | Edge cases | `null`, empty string, `//host`, `/\host`, `https://host`, `javascript:…`, `/login`, an encoded newline, a very long string. |
 | Test file | `frontend/tests/lib/navigation.test.ts` |
 
-## Formatters — `frontend/src/lib/format.ts` (proposed addition)
+## Formatters — `frontend/src/lib/format.ts` (Doc 7, D-27)
 
 | Field | Detail |
 |---|---|
@@ -441,7 +441,7 @@ export interface SubscriptionView {
 | Rules | An invalid or missing date returns "—", never "Invalid Date". `formatAmount` never parses the string as a float. |
 | Test file | `frontend/tests/lib/format.test.ts` |
 
-## GitHub helpers — `frontend/src/lib/github.ts` (proposed addition)
+## GitHub helpers — `frontend/src/lib/github.ts` (Doc 7, D-27)
 
 ```ts
 export type GitHubOAuthResult = { status: 'connected' } | { status: 'error'; reason: string | null };
@@ -449,16 +449,16 @@ export type GitHubOAuthResult = { status: 'connected' } | { status: 'error'; rea
 
 | Field | Detail |
 |---|---|
-| Signature | `buildRepoUrl(fullName: string): string \| null`, `buildBranchUrl(fullName: string, branchName: string): string \| null`, `parseGitHubOAuthResult(params: URLSearchParams): GitHubOAuthResult \| null`, `getGitHubOAuthErrorMessage(reason: string \| null): string` |
-| Purpose | Build GitHub links and read the EP-19 landing parameters. |
-| Output | `buildRepoUrl` → `https://github.com/{owner}/{name}`. `buildBranchUrl` → `…/tree/{branch}` with each `/`-separated branch segment URL-encoded. `parseGitHubOAuthResult`: `github=connected` gives `{ status: 'connected' }`; `github=error` gives `{ status: 'error', reason }` where `reason` is the `reason` parameter or `null`; anything else gives `null`. `getGitHubOAuthErrorMessage` returns the Doc 6 PG-09 text for `state_invalid`, `scope_invalid`, `exchange_failed`, and "GitHub connection failed. Try again." for any other value including `null`. |
-| Rules | The host is fixed to `github.com` (A-44). `fullName` must match `^[^/\s]+/[^/\s]+$`, otherwise both builders return `null` and callers show plain text. An unknown `reason` must never be echoed into the page. |
-| Edge cases | Branch names with slashes, `?` or `#`; `github` parameter missing; `reason` present without `github=error` (ignored, returns `null`). `access_denied` is not a known reason (Q-16), so it gets the generic message. |
+| Signature | `buildRepoUrl(fullName: string): string \| null`, `buildBranchUrl(fullName: string, branch: string): string \| null`, `parseGitHubOAuthResult(searchParams: URLSearchParams): GitHubOAuthResult \| null`, `getGitHubOAuthErrorMessage(reason: string \| null): string` |
+| Purpose | Safe GitHub URLs and OAuth callback parsing (Doc 6, PG-09). |
+| Output | `buildRepoUrl`: `'https://github.com/' + encodeURIComponent(owner) + '/' + encodeURIComponent(name)` only when `fullName` matches `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`; otherwise `null`. `buildBranchUrl`: adds `'/tree/' + encodeURIComponent(branch)`. `parseGitHubOAuthResult`: reads `searchParams.get('github')`; `'connected'` → `{ status: 'connected' }`; `'error'` → `{ status: 'error', reason: searchParams.get('reason') }`; any other value → `null`. `getGitHubOAuthErrorMessage`: `state_invalid` → "Authentication session expired. Try connecting again."; `scope_invalid` → "Work Simulator needs repository permission to work on tickets. Try connecting again."; `exchange_failed` → "Couldn't connect to GitHub. Try again."; any other value (including null) → "Couldn't connect to GitHub. Try again." |
+| Rules | Link builders never return a non-GitHub URL, never return `javascript:`, and return `null` on untrusted input so callers render plain text instead of an anchor. `getGitHubOAuthErrorMessage` never echoes the raw reason string. |
+| Edge cases | `fullName` containing `..`, spaces, encoded characters, or more than one slash. |
 | Test file | `frontend/tests/lib/github.test.ts` |
 
-## Form schemas — `frontend/src/schemas/auth.schemas.ts` and `github.schemas.ts` (proposed additions)
+## Schemas — `frontend/src/schemas/auth.schemas.ts` and `github.schemas.ts` (Doc 7, D-27)
 
-Each schema mirrors Doc 5's request rules and is used with react-hook-form's Zod resolver. The exported input types are `z.infer` of the schema. Message text not given in Docs 2 or 5 is chosen here (A-74).
+One place for every validation rule. Every message is exported so tests assert the exact copy.
 
 | Schema | Fields and rules | Messages |
 |---|---|---|
@@ -468,7 +468,7 @@ Each schema mirrors Doc 5's request rules and is used with react-hook-form's Zod
 | `resetPasswordSchema` | `newPassword`: min 8. The token is not a form field. | as above |
 | `changePasswordSchema` | `currentPassword`: required. `newPassword`: min 8. No "must differ" rule (not in Doc 5). | "Current password is required" |
 | `updateProfileSchema` | `name`: trimmed, min 2. | as above |
-| `createRepoSchema` | `starterTemplate`: required, must be `react` or `node_express`. `repoName`: trimmed, must match `REPO_NAME_PATTERN` and must not be `.` or `..`; an empty value becomes "omitted" so the server default applies (A-45). | "Choose a starter template"; "Use letters, numbers, ".", "-" and "_" only, up to 100 characters" |
+| `createRepoSchema` | `starterTemplate`: required, must be `react`, `node_express`, or `django` (D-05). `repoName`: trimmed, must match `REPO_NAME_PATTERN` and must not be `.` or `..`; an empty value becomes "omitted" so the server default applies (A-45). | "Choose a starter template"; "Use letters, numbers, ".", "-" and "_" only, up to 100 characters" |
 
 `REPO_NAME_PATTERN` is `^[A-Za-z0-9._-]{1,100}$` and is exported from `github.schemas.ts`. `PASSWORD_MIN_LENGTH` (8) is exported from `auth.schemas.ts`.
 
@@ -476,12 +476,12 @@ Each schema mirrors Doc 5's request rules and is used with react-hook-form's Zod
 
 ---
 
-# 8.6 Auth Hooks
+# 10.6 Auth Hooks
 
 Files: `frontend/src/hooks/auth/*.ts` (Doc 7).
 
-**Rules for every hook in 8.6 – 8.12**
-- Cache keys come only from `queryKeys` (8.3.4). HTTP calls come only from `apiRequest` (8.4).
+**Rules for every hook in 10.6 – 10.12**
+- Cache keys come only from `queryKeys` (10.3.4). HTTP calls come only from `apiRequest` (10.4).
 - Queries set `retry` to `shouldRetryQuery`. Mutations set `retry: false`.
 - Hooks return TanStack Query results typed with `ApiError` as the error type. They return the unwrapped domain value (for example `data.user`), not the envelope, unless the server `message` is needed.
 - Hooks never show toasts or copy. Hooks never navigate, **except** `useLogout` and `useLogoutAll`, where navigation order matters.
@@ -497,7 +497,7 @@ Files: `frontend/src/hooks/auth/*.ts` (Doc 7).
 | Output | `User` (unwraps `data.user`). |
 | Side effects | Cache key `queryKeys.me`, `staleTime: ME_STALE_TIME_MS` (A-65), `retry: shouldRetryQuery`. |
 | Rules | A 401 from this query (after the client's refresh attempt failed) is the normal "not logged in" state. Consumers read `error?.status === 401`. Never treat the user as logged in while the query is pending. Never treat a network or timeout error (status 0) as logged out. |
-| Edge cases | Valid refresh cookie but expired access cookie (the client refreshes and replays, so this succeeds). Cold start with no cookies (401, no "session expired" notice, see 8.23). Data from a previous user must not survive a logout (the cache is cleared there). |
+| Edge cases | Valid refresh cookie but expired access cookie (the client refreshes and replays, so this succeeds). Cold start with no cookies (401, no "session expired" notice, see 10.23). Data from a previous user must not survive a logout (the cache is cleared there). |
 | Test file | `frontend/tests/hooks/auth/useMe.test.tsx` |
 
 ## useLogin — `frontend/src/hooks/auth/useLogin.ts`
@@ -522,7 +522,7 @@ Files: `frontend/src/hooks/auth/*.ts` (Doc 7).
 | Purpose | End this device's session. |
 | Side effects | On success: navigate to `/login` with `replace`, **then** `queryClient.clear()`. |
 | Rules | A 401 response means there is already no session, so the hook treats it as success. Any other failure leaves the user logged in, leaves the cache untouched, and surfaces the error so the caller can show "Couldn't log out. Try again." The navigate-then-clear order stops `RequireAuth` from adding a `from` parameter to the login URL. |
-| Edge cases | Network failure (still logged in, not cleared). Access token expired at click time (the client refreshes first, then logs out). Called while a form is dirty (the unsaved-changes blocker applies, 8.13). |
+| Edge cases | Network failure (still logged in, not cleared). Access token expired at click time (the client refreshes first, then logs out). Called while a form is dirty (the unsaved-changes blocker applies, 10.13). |
 | Test file | `frontend/tests/hooks/auth/useLogout.test.tsx` |
 
 ## useVerifyEmail — `frontend/src/hooks/auth/useVerifyEmail.ts`
@@ -533,8 +533,8 @@ Files: `frontend/src/hooks/auth/*.ts` (Doc 7).
 | Endpoint | EP-06 `POST /auth/verify-email` with body `{ token }` |
 | Purpose | Consume the emailed verification token. |
 | Side effects | On success, if `queryKeys.me` is already cached, set its `emailVerifiedAt`. Never create a cache entry that did not exist. |
-| Rules | The hook does not deduplicate calls. The page guarantees one call per page load (8.22, PG-05). |
-| Edge cases | 400 invalid, 410 expired or used (both left to the page). A second call after success returns 410 "already used". |
+| Rules | The hook does not deduplicate calls. The page guarantees one call per page load (10.22, PG-05). |
+| Edge cases | 400 invalid format; 410 strictly for expired unused tokens. An already-used token for an already-verified user returns 200 soft success with `{ emailVerifiedAt }` (D-11), preventing broken UI on email-client prefetch or page refresh. |
 | Test file | `frontend/tests/hooks/auth/useVerifyEmail.test.tsx` |
 
 ## useResendVerification — `frontend/src/hooks/auth/useResendVerification.ts`
@@ -566,9 +566,9 @@ Each follows the shared rules above. None has cache effects unless stated.
 
 | Hook | Signature | Endpoint | On success | Notes |
 |---|---|---|---|---|
-| `useRegister` | `UseMutationResult<RegisterResult, ApiError, RegisterInput>`, where `RegisterResult` is `{ id: string; name: string; email: string }` | EP-01 `POST /auth/register` | none | Does not log the user in. Body is exactly `{ name, email, password }`. |
+| `useRegister` | `UseMutationResult<User, ApiError, RegisterInput>` | EP-01 `POST /auth/register` | `setQueryData(queryKeys.me, user)` | Logs the user in immediately; EP-01 sets session cookies on 201 (D-10). Body is exactly `{ name, email, password }`. Unverified banner is shown post-registration. |
 | `useForgotPassword` | `UseMutationResult<{ message: string }, ApiError, { email: string }>` | EP-08 `POST /auth/forgot-password` | none | Returns the server `message` unchanged (identical for every email). |
-| `useResetPassword` | `UseMutationResult<void, ApiError, { token: string; newPassword: string }>` | EP-09 `POST /auth/reset-password` | none | Session revocation after reset is Q-11; nothing here depends on it. |
+| `useResetPassword` | `UseMutationResult<void, ApiError, { token: string; newPassword: string }>` | EP-09 `POST /auth/reset-password` | none | Session revocation after reset is handled server-side per D-12 (all refresh tokens revoked). |
 | `useChangePassword` | `UseMutationResult<void, ApiError, { currentPassword: string; newPassword: string }>` | EP-10 `POST /auth/change-password` | none | The wrong-password case is a 400 (not 401), so it never triggers the session flow. |
 | `useUpdateProfile` | `UseMutationResult<User, ApiError, { name: string }>` | EP-12 `PATCH /users/me` | `setQueryData(queryKeys.me, user)` | Only the name is sent. |
 | `useLogoutAll` | `UseMutationResult<void, ApiError, void>` | EP-05 `POST /auth/logout-all` | Same as `useLogout`, but navigates with router state `{ notice: 'logged_out_all' }` | A 401 counts as success, as in `useLogout`. |
@@ -577,7 +577,7 @@ Each follows the shared rules above. None has cache effects unless stated.
 
 ---
 
-# 8.7 Billing Hooks
+# 10.7 Billing Hooks
 
 Files: `frontend/src/hooks/billing/*.ts` (Doc 7).
 
@@ -590,7 +590,7 @@ Files: `frontend/src/hooks/billing/*.ts` (Doc 7).
 | Purpose | Subscription status and `hasAccess`. Also what the checkout return page polls. |
 | Output | The full `{ subscription, hasAccess }` response. |
 | Side effects | Cache key `queryKeys.subscription`. `refetchOnWindowFocus: true`. `refetchInterval` is `options.refetchIntervalMs` or `false`. |
-| Rules | `hasAccess` is used exactly as the server sent it. The client never recomputes it from `currentPeriodEnd`, because the user's clock is not trusted. The hook does not implement polling limits; `CheckoutReturnPage` owns them (8.22, PG-08). |
+| Rules | `hasAccess` is used exactly as the server sent it. The client never recomputes it from `currentPeriodEnd`, because the user's clock is not trusted. The hook does not implement polling limits; `CheckoutReturnPage` owns them (10.22, PG-08). |
 | Edge cases | Never-subscribed user (`subscription: null`). Background refetch failing (keep showing the last data). |
 | Test file | `frontend/tests/hooks/billing/useSubscription.test.tsx` |
 
@@ -631,7 +631,7 @@ Files: `frontend/src/hooks/billing/*.ts` (Doc 7).
 
 ---
 
-# 8.8 GitHub Hooks
+# 10.8 GitHub Hooks
 
 Files: `frontend/src/hooks/github/*.ts` (Doc 7).
 
@@ -676,13 +676,13 @@ Files: `frontend/src/hooks/github/*.ts` (Doc 7).
 | Purpose | Create the user's one starter repository. |
 | Output | `Repo` (unwraps `data.repo`). |
 | Side effects | `onSuccess` invalidates `queryKeys.githubConnection`. `onError` with status 403 or 409, or a timeout, invalidates it too. |
-| Rules | `repoName` is omitted from the body when empty so the server default applies (A-24 of Doc 5). `starterTemplate` can only be `react` or `node_express`; Django cannot be sent. Does not navigate. |
+| Rules | `repoName` is omitted from the body when empty so the server default applies (A-24 of Doc 5). `starterTemplate` can be `react`, `node_express`, or `django` (D-05). Does not navigate. |
 | Edge cases | 409 name collision and 409 "already have a repo" (the refetch shows which). 403 with the connection row now deleted. Timeout after GitHub created the repo (the refetch shows the repo). |
 | Test file | `frontend/tests/hooks/github/useCreateRepo.test.tsx` |
 
 ---
 
-# 8.9 Ticket Hooks
+# 10.9 Ticket Hooks
 
 Files: `frontend/src/hooks/tickets/*.ts` (Doc 7).
 
@@ -718,7 +718,7 @@ Files: `frontend/src/hooks/tickets/*.ts` (Doc 7).
 | Output | `Ticket` (unwraps `data.ticket`). |
 | Side effects | `onSuccess`: `setQueryData(queryKeys.ticket(id), { ticket, submissions: [] })` and `setQueryData(queryKeys.currentTicket, ticket)`. `onError` with status 409 or a timeout: invalidate `queryKeys.currentTicket` and `queryKeys.githubConnection`. |
 | Rules | Never sends a template choice (the server chooses, Q-09). Does not navigate; the caller navigates to `/tickets/:id`. |
-| Edge cases | 409 "already have an active ticket" versus 409 "no repo" (the caller tells them apart from the refetched data, not from message text, see 8.22 PG-06). Timeout after the ticket was created (the refetch shows it). |
+| Edge cases | 409 "already have an active ticket" versus 409 "no repo" (the caller tells them apart from the refetched data, not from message text, see 10.22 PG-06). Timeout after the ticket was created (the refetch shows it). |
 | Test file | `frontend/tests/hooks/tickets/useAssignTicket.test.tsx` |
 
 ## useStartTicket — `frontend/src/hooks/tickets/useStartTicket.ts`
@@ -745,7 +745,7 @@ Files: `frontend/src/hooks/tickets/*.ts` (Doc 7).
 
 ---
 
-# 8.10 Mentor Hooks
+# 10.10 Mentor Hooks
 
 Files: `frontend/src/hooks/mentor/*.ts` (Doc 7).
 
@@ -768,12 +768,12 @@ Files: `frontend/src/hooks/mentor/*.ts` (Doc 7).
 | Purpose | Send one message and get the mentor's reply. |
 | Side effects | `onSuccess`: append `userMessage` then `mentorMessage` to the `queryKeys.mentor(ticketId)` entry (invalidate instead if that entry is not cached). `onError` with status 409: invalidate `queryKeys.ticket(ticketId)`. `onError` with a timeout: invalidate `queryKeys.mentor(ticketId)` so `MentorPanel` can reconcile (A-71). |
 | Rules | The body is exactly `{ content }`. It never carries a hint level, an attempt, or a role. The hook does not add the message to the cache before the reply arrives (nothing is stored server-side on failure, A-29 of Doc 5). |
-| Edge cases | 429 (limit reached, the panel disables the composer). 502 (retry possible with no duplicate). 409 (ticket left `in_progress`). Timeout after the server stored both messages. |
+| Edge cases | 429 (limit reached, the panel disables the composer). 502 (retry possible with no duplicate). 409 (ticket not in `in_progress` or `submitted_v1` status — D-04). Timeout after the server stored both messages. |
 | Test file | `frontend/tests/hooks/mentor/useSendMentorMessage.test.tsx` |
 
 ---
 
-# 8.11 Submission Hooks
+# 10.11 Submission Hooks
 
 Files: `frontend/src/hooks/submissions/*.ts` (Doc 7).
 
@@ -827,7 +827,7 @@ export interface UseSubmissionResult {
 
 ---
 
-# 8.12 Profile Hook
+# 10.12 Profile Hook
 
 ## useExperienceProfile — `frontend/src/hooks/profile/useExperienceProfile.ts`
 
@@ -842,7 +842,7 @@ export interface UseSubmissionResult {
 
 ---
 
-# 8.13 Cross-Cutting Hooks
+# 10.13 Cross-Cutting Hooks
 
 Files: `frontend/src/hooks/useSetupProgress.ts`, `useUnsavedChangesWarning.ts`, `useDocumentTitle.ts` (Doc 7).
 
@@ -886,13 +886,13 @@ export interface QueryStateInput<T> { status: 'pending' | 'error' | 'success'; d
 |---|---|
 | Signature | `useDocumentTitle(title: string): void` and `useFocusPageHeading(): void` |
 | Purpose | Route-change accessibility from Doc 6, 6.5.8. Both live in this one file so no new file is needed. |
-| Rules | `useDocumentTitle` sets `document.title` to `"{title} · Work Simulator"` in an effect. Each page passes its title (listed in 8.22). `useFocusPageHeading` is called by both layouts. When `location.pathname` changes (not on the first load, and not on a search-only or hash-only change) it focuses the first `h1` inside `main`. Pages give that heading `tabIndex={-1}`. If there is no `h1`, it does nothing. |
+| Rules | `useDocumentTitle` sets `document.title` to `"{title} · Work Simulator"` in an effect. Each page passes its title (listed in 10.22). `useFocusPageHeading` is called by both layouts. When `location.pathname` changes (not on the first load, and not on a search-only or hash-only change) it focuses the first `h1` inside `main`. Pages give that heading `tabIndex={-1}`. If there is no `h1`, it does nothing. |
 | Edge cases | Replace-navigation that keeps the same pathname (for example stripping `?github=` params) must not steal focus. |
 | Test file | `frontend/tests/hooks/useDocumentTitle.test.tsx` |
 
 ---
 
-# 8.14 Routing Components
+# 10.14 Routing Components
 
 Files: `frontend/src/routes/RequireAuth.tsx`, `PublicOnly.tsx`, `RootRedirect.tsx` (Doc 7). They are wrappers, not pages. The router library is not named in the docs (A-57), so navigation is described as `Navigate` with `replace`, meaning the router's redirect element.
 
@@ -903,8 +903,8 @@ Files: `frontend/src/routes/RequireAuth.tsx`, `PublicOnly.tsx`, `RootRedirect.ts
 | Signature | `RequireAuth(props: { children: ReactNode }): JSX.Element` |
 | Purpose | Guard every protected route (PG-06 to PG-12). |
 | Output | While `useMe` is pending: `FullPageLoader`. Error with status 401: redirect to `buildLoginRedirect(pathname + search)` with `replace`. Any other error (status 0, 5xx): a centered `ErrorState` with a Retry button that calls `refetch`. Success: `children`. |
-| Rules | A network failure never logs the user out and never redirects. A 401 on first load never shows the "session expired" notice (8.23). Only `useMe` decides; it does not read cookies. |
-| Edge cases | Deep link with a query string (kept in `from`). The access cookie expired but the refresh cookie is valid (the client refreshes, so the user sees the page, not the login). Session ends while the page is open (the session-expiry wiring navigates, 8.23). |
+| Rules | A network failure never logs the user out and never redirects. A 401 on first load never shows the "session expired" notice (10.23). Only `useMe` decides; it does not read cookies. |
+| Edge cases | Deep link with a query string (kept in `from`). The access cookie expired but the refresh cookie is valid (the client refreshes, so the user sees the page, not the login). Session ends while the page is open (the session-expiry wiring navigates, 10.23). |
 | Test file | `frontend/tests/routes/RequireAuth.test.tsx` |
 
 ## PublicOnly — `frontend/src/routes/PublicOnly.tsx`
@@ -928,7 +928,7 @@ Files: `frontend/src/routes/RequireAuth.tsx`, `PublicOnly.tsx`, `RootRedirect.ts
 
 ---
 
-# 8.15 Layout Components
+# 10.15 Layout Components
 
 Files: `frontend/src/components/layout/*.tsx` (Doc 7).
 
@@ -988,7 +988,7 @@ Files: `frontend/src/components/layout/*.tsx` (Doc 7).
 
 ---
 
-# 8.16 Common Components
+# 10.16 Common Components
 
 Files: `frontend/src/components/common/*.tsx` (Doc 7).
 
@@ -1056,7 +1056,7 @@ export type StatusBadgeProps =
 |---|---|
 | Signature | `StatusBadge(props: StatusBadgeProps): JSX.Element` |
 | Purpose | One place for every status label in the app. |
-| Output | A `Badge` with **text** and a decorative icon. Labels: `subscription` uses "Not subscribed", "Active", "Renewal pending", "Payment failed" (both `past_due_*`), "Canceled", "Ended"; `payment` uses "Pending", "Succeeded", "Failed"; `ticket_phase` uses `TICKET_PHASE_LABELS` (exported from `ticket-phase.ts`, the labels in 8.5); `ticket_status` uses `getTicketStatusLabel`; `submission` uses "Waiting for tests" (`awaiting_ci`), "Evaluating", "Completed", "Failed"; `ci` uses "Tests passed", "Tests failed", "Tests pending"; `verification` uses "Verified", "Not verified". |
+| Output | A `Badge` with **text** and a decorative icon. Labels: `subscription` uses "Not subscribed", "Active", "Renewal pending", "Payment failed" (both `past_due_*`), "Canceled", "Ended"; `payment` uses "Pending", "Succeeded", "Failed"; `ticket_phase` uses `TICKET_PHASE_LABELS` (exported from `ticket-phase.ts`, the labels in 10.5); `ticket_status` uses `getTicketStatusLabel`; `submission` uses "Waiting for tests" (`awaiting_ci`), "Evaluating", "Completed", "Failed"; `ci` uses "Tests passed", "Tests failed", "Tests pending"; `verification` uses "Verified", "Not verified". |
 | Rules | Meaning is never carried by color alone (Doc 6, 6.5.8). An unknown value renders its raw text, never throws. |
 | Test file | `frontend/tests/components/common/StatusBadge.test.tsx` |
 
@@ -1094,7 +1094,7 @@ export type StatusBadgeProps =
 
 ---
 
-# 8.17 Billing Components
+# 10.17 Billing Components
 
 Files: `frontend/src/components/billing/*.tsx` (Doc 7).
 
@@ -1120,7 +1120,7 @@ Files: `frontend/src/components/billing/*.tsx` (Doc 7).
 
 ---
 
-# 8.18 GitHub Components
+# 10.18 GitHub Components
 
 Files: `frontend/src/components/github/*.tsx` (Doc 7).
 
@@ -1140,8 +1140,8 @@ Files: `frontend/src/components/github/*.tsx` (Doc 7).
 |---|---|
 | Signature | `RepoCreateForm(props: { onSubmit: (values: CreateRepoInput) => Promise<void>; isPending: boolean; error: UiError \| null; blocked: { message: string; linkTo: string; linkLabel: string } \| null }): JSX.Element` |
 | Purpose | Template choice and repository name (FR-27, FR-28). |
-| Output | When `blocked` is set: the message and its link, no form. Otherwise a react-hook-form form with `createRepoSchema`: a radio group (React, Node/Express, none selected by default), a repo name field prefilled with `work-simulator`, a `FormRootError` for `error.message`, and a `SubmitButton` ("Create repository", pending "Creating repository…"). |
-| Rules | Fields are disabled while pending. When `error.status` becomes 409, focus moves to the repo name field. On a 502 the form keeps its values so the user can retry. Django is not an option. |
+| Output | When `blocked` is set: the message and its link, no form. Otherwise a react-hook-form form with `createRepoSchema`: a radio group (React, Node/Express, Django, none selected by default), a repo name field prefilled with `work-simulator`, a `FormRootError` for `error.message`, and a `SubmitButton` ("Create repository", pending "Creating repository…"). |
+| Rules | Fields are disabled while pending. When `error.status` becomes 409, focus moves to the repo name field. On a 502 the form keeps its values so the user can retry. Django is supported alongside React and Node/Express (D-05); Voxide is deferred to V2. |
 | Test file | `frontend/tests/components/github/RepoCreateForm.test.tsx` |
 
 ## RepoSummary — `frontend/src/components/github/RepoSummary.tsx`
@@ -1155,7 +1155,7 @@ Files: `frontend/src/components/github/*.tsx` (Doc 7).
 
 ---
 
-# 8.19 Dashboard Components
+# 10.19 Dashboard Components
 
 Files: `frontend/src/components/dashboard/*.tsx` (Doc 7).
 
@@ -1181,7 +1181,7 @@ Files: `frontend/src/components/dashboard/*.tsx` (Doc 7).
 
 ---
 
-# 8.20 Ticket Components
+# 10.20 Ticket Components
 
 Files: `frontend/src/components/ticket/*.tsx` (Doc 7). Layout and copy are in Doc 6, PG-10. Every component here renders API text as text (A-46).
 
@@ -1239,8 +1239,8 @@ export interface PendingMentorMessage {
 | Signature | `MentorPanel(props: { ticketId: string; mentor: MentorAvailability; hasAccess: boolean }): JSX.Element` |
 | Purpose | The mentor tab: history, composer, and the send flow. |
 | Side effects | Uses `useMentorMessages(ticketId)` and `useSendMentorMessage(ticketId)`. Holds local state `pending: PendingMentorMessage \| null` and `limitReached: string \| null`. |
-| Rules | **Composer availability**, in this order: `mentor === 'read_only'` hides the composer; `hasAccess` false disables it with "An active subscription is required."; `not_started` disables it with "Start the ticket to use the mentor."; `unavailable_after_submit` disables it with "The mentor is only available while the ticket is in progress."; `limitReached` disables it with the server's message. **Send:** `handleSend(content)` ignores the call while a send is `sending`, records `baseCount = messages.length`, sets `pending` to `sending`, then awaits the mutation. On success it clears `pending`. On 429 it clears `pending` and sets `limitReached` to the server message. On any other failure it sets `pending.status` to `failed` with the `UiError`. **Retry** calls `handleSend(pending.content)` and is offered only when `mentor === 'enabled'`. **Reconciliation (A-71):** if a failed send was a timeout, and the refetched transcript has at least `baseCount + 2` messages, the message actually went through, so `pending` is cleared and no Retry is offered. Below the composer: "Your mentor conversation is included in your final review." (FR-40). The empty transcript shows the mentor introduction from Doc 6. |
-| Edge cases | Send, then the ticket leaves `in_progress` (409): `pending` becomes `failed` and Retry is hidden. Two sends in quick succession (the second is ignored). The tab closed while sending (the message is lost; nothing was stored, A-53). |
+| Rules | **Composer availability**, in this order: `mentor === 'read_only'` hides the composer; `hasAccess` false disables it with "An active subscription is required."; `not_started` disables it with "Start the ticket to use the mentor."; `unavailable_after_submit` disables it with "The mentor is only available while the ticket is in progress or revision (D-04)."; `limitReached` disables it with the server's message. **Send:** `handleSend(content)` ignores the call while a send is `sending`, records `baseCount = messages.length`, sets `pending` to `sending`, then awaits the mutation. On success it clears `pending`. On 429 it clears `pending` and sets `limitReached` to the server message. On any other failure it sets `pending.status` to `failed` with the `UiError`. **Retry** calls `handleSend(pending.content)` and is offered only when `mentor === 'enabled'`. **Reconciliation (A-71):** if a failed send was a timeout, and the refetched transcript has at least `baseCount + 2` messages, the message actually went through, so `pending` is cleared and no Retry is offered. Below the composer: "Your mentor conversation is included in your final review." (FR-40). The empty transcript shows the mentor introduction from Doc 6. |
+| Edge cases | Send, then the ticket leaves `in_progress` or `submitted_v1` (409): `pending` becomes `failed` and Retry is hidden. Two sends in quick succession (the second is ignored). The tab closed while sending (the message is lost; nothing was stored, A-53). |
 | Test file | `frontend/tests/components/ticket/MentorPanel.test.tsx` |
 
 ## MentorMessageList — `frontend/src/components/ticket/MentorMessageList.tsx`
@@ -1311,7 +1311,7 @@ export interface PendingMentorMessage {
 
 ---
 
-# 8.21 Profile Components
+# 10.21 Profile Components
 
 Files: `frontend/src/components/profile/*.tsx` (Doc 7).
 
@@ -1336,7 +1336,7 @@ Files: `frontend/src/components/profile/*.tsx` (Doc 7).
 
 ---
 
-# 8.22 Pages
+# 10.22 Pages
 
 Files: `frontend/src/pages/**` (Doc 7). Pages are the frontend's equivalent of backend controllers: they stay thin. They call hooks, hold local UI state, and turn outcomes into navigation and messages. Layout and copy are defined in Doc 6 (PG-01 to PG-13) and are not repeated here. This section specifies the handlers.
 
@@ -1345,7 +1345,7 @@ Rules for every page:
 - A page sets its title with `useDocumentTitle` and gives its `h1` `tabIndex={-1}`.
 - A page never navigates after a failed mutation on its own. It shows the message, and a link where Doc 6 defines one.
 - A page passes `isPending` from the mutation to `SubmitButton`, so double submission is impossible.
-- Pages are wrapped by the route table (8.23), not by their own layout. `NotFoundPage` is the exception.
+- Pages are wrapped by the route table (10.23), not by their own layout. `NotFoundPage` is the exception.
 
 ## PG-01 RegisterPage — `frontend/src/pages/auth/RegisterPage.tsx`
 
@@ -1354,7 +1354,7 @@ Rules for every page:
 | Signature | `RegisterPage(): JSX.Element`. Title "Create account". |
 | Hooks | `useForm` with `registerSchema`, `useRegister`, `useResendVerification`. |
 | Handlers | `onSubmit(values)`: `await register.mutateAsync(values)`; on success `setRegisteredEmail(values.email)` and focus the success heading. On failure: `const ui = applyServerErrorToForm(err, form, 'register')`, then if `ui.status === 409` call `form.setFocus('email')`. `handleResend()`: `resend.resend(registeredEmail)`. |
-| Rules | No redirect after success (registering does not log in). The success view never claims the email arrived; it says a link was sent and offers Resend. The server's resend message is shown as returned. Fields are read-only while pending. |
+| Rules | Registering automatically establishes a session (EP-01 sets session cookies and `useRegister` seeds `queryKeys.me` per D-10). The success view informs the user that an account was created and a verification email was sent, and offers Resend. The unverified banner appears. The server's resend message is shown as returned. Fields are read-only while pending. |
 | Edge cases | Email-send failure on the server (the account exists and EP-07 works, so the page cannot tell). 409 for an email that exists. Already logged in (handled by `PublicOnly`). |
 | Test file | `frontend/tests/pages/auth/RegisterPage.test.tsx` |
 
@@ -1396,8 +1396,8 @@ Rules for every page:
 | Signature | `VerifyEmailPage(): JSX.Element`. Title "Verify your email". |
 | Hooks | `useVerifyEmail`, `useResendVerification`, `useMe`, `useForm` with `resendVerificationSchema`, search params. |
 | Handlers | An effect runs once per page load: if `token` is empty, show the problem view (no request). Otherwise, guarded by `hasFired = useRef(false)` (a ref keeps its value across React StrictMode's simulated remount), set `hasFired.current = true` and call `verify.mutate({ token })`. The view comes from the mutation state: pending is "verifying", success is "success", error is "problem". The problem view shows `mapApiError(error).message` (the server text for 400 and 410) and the resend form. For a `network` or `timeout` error it shows `ErrorState` with a Retry that calls `verify.mutate` again. |
-| Rules | The success button is "Go to dashboard" when `useMe` has a user, otherwise "Go to login". The resend email field is prefilled from `useMe` when logged in. Both 410 cases (expired, used) get the same resend recovery, so no message matching is needed (FR-06). |
-| Edge cases | Refresh after success (the 410 "already used" message, plus a dashboard link when logged in). Double effect in development (must not send two requests). Logged-out visitor (`useMe` returns 401, silently). |
+| Rules | The success button is "Go to dashboard" when `useMe` has a user, otherwise "Go to login". The resend email field is prefilled from `useMe` when logged in. 410 is strictly for expired unused tokens; already-used tokens for verified users return 200 soft success with `{ emailVerifiedAt }` (D-11). |
+| Edge cases | Refresh or prefetch after success (200 soft success, preventing broken UI; dashboard link shown when logged in). Double effect in development (must not send two requests). Logged-out visitor (`useMe` returns 401, silently). |
 | Test file | `frontend/tests/pages/auth/VerifyEmailPage.test.tsx` |
 
 ## PG-06 DashboardPage — `frontend/src/pages/dashboard/DashboardPage.tsx`
@@ -1489,11 +1489,11 @@ Rules for every page:
 
 ---
 
-# 8.23 App Wiring
+# 10.23 App Wiring
 
 These are behaviors in the template's existing App/router entry and `QueryClient` setup. Doc 7 does not name those files (A-57), so they are specified as required behavior. Do not create parallel files for them.
 
-## 8.23.1 Route table
+## 10.23.1 Route table
 
 ```text
 /                    RootRedirect
@@ -1514,7 +1514,7 @@ These are behaviors in the template's existing App/router entry and `QueryClient
 
 No `/admin`, no landing page, no other route exists in V1.
 
-## 8.23.2 Query client defaults
+## 10.23.2 Query client defaults
 
 | Setting | Value |
 |---|---|
@@ -1524,7 +1524,7 @@ No `/admin`, no landing page, no other route exists in V1.
 | Query cache `onError` | `(error) => handleGlobalApiError(error, queryClient)` |
 | Mutation cache `onError` | `(error) => handleGlobalApiError(error, queryClient)` |
 
-## 8.23.3 Session expiry wiring
+## 10.23.3 Session expiry wiring
 
 `configureApiClient` is called once at startup with the API base URL and this `onSessionExpired` behavior:
 
@@ -1534,7 +1534,7 @@ No `/admin`, no landing page, no other route exists in V1.
 
 The callback runs outside React, so it needs the router's imperative navigation (for React Router's data routers, the router object). If the template's router has none, hold a navigate function in a module variable set by a top-level component. Verify against the template (Q-19).
 
-## 8.23.4 Values other systems must match
+## 10.23.4 Values other systems must match
 
 | Value | Where it lives | Must equal |
 |---|---|---|
@@ -1546,7 +1546,7 @@ The callback runs outside React, so it needs the router's imperative navigation 
 
 ---
 
-# 8.24 Hook-to-Endpoint Traceability
+# 10.24 Hook-to-Endpoint Traceability
 
 | Endpoint | Frontend function | Used by |
 |---|---|---|
@@ -1587,13 +1587,13 @@ The callback runs outside React, so it needs the router's imperative navigation 
 
 ---
 
-# 8.25 Critical State Rules
+# 10.25 Critical State Rules
 
 These are invariants, not optional page behavior.
 
-## 8.25.1 Ticket workspace
+## 10.25.1 Ticket workspace
 
-The allowed actions per phase are the table in 8.5 (`getTicketPhase`). In diagram form, showing what the UI offers:
+The allowed actions per phase are the table in 10.5 (`getTicketPhase`). In diagram form, showing what the UI offers:
 
 ```text
 ready_to_start   -> Start working -> in_progress          (Abandon offered)
@@ -1613,10 +1613,10 @@ The UI must never:
 - show more than two submission cards, or any control that could create a third;
 - show Retry on a submission that is not `failed`;
 - show a score on attempt 1, or a "scored" phase;
-- enable the mentor composer after `in_progress` (Q-10c);
+- enable the mentor composer outside `in_progress` and `submitted_v1` (`feedback_ready`) (D-04);
 - show `done` from anything except `ticket.status === 'done'` as returned by the API.
 
-## 8.25.2 Submission polling
+## 10.25.2 Submission polling
 
 ```text
 idle (terminal or disabled)
@@ -1627,7 +1627,7 @@ stopped --Check again--> processing (timers restart)
 
 Polling never asks for the diff. A hidden tab pauses it.
 
-## 8.25.3 Checkout confirmation
+## 10.25.3 Checkout confirmation
 
 ```text
 confirming --EP-15 says active and hasAccess--> confirmed
@@ -1636,7 +1636,7 @@ confirming --60 s--> timed_out --Check again--> confirming
 
 Only EP-15 data can reach `confirmed`.
 
-## 8.25.4 Session
+## 10.25.4 Session
 
 ```text
 booting --EP-11 ok--> authenticated
@@ -1646,22 +1646,22 @@ refreshing --EP-03 401--> expired (clear cache, /login?from=..., notice)
 refreshing --network or 5xx--> authenticated (error shown, no logout)
 ```
 
-## 8.25.5 Mentor send
+## 10.25.5 Mentor send
 
 ```text
 idle --send--> sending --201--> idle
 sending --429--> limit_reached (composer disabled)
-sending --502, network, 409--> failed --Retry (only while in_progress)--> sending
+sending --502, network, 409--> failed --Retry (only while in_progress or feedback_ready)--> sending
 sending --timeout--> failed --transcript grew by 2--> idle (no duplicate)
 ```
 
-## 8.25.6 Access
+## 10.25.6 Access
 
 `hasAccess` is only ever the value EP-15 returned. The client never derives it from dates. The UI's disabling of actions is a convenience, and the server's 402 stays authoritative.
 
 ---
 
-# 8.26 Concurrency and Stale-State Rules
+# 10.26 Concurrency and Stale-State Rules
 
 1. **Double submit:** every mutation button is a `SubmitButton` bound to the mutation's pending state. Pages never re-enable it early.
 2. **Checkout:** the Subscribe button stays disabled through the same-tab navigation, so two pending payments cannot be started by clicking twice.
@@ -1678,7 +1678,7 @@ sending --timeout--> failed --transcript grew by 2--> idle (no duplicate)
 
 ---
 
-# 8.27 Logging and Security Rules
+# 10.27 Logging and Security Rules
 
 Every frontend function must follow these unless a more specific rule above overrides them.
 
@@ -1698,7 +1698,7 @@ Every frontend function must follow these unless a more specific rule above over
 
 ---
 
-# 8.28 Configuration Boundaries
+# 10.28 Configuration Boundaries
 
 These live in configuration, not scattered through components:
 
@@ -1714,28 +1714,28 @@ These do **not** exist yet and must not be created with made-up values: a subscr
 
 ---
 
-# 8.29 Implementation Order
+# 10.29 Implementation Order
 
-This follows Doc 7's phases 6 to 9, with the files from 8.2 placed first. Each step's tests are written with the step.
+This follows Doc 7's phases 6 to 9, with the files from 10.2 placed first. Each step's tests are written with the step.
 
 1. **Contracts and config:** `types/api.ts`, `config/app.config.ts`, `config/rubric.ts`, `lib/query-keys.ts`.
 2. **Pure helpers and schemas:** `lib/ticket-phase.ts`, `lib/subscription-view.ts`, `lib/navigation.ts`, `lib/format.ts`, `lib/github.ts`, `schemas/auth.schemas.ts`, `schemas/github.schemas.ts`. These have no dependencies and the most rules.
-3. **API foundation:** `lib/api/errors.ts`, then `lib/api/client.ts`. Then the `QueryClient` defaults and the session-expiry wiring (8.23.2, 8.23.3). Confirm the template's real HTTP client and router first (Q-19).
+3. **API foundation:** `lib/api/errors.ts`, then `lib/api/client.ts`. Then the `QueryClient` defaults and the session-expiry wiring (10.23.2, 10.23.3). Confirm the template's real HTTP client and router first (Q-19).
 4. **Hooks:** `useMe`; the other auth hooks; billing; GitHub; tickets; mentor; submissions; profile; then `useSetupProgress`, `useUnsavedChangesWarning`, `useDocumentTitle`.
 5. **Shared UI:** common components; layout components; route wrappers.
 6. **Domain components**, leaves first. Billing (`PaymentHistory`, `SubscriptionCard`). GitHub (`RepoSummary`, `RepoCreateForm`, `GitHubConnectionCard`). Dashboard (`SetupChecklist`, `CurrentTicketCard`). Ticket (`DiffViewer`, `ScoreBreakdown`, `EvaluationView`, `SubmissionCard`, `SubmissionsPanel`, `MentorMessageList`, `MentorComposer`, `MentorPanel`, `BranchInstructions`, `TicketDetails`, `TicketHeader`, `TicketActionBar`). Profile (`PracticeRecordNotice`, `ExperienceItem`).
 7. **Pages:** authentication pages, dashboard, billing pages, GitHub page, ticket page, profile, settings, not-found.
-8. **Route table and integration wiring:** 8.23.1 and 8.23.4, including the values the backend must match.
+8. **Route table and integration wiring:** 10.23.1 and 10.23.4, including the values the backend must match.
 9. **End-to-end and integration tests:** register, verify, login, subscribe (webhook simulated), connect GitHub, create repo, get ticket, mentor, submit, feedback, resubmit, final score, profile, logout. Then session expiry, and the 402, 403, 409, 429 and 502 paths, and the polling limits.
 
 ---
 
-# 8.30 High-Scrutiny Completion Checklist
+# 10.30 High-Scrutiny Completion Checklist
 
 Before a frontend file is considered complete, the implementation AI or verifier must confirm:
 
 - [ ] Signature and props match this document.
-- [ ] Inputs are validated with the schema in 8.5 before the request, and the server error is still shown.
+- [ ] Inputs are validated with the schema in 10.5 before the request, and the server error is still shown.
 - [ ] Every query key comes from `queryKeys`, and every HTTP call goes through `apiRequest`.
 - [ ] Mutations never retry automatically, and buttons are disabled while pending.
 - [ ] Timeout and 409 paths refetch the affected queries.
@@ -1748,68 +1748,68 @@ Before a frontend file is considered complete, the implementation AI or verifier
 - [ ] The attempt is never chosen by the client, and no third-submission control exists.
 - [ ] Attempt 1 never shows a score, and no `scored` phase exists.
 - [ ] Scores come from `scores.total` and the four category values, with no client arithmetic, and weights come only from `rubric.ts`.
-- [ ] The mentor composer is enabled only in `in_progress` and never shows a hint level or attempt control.
+- [ ] The mentor composer is enabled only in `in_progress` and `submitted_v1` (`feedback_ready`) (D-04), and never shows a hint level or attempt control.
 - [ ] Abandon appears only in `assigned` and `in_progress`.
 - [ ] Ownership 404s show the same "not found" state.
-- [ ] The Voxide and Django paths, and all V2 and V3 UI, are absent.
+- [ ] The Voxide path, and all V2 and V3 UI, are absent (Django is supported in V1 per D-05).
 - [ ] `PracticeRecordNotice` is on the profile page in every state.
 - [ ] Focus and title update on route change, dialogs return focus, and status is never color-only.
 - [ ] Doc 6 layout and copy are matched for every page.
-- [ ] Tests cover success, validation, wrong state, each status in 8.4, timeouts, polling limits, and double-click.
-- [ ] No file outside Doc 7 and 8.2 exists.
+- [ ] Tests cover success, validation, wrong state, each status in 10.4, timeouts, polling limits, and double-click.
+- [ ] No file outside Doc 7 and 10.2 exists.
 
 ---
 
-# 8.31 Assumptions
+# 10.31 Assumptions
 
 Numbering continues from Doc 6 (A-35 to A-54). Correct any that are wrong before implementation.
 
 | ID | Assumption | Where it matters |
 |---|---|---|
-| A-55 | Section numbers restart in this file. The backend spec's sections are cited as "backend 8.x". Both files carry the document number 8 | whole doc |
-| A-56 | The ten proposed files in 8.2 are needed to hold shared types, schemas, constants and pure helpers. They add no product behavior and need a Doc 7 amendment (8.33) | 8.2 |
-| A-57 | The docs name no router, HTTP library, bundler or TanStack Query version. This spec uses generic names (`Navigate`, `replace`, search params) and a `fetch`-style contract. If the template wraps another client or router, keep it and satisfy the same contract. The API base URL comes from one environment variable, named per the template's convention | 8.4, 8.14, 8.23 |
+| A-55 | Section numbers reflect Doc 10 (10.x), resolving the previous collision where both backend and frontend function specs carried document number 8 (D-20). The backend spec is cited as Doc 8 / "backend 8.x". | whole doc |
+| A-56 | The ten proposed files in 10.2 are needed to hold shared types, schemas, constants and pure helpers. They add no product behavior and need a Doc 7 amendment (10.33) | 10.2 |
+| A-57 | The docs name no router, HTTP library, bundler or TanStack Query version. This spec uses generic names (`Navigate`, `replace`, search params) and a `fetch`-style contract. If the template wraps another client or router, keep it and satisfy the same contract. The API base URL comes from one environment variable, named per the template's convention | 10.4, 10.14, 10.23 |
 | A-58 | The test stack is Vitest, React Testing Library and a request mocker (MSW), with tests under `frontend/tests/` mirroring `frontend/src/` (as the backend spec mirrors `tests/`). None of this is stated in docs 2 to 7 | every `Test file` row |
-| A-59 | TypeScript types are compile-time only. At run time the client checks only the envelope shape. `ApiError.kind` has four values: `api`, `network`, `timeout`, `unexpected_response` | 8.3, 8.4 |
-| A-60 | Only a 401 from EP-03 means the session is dead. A refresh that fails with a network error, timeout or 5xx surfaces as that error and does not log the user out | 8.4 |
-| A-61 | `onSessionExpired` navigates only when a user was already cached in this tab. On a first load with no session it is silent, and `RequireAuth` redirects without the "session expired" notice | 8.23.3 |
+| A-59 | TypeScript types are compile-time only. At run time the client checks only the envelope shape. `ApiError.kind` has four values: `api`, `network`, `timeout`, `unexpected_response` | 10.3, 10.4 |
+| A-60 | Only a 401 from EP-03 means the session is dead. A refresh that fails with a network error, timeout or 5xx surfaces as that error and does not log the user out | 10.4 |
+| A-61 | `onSessionExpired` navigates only when a user was already cached in this tab. On a first load with no session it is silent, and `RequireAuth` redirects without the "session expired" notice | 10.23.3 |
 | A-62 | An envelope response with a 5xx status other than 502 (Doc 5 lists none) is handled like 502: the server message and a Retry | `mapApiError` |
 | A-63 | PG-04 adds a third exact-message match, "Invalid reset link", to Doc 6's A-41, so a 400 validation error and a 400 invalid link can be told apart | `applyServerErrorToForm`, PG-04 |
 | A-64 | The dashboard checklist collapses whenever steps 1 to 3 are done, whether or not a ticket exists. The only "Get ticket" button lives in `CurrentTicketCard`. Errors from Get ticket show inline with a link and never navigate on their own. This clarifies Doc 6's PG-06, which had a Get-ticket button in both places and said 403 and 409 "go to" PG-09 | PG-06 |
 | A-65 | `useMe` uses `staleTime` of 5 minutes (`ME_STALE_TIME_MS`), tunable | `useMe` |
-| A-66 | `useResendVerification` owns the 60-second cooldown, per hook instance, started after a successful send only | 8.6 |
+| A-66 | `useResendVerification` owns the 60-second cooldown, per hook instance, started after a successful send only | 10.6 |
 | A-67 | URLs the API returns for a browser redirect (`checkoutUrl`, `authorizeUrl`) must be absolute `https:` URLs. Otherwise the call fails as `unexpected_response` | `useStartCheckout`, `useGitHubConnect` |
 | A-68 | API-supplied link URLs (`prUrl`, `ciRunUrl`) are untrusted. `ExternalLink` renders only `http:` and `https:` URLs as links | `ExternalLink` |
 | A-69 | The dashboard card uses a coarse label from `ticket.status` (EP-24 has no submissions). `TicketPage` uses the detailed phase | `CurrentTicketCard` |
 | A-70 | `final_review_finalizing` names the moment when attempt 2 is `completed` but the ticket still reads `resubmitted`. Doc 6's PG-10 state list already describes it | `getTicketPhase` |
 | A-71 | After a mentor send times out, the panel compares the refetched transcript to the length recorded before the send. If it grew by 2, the message went through and no Retry is offered. This prevents a duplicate | `MentorPanel` |
-| A-72 | Scores show as a whole number, or one decimal when not whole. Dates show as "19 Sep 2026" (with 24-hour time where a time is needed). Amounts show as the API string plus the currency code | 8.5 |
+| A-72 | Scores show as a whole number, or one decimal when not whole. Dates show as "19 Sep 2026" (with 24-hour time where a time is needed). Amounts show as the API string plus the currency code | 10.5 |
 | A-73 | `useSubmission` returns `{ query, showSlowHint, pollingStopped, restartPolling }` and owns the polling policy. Doc 6 only said it polls | `useSubmission` |
 | A-74 | UI copy that docs 2, 5 and 6 do not give is chosen here (validation messages, banner and step text, "Get a ticket"). It can change without changing any function signature | schemas, banners, `useSetupProgress` |
 | A-75 | On `TicketPage`, `hasAccess` is treated as `true` while the subscription query is loading or has failed, so buttons do not flash disabled. The server still enforces access | PG-10 |
-| A-76 | `useLogout` and `useLogoutAll` navigate first and clear the cache second, and they are the only hooks that navigate | 8.6 |
+| A-76 | `useLogout` and `useLogoutAll` navigate first and clear the cache second, and they are the only hooks that navigate | 10.6 |
 | A-77 | PG-05 calls `useMe` to choose between "Go to dashboard" and "Go to login". For a logged-out visitor this costs one silent 401 | PG-05 |
-| A-78 | The docs do not say what follows this document, so the closing "Next" line uses a placeholder label | footer |
+| A-78 | The next document in the series is Doc 11 (`work-simulator-test-plan-frontend.md`), covering the frontend test plan and test files | footer |
 
 ---
 
-# 8.32 Open Questions
+# 10.32 Open Questions
 
-Numbering continues from Doc 6 (Q-14 to Q-18). Q-03 to Q-18 from earlier docs are still open unless noted, and the ones that touch this document are listed in section 8.1's rules.
+Numbering continues from Doc 6 (Q-14 to Q-18). Q-03 to Q-18 from earlier docs are still open unless noted, and the ones that touch this document are listed in section 10.1's rules.
 
 | ID | Question | Affects |
 |---|---|---|
-| Q-19 | **Which router, HTTP client, bundler and TanStack Query version does the real frontend template use, and how is its `QueryClient` and test setup organized?** The docs name none of them (A-57, A-58). This can be answered by reading the template, and must be done before step 3 of 8.29 | 8.4, 8.14, 8.23, every test path |
+| Q-19 | **Which router, HTTP client, bundler and TanStack Query version does the real frontend template use, and how is its `QueryClient` and test setup organized?** The docs name none of them (A-57, A-58). This can be answered by reading the template, and must be done before step 3 of 10.29 | 10.4, 10.14, 10.23, every test path |
 | Q-20 | **Is there a maximum diff size the UI should handle?** EP-31 returns the full diff, and Doc 5 sets no limit. `DiffViewer` renders every line. Should it cap, collapse, or paginate very large diffs? Interim: render in full, only when the user opens it | `DiffViewer`, `SubmissionCard` |
 
 ---
 
-# 8.33 Changes to Earlier Docs
+# 10.33 Changes to Earlier Docs
 
 Numbering is not changed. These are amendments.
 
 **Doc 7:**
-- **7.3.** Add the ten files listed in 8.2: `frontend/src/types/api.ts`, `config/app.config.ts`, `lib/query-keys.ts`, `lib/ticket-phase.ts`, `lib/subscription-view.ts`, `lib/navigation.ts`, `lib/format.ts`, `lib/github.ts`, `schemas/auth.schemas.ts`, `schemas/github.schemas.ts`. Doc 7's PR checklist ("no new file silently introduces a requirement") would otherwise reject them. Doc 6, A-42 already required the timing constants "in one config file", and 7.3.11 lists only `rubric.ts`.
+- **7.3.** Add the ten files listed in 10.2: `frontend/src/types/api.ts`, `config/app.config.ts`, `lib/query-keys.ts`, `lib/ticket-phase.ts`, `lib/subscription-view.ts`, `lib/navigation.ts`, `lib/format.ts`, `lib/github.ts`, `schemas/auth.schemas.ts`, `schemas/github.schemas.ts`. Doc 7's PR checklist ("no new file silently introduces a requirement") would otherwise reject them. Doc 6, A-42 already required the timing constants "in one config file", and 7.3.11 lists only `rubric.ts`. (Note: D-27 integrated these into Doc 7).
 - **7.9.** In Phase 6, create these files (and the tests for the pure helpers) before the hooks.
 
 **Doc 6:**
@@ -1820,7 +1820,7 @@ Numbering is not changed. These are amendments.
 
 **Doc 5:** No change.
 
-**Backend function spec:** not changed. Observation only: several file paths there differ from Doc 7, for example `ticket-generation.service.ts` (Doc 7: `ticket-generator.service.ts`), `evaluation.service.ts` (`evaluator.service.ts`), `github-webhook.service.ts` (`github-ci.service.ts` and `webhook.service.ts`), `src/integrations/gemini.ts` (`integrations/gemini/gemini.client.ts`), and `controllers/webhooks/*.controller.ts` (`webhook.controller.ts`). The team should reconcile them.
+**Backend function spec:** Note that backend file naming discrepancies against Doc 7 (e.g., `ticket-generator.service.ts`, `evaluator.service.ts`, etc.) were reconciled per D-16.
 
 No locked decision is changed.
 
@@ -1830,4 +1830,4 @@ No locked decision is changed.
 
 *Numbering convention: FR-01, FR-02... (doc 2), `UC-##` (doc 3), `DR-##`, `A-##` and `Q-##` (docs 4, 5, 6 and this doc), `EP-##` (doc 5) and `PG-##` (doc 6) each form one continuous sequence across the whole series. Never renumber once used.*
 
-Next: proceed to → [9. Next document — name not stated in the attached docs]
+Next: proceed to → [11. Test Plan & Test Files — Frontend](./work-simulator-test-plan-frontend.md)

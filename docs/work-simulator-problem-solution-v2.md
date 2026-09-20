@@ -21,7 +21,7 @@ Work Simulator gives junior developers a place to practice being on a real team 
 |---|---|---|---|
 | Timeline | This 20-day hackathon | First few months after | Beyond that |
 | GitHub | Real OAuth + real repo + real PR, required (not a fallback) | Same, hardened | Same, hardened |
-| Starter templates | React + Node/Express (already built and verified) | + Django, + more stacks | Many tracks, not just web |
+| Starter templates | React + Node/Express + Django | + more stacks | Many tracks, not just web |
 | Ticket generation | Team-authored ticket **structure** (fields, required files, acceptance criteria, test checklist) filled in by AI — not freeform generation | Same system, more structures/categories | Same system, broader domains |
 | AI roles | Mentor (progressive hints) + Evaluator (rubric-based, two-pass) | + QA teammate, + Engineering Manager teammate | + Design teammate, + DevOps/production tickets — the full simulated team |
 | Scoring | Fixed rubric: 40% requirements met / 25% correctness & tests / 20% code quality / 15% problem-solving & communication evidence | Same rubric, richer evidence sources | Same rubric, validated against real hiring signal |
@@ -33,24 +33,27 @@ Work Simulator gives junior developers a place to practice being on a real team 
 
 ## 1.4 V1 — what we're actually building in 20 days
 
-Work Simulator (V1) gives a junior developer one full, real loop: they connect GitHub, get a real starter repo, work a real ticket with a mentor available, submit a real PR, get feedback, revise, and get a final score against a fixed rubric.
+Work Simulator (V1) gives a junior developer one full, real loop: they register with email and password, verify their email, subscribe (Chapa), connect GitHub, get a real starter repo, work a real ticket with a mentor available, submit a real PR, get feedback, revise, and get a final score against a fixed rubric.
 
 **The loop:**
 
-1. User connects GitHub (real OAuth) and creates a repo from a starter template
-2. Platform pushes the starter template (React or Node/Express — see 1.4.3)
-3. User receives one ticket at a time. The ticket's **structure** is authored by the team (what fields it has, what files it touches, what "done" looks like, what the test checklist covers); the AI fills in the specific wording and scenario within that structure. This is a real, live AI-generation feature — it just isn't freeform. See 1.4.1.
-4. While working, the user can talk to an AI mentor. The mentor uses **progressive hints**, not direct answers:
+1. User registers with name, email, and password (email + password account — not GitHub-OAuth-only). Successful registration logs them in (httpOnly access + refresh cookies) and sends a verification email.
+2. User verifies their email. Verification is required before starting a subscription checkout.
+3. User starts a monthly subscription via Chapa hosted checkout. Access is confirmed only by a verified Chapa webhook — not by the browser return URL alone.
+4. User connects GitHub (real OAuth, scoped for repo create/push and repo hook registration) and creates a repo from a starter template.
+5. Platform creates the starter repository in the user's GitHub account from the chosen template (React, Node/Express, or Django — see 1.4.3) and registers a `workflow_run` webhook on that repo.
+6. User receives one ticket at a time. The ticket's **structure** is authored by the team (what fields it has, what files it touches, what "done" looks like, what the test checklist covers); Gemini fills in the specific wording and scenario within that structure. This is a real, live AI-generation feature — it just isn't freeform. See 1.4.1.
+7. While working (including during the revision phase after first-submission feedback), the user can talk to an AI mentor. The mentor uses **progressive hints**, not direct answers:
    1. Asks what the user has already tried
    2. Gives a conceptual hint
    3. Points toward a relevant file or function
    4. Only gives a more specific suggestion if the user asks again
-5. User pushes a real PR against their real repo (checked via the GitHub API). This is a hard requirement for V1, not an optional path — the team's call is that a real, functional GitHub flow is worth more in front of judges than a safer diff-paste fallback would be.
-6. **First submission:** the AI evaluator checks the diff *and* the automated test results from GitHub Actions (not the diff alone — see 1.4.2) and gives feedback only. No score yet.
-7. User updates their code based on that feedback and submits again.
-8. **Re-review:** this is where the score is given, against the fixed rubric (see 1.4.4) — one time, final, for V1.
-9. Once scored, the ticket is marked done and the next ticket opens.
-10. Over time, this builds a work-sample profile: the ticket, the diff, the feedback, and the rubric breakdown — presented as a portfolio of practice, not a certified hiring credential.
+8. User pushes a real PR against their real repo (checked via the GitHub API). This is a hard requirement for V1, not an optional path — the team's call is that a real, functional GitHub flow is worth more in front of judges than a safer diff-paste fallback would be.
+9. **First submission:** the AI evaluator checks the diff *and* the automated test results from GitHub Actions (not the diff alone — see 1.4.2) and gives feedback only. No score yet.
+10. User updates their code based on that feedback and submits again.
+11. **Re-review:** this is where the score is given, against the fixed rubric (see 1.4.4) — one time, final, for V1.
+12. Once scored, the ticket is marked done and the next ticket opens.
+13. Over time, this builds a work-sample profile: the ticket, the diff, the feedback, and the rubric breakdown — presented as a portfolio of practice, not a certified hiring credential.
 
 ### 1.4.1 Ticket generation — controlled structure, AI-filled content
 
@@ -66,7 +69,7 @@ The evaluator reads two things: the actual code diff, and the pass/fail result f
 
 ### 1.4.3 Starter templates
 
-React and Node/Express templates are already built and verified (auth, CI, husky, cookie-based sessions — done as of this doc). Django was assigned as part of the team's role split; whether it's ready in time for V1 or becomes the first V2 addition is a status check with T, not a decision this document makes. Multi-track selection ("based on interest") becomes fully real in V2 once more than two templates exist; for V1, this is a straightforward pick-one-of-what's-ready screen.
+React, Node/Express, and Django are all V1 starter templates. The user picks one when creating their starter repository. Multi-track selection is therefore a real three-option choice in V1, not a two-option placeholder.
 
 ### 1.4.4 Scoring rubric (adopted, team-decided)
 
@@ -84,7 +87,8 @@ That last category does double duty: it's also your cheapest anti-cheating signa
 ### 1.4.5 What's explicitly out of V1 (see 1.5/1.6 for when)
 
 - QA, Engineering Manager, Design, and DevOps AI roles
-- Django (and further) starter templates, pending T's status
+- Further starter templates beyond React, Node/Express, and Django
+- **Voxide** (mandated external voice-command integration — see 1.5; not a V1 build task)
 - A real pacing/scarcity mechanic (e.g. tickets-per-day limits) — build a simple counter if there's time, don't engineer a queue system for a hackathon
 - Any claim that the experience profile is recognized by employers — this stays an open, untested assumption (see 1.7)
 - A public/shareable profile page, streaks, or leaderboard — the "why come back a second time" hook. Worth one sentence in the pitch (see the feedback doc) but not V1 scope.
@@ -93,9 +97,15 @@ That last category does double duty: it's also your cheapest anti-cheating signa
 
 ## 1.5 V2 — near-term, after the hackathon
 
-V2 is additive on top of V1's architecture, not a rebuild:
+V2 is additive on top of V1's architecture, not a rebuild.
 
-- **More starter templates** — Django (if not already in V1), and further stacks, making "pick your track" a real, meaningful choice rather than a two-option placeholder
+**Mandated external integration (not a team wishlist item):**
+
+- **Voxide** — a voice-command layer that lets any task in the product be triggered by voice. Built by the hackathon organizer and mandated for the project, but sequenced strictly **after V1 is complete**. It is not a V1 build task and not a stretch goal for the 20-day window. Treat it as an external integration requirement on the V2 calendar, distinct from the team's own optional V2/V3 ideas below.
+
+**Team V2 additions:**
+
+- **More starter templates** — further stacks beyond the V1 three (React, Node/Express, Django)
 - **QA AI teammate** — reviews the same diff/CI evidence V1's evaluator already reads, adding a second, QA-flavored pass (edge cases, regressions) rather than a new pipeline
 - **Engineering Manager AI teammate** — coordinates ticket flow, maybe sequences a small multi-ticket "sprint" instead of one ticket at a time
 - **Real pacing mechanic** — the tickets-per-day idea from the original draft, built properly this time (creates scarcity, controls AI cost, gives the product a reason to bring someone back day after day)
@@ -119,7 +129,8 @@ This is the original "full virtual team" ambition, revisited only once the V1 me
 |---|---|---|
 | 1 | Employers will treat the experience profile as real signal when hiring | Still open — needs real research, not a V1 or V2 claim |
 | 2 | The team-authored ticket-structure + AI-fill approach stays good quality and doesn't drift over time | Open — worth a spot-check partway through the 20 days |
-| 3 | Django will be ready in time to ship as part of V1 rather than V2 | **Needs a status check with T** — not decided by this document |
+| 3 | Django will be ready in time to ship as part of V1 rather than V2 | **Resolved** — Django is a full V1 starter template alongside React and Node/Express (see 1.4.3) |
 | 4 | Checking a GitHub diff + GitHub Actions test result is enough proof of real work, without a full sandboxed execution environment | Resolved for V1 — this is the deliberate V1 answer (see 1.4.2); revisit if evaluator feedback feels untrustworthy in testing |
 | 5 | QA, EM, Design, and DevOps roles can be added in V2/V3 without redesigning the V1 core loop | Resolved by design — see the "scales to" notes throughout 1.4; this is why V1 was built the way it was |
 | 6 | GitHub OAuth + real PR flow is worth the added demo risk (vs. a diff-paste fallback) | Resolved — team decision: yes, judges evaluate on functional depth, so the real flow stays required for V1 |
+| 7 | Voxide (mandated voice-command integration) timing | Resolved for sequencing — V2 after V1 is complete; not a V1 build task (see 1.5) |

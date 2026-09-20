@@ -10,7 +10,7 @@ Project: Work Simulator · Links back to: [8. Function-Level Specification — B
 - External providers (Chapa, GitHub, Gemini, Groq, the email provider) are always mocked in automated tests. Fake secrets are distinctive sentinel strings so log and response sweeps can detect leaks.
 - Time-dependent cases use an injected clock (`now` parameter) or fake timers. No real waiting.
 - Test framework is not named in the docs. Every case is framework-neutral.
-- **Assumption:** the cases marked "Integration (real test DB)" need a real Postgres test database and HTTP-level requests. DR-01 to DR-04 are hand-written SQL, so a mocked Prisma cannot prove them. If the Team Guideline provides no test database, the DB-level and concurrency cases move to manual QA (9.5.1) and the coverage risk stays visible.
+- **Assumption & CI prerequisite (D-33):** the cases marked "Integration (real test DB)" need a real Postgres test database and HTTP-level requests. DR-01 to DR-04 are hand-written SQL, so a mocked Prisma cannot prove them. Note as a build prerequisite: the actual `backend-ci.yml` GitHub Actions workflow does not currently spin up a Postgres service container even though it references a `DATABASE_URL` pointing at one — this is a real infrastructure gap that needs fixing in the CI workflow file, flagged for the team.
 - **Assumption:** integration tests do not mirror a single source file, so the "mirror `src/`" rule cannot apply to them. They live under `tests/integration/`. Confirm this with the Team Guideline.
 - Where doc 8 leaves a behavior unspecified, the case says "(confirm)" or the item is listed in 9.5.2. It is not silently decided.
 - This doc introduces no new ID series. Test cases are identified by test file and case name.
@@ -30,6 +30,7 @@ One row per source file that needs a test. This is filled in before implementati
 | `src/services/user.service.ts` | `tests/services/user.service.test.ts` | Unit (mocked Prisma) | ☐ |
 | `src/services/email.service.ts` | `tests/services/email.service.test.ts` | Unit (mocked provider) | ☐ |
 | `src/services/subscription.service.ts` | `tests/services/subscription.service.test.ts` | Unit (mocked Prisma, Chapa adapter, email) | ☐ |
+| `src/services/subscription-renewal.service.ts` | `tests/services/subscription-renewal.service.test.ts` | Unit (mocked Prisma, Chapa adapter, email) | ☐ |
 | `src/services/github.service.ts` | `tests/services/github.service.test.ts` | Unit (mocked Prisma, GitHub client) | ☐ |
 | `src/services/ticket-generation.service.ts` | `tests/services/ticket-generation.service.test.ts` | Unit (mocked Gemini) | ☐ |
 | `src/services/ticket.service.ts` | `tests/services/ticket.service.test.ts` | Unit (mocked Prisma, GitHub service, generation) | ☐ |
@@ -38,6 +39,7 @@ One row per source file that needs a test. This is filled in before implementati
 | `src/services/evaluation.service.ts` | `tests/services/evaluation.service.test.ts` | Unit (mocked Prisma, Groq adapter) | ☐ |
 | `src/services/github-webhook.service.ts` | `tests/services/github-webhook.service.test.ts` | Unit (mocked Prisma, evaluation service) | ☐ |
 | `src/services/profile.service.ts` | `tests/services/profile.service.test.ts` | Unit (mocked Prisma) | ☐ |
+| `src/integrations/chapa.ts` | `tests/integrations/chapa.test.ts` | Unit (mocked HTTP) | ☐ |
 | `src/integrations/gemini.ts` | `tests/integrations/gemini.test.ts` | Unit (mocked HTTP/SDK) | ☐ |
 | `src/integrations/groq.ts` | `tests/integrations/groq.test.ts` | Unit (mocked HTTP/SDK) | ☐ |
 | `src/middleware/subscription.middleware.ts` | `tests/middleware/subscription.middleware.test.ts` | Unit | ☐ |
@@ -45,6 +47,7 @@ One row per source file that needs a test. This is filled in before implementati
 | `src/controllers/auth.controller.ts` | `tests/controllers/auth.controller.test.ts` | Unit (mocked services) | ☐ |
 | `src/controllers/user.controller.ts` | `tests/controllers/user.controller.test.ts` | Unit (mocked services) | ☐ |
 | `src/controllers/subscription.controller.ts` | `tests/controllers/subscription.controller.test.ts` | Unit (mocked services) | ☐ |
+| `src/controllers/payment.controller.ts` | `tests/controllers/payment.controller.test.ts` | Unit (mocked services) | ☐ |
 | `src/controllers/webhooks/chapa.controller.ts` | `tests/controllers/webhooks/chapa.controller.test.ts` | Unit (mocked service, real signature check) | ☐ |
 | `src/controllers/github.controller.ts` | `tests/controllers/github.controller.test.ts` | Unit (mocked services) | ☐ |
 | `src/controllers/ticket.controller.ts` | `tests/controllers/ticket.controller.test.ts` | Unit (mocked services) | ☐ |
@@ -52,6 +55,8 @@ One row per source file that needs a test. This is filled in before implementati
 | `src/controllers/submission.controller.ts` | `tests/controllers/submission.controller.test.ts` | Unit (mocked services) | ☐ |
 | `src/controllers/webhooks/github.controller.ts` | `tests/controllers/webhooks/github.controller.test.ts` | Unit (mocked service, real signature check) | ☐ |
 | `src/controllers/profile.controller.ts` | `tests/controllers/profile.controller.test.ts` | Unit (mocked services) | ☐ |
+| `src/serializers/*.serializer.ts` | `tests/serializers/*.serializer.test.ts` | Unit | ☐ |
+| `src/validators/*.validators.ts` | `tests/validators/*.validators.test.ts` | Unit | ☐ |
 
 The existing `requireAuth` and `validate.middleware.ts` keep their existing tests. Only the added cases in 9.3.5 are new.
 
@@ -120,10 +125,10 @@ The test file must mirror the source path once it exists. Until then the cases b
 | revokeAllSessions — other users untouched | none | `revokeAllSessions(userId)` | The `where` clause includes `userId` |
 | **verifyEmail** — valid token | unused, unexpired token row | `verifyEmail(raw)` | Looks up by hash of `raw`, not `raw`; sets `usedAt` and `User.emailVerifiedAt` in one transaction; returns that Date |
 | verifyEmail — unknown token | `findUnique` → null | `verifyEmail(raw)` | Throws `ApiError(400, "Invalid verification link")` |
-| verifyEmail — expired token | `expiresAt` in the past | `verifyEmail(raw)` | Throws `ApiError(410, "This verification link has expired")`; user not updated |
-| verifyEmail — used token | `usedAt` set | `verifyEmail(raw)` | Throws `ApiError(410, "This verification link has already been used")`; user not updated |
+| verifyEmail — expired unused token | `expiresAt` in the past, `usedAt` null | `verifyEmail(raw)` | Throws `ApiError(410, "This verification link has expired")`; user not updated |
+| verifyEmail — already used token | `usedAt` set (or already verified) | `verifyEmail(raw)` | Resolves with soft 200 "already verified" message and current `emailVerifiedAt` (D-11); does NOT throw 410 |
 | verifyEmail — token and user update are atomic | the user-update step rejects inside the mocked transaction | `verifyEmail(raw)` | Both writes are inside one `$transaction`; nothing is written outside it |
-| verifyEmail — double click | conditional token update returns 1, then 0 | two parallel calls | One succeeds, the other throws 410 "already been used" |
+| verifyEmail — double click | first call consumes token; second call arrives | two parallel/sequential calls | First call marks verified; second call returns soft 200 "already verified" success (not 410) |
 | **resendVerificationEmail** — unverified user | `findUnique` → unverified user | `resendVerificationEmail(email)` | Creates a hashed token (`tokenHash` ≠ raw); `sendVerificationEmail` called with the raw token |
 | resendVerificationEmail — unknown email or already verified | `findUnique` → null, then a verified user | `resendVerificationEmail(email)` | Resolves; no token created; no email sent |
 | resendVerificationEmail — same outward result | the three cases above | all three | All resolve to the same value and none throws |
@@ -134,7 +139,7 @@ The test file must mirror the source path once it exists. Until then the cases b
 | requestPasswordReset — unknown email | `findUnique` → null | `requestPasswordReset(email)` | Resolves; no row; no email |
 | requestPasswordReset — email failure | email service rejects | `requestPasswordReset(email)` | Resolves; raw token not logged |
 | requestPasswordReset — raw token not stored | none | `requestPasswordReset(email)` | Stored `tokenHash` ≠ raw token |
-| **resetPassword** — valid token | unused, unexpired token | `resetPassword(raw, "newpass123")` | `passwordHash` set to a bcrypt hash of the new password (not plaintext); token `usedAt` set; both in one transaction |
+| **resetPassword** — valid token | unused, unexpired token | `resetPassword(raw, "newpass123")` | `passwordHash` set to a bcrypt hash of the new password (not plaintext); token `usedAt` set; calls `revokeAllSessions(userId)` to revoke all other active refresh tokens (forces re-login everywhere; Q-11 resolved; D-12); all in one transaction |
 | resetPassword — unknown token | `findUnique` → null | `resetPassword(raw, pw)` | Throws `ApiError(400, "Invalid reset link")` |
 | resetPassword — expired token | `expiresAt` in the past | `resetPassword(raw, pw)` | Throws `ApiError(410, "This reset link has expired")`; `user.update` NOT called |
 | resetPassword — used token | `usedAt` set | `resetPassword(raw, pw)` | Throws `ApiError(410, "This reset link has already been used")`; `user.update` NOT called |
@@ -176,6 +181,7 @@ The test file must mirror the source path once it exists. Until then the cases b
 | createCheckout — creates no subscription | as above | `createCheckout(userId)` | `subscription.create` is NOT called |
 | createCheckout — only allowed payment fields stored | as above | `createCheckout(userId)` | `Payment.create` data keys are a subset of `userId`, `chapaTxRef`, `amount`, `currency`, `status`; no card-like keys |
 | createCheckout — active subscription | subscription `active` | `createCheckout(userId)` | Throws `ApiError(409, "You already have an active subscription")`; no `Payment` created; Chapa not called |
+| createCheckout — unverified email | `emailVerifiedAt` is null | `createCheckout(userId)` | Throws `ApiError(403, "Verify your email before subscribing")` (Q-04 resolved; D-01); payment not created |
 | createCheckout — past_due subscription | subscription `past_due` | `createCheckout(userId)` | Same 409 |
 | createCheckout — canceled with future access | subscription `canceled`, `currentPeriodEnd` in future | `createCheckout(userId)` | Allowed; creates a pending payment |
 | createCheckout — Chapa failure | adapter rejects | `createCheckout(userId)` | Throws `ApiError(502, "Could not start checkout with Chapa, please try again")`; no `Subscription` created |
@@ -213,6 +219,18 @@ The test file must mirror the source path once it exists. Until then the cases b
 | hasPaidAccess — any row counts | old expired row + one future row | `hasPaidAccess(userId, now)` | `true` |
 | hasPaidAccess — uses the passed clock | fake system time differs from `now` | `hasPaidAccess(userId, now)` | Result follows `now`, not the system time |
 
+### 9.2.4b `subscription-renewal.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **processUpcomingRenewals — reminder sent 7 days out** | `status: active`, `currentPeriodEnd` exactly 7 days from now, `renewalReminderSentAt: null` | `processUpcomingRenewals()` | `sendRenewalReminderEmail` called with user email and `currentPeriodEnd`; `renewalReminderSentAt` set to now (DR-11); `remindersSent: 1` |
+| processUpcomingRenewals — reminder already sent, don't send twice | `status: active`, 7 days out, `renewalReminderSentAt` set for current period | `processUpcomingRenewals()` | `sendRenewalReminderEmail` NOT called; `renewalReminderSentAt` not modified; `remindersSent: 0` |
+| processUpcomingRenewals — charge at period end | `status: active`, `currentPeriodEnd <= now()`, Chapa charge succeeds | `processUpcomingRenewals()` | Chapa charge API called; `currentPeriodEnd` extended by 1 month; `renewalReminderSentAt` cleared/reset for new period; `chargesAttempted: 1, chargesSucceeded: 1` |
+| processUpcomingRenewals — charge fails | `status: active`, `currentPeriodEnd <= now()`, Chapa charge rejects | `processUpcomingRenewals()` | Follows FR-22 / EP-14 path: subscription `status` becomes `past_due`; failed `Payment` recorded; `sendPaymentFailureEmail` called; `chargesFailed: 1` |
+| processUpcomingRenewals — canceled subscription never charged | `status: canceled`, `currentPeriodEnd <= now()` | `processUpcomingRenewals()` | Chapa API NOT called; no reminder sent; no charge attempted |
+| processUpcomingRenewals — subscription canceled between queueing and execution | `status: active` at query time, updated to `canceled` before charge step | `processUpcomingRenewals()` | Re-checks status immediately before calling Chapa; skips charging |
+| processUpcomingRenewals — provider failure does not crash batch | 2 subscriptions due; first Chapa call throws 500 | `processUpcomingRenewals()` | First logged as failure; second subscription is still processed |
+
 ### 9.2.5 Chapa adapter test (file name TBD, see 9.1.1)
 
 | Case | Setup | Action | Expected result |
@@ -247,16 +265,17 @@ The test file must mirror the source path once it exists. Until then the cases b
 | **disconnectGitHub** — deletes the connection only | connection row exists | `disconnectGitHub(userId)` | Only the `githubConnection` row is deleted; `starterRepo`, tickets, submissions and evaluations are untouched |
 | disconnectGitHub — no revoke at GitHub | mock GitHub client | same call | No GitHub revoke/grant-delete call is made (per A-32) |
 | disconnectGitHub — not connected | no connection row | same call | Throws `ApiError(404, "GitHub is not connected")` |
-| **createStarterRepo** — react template | connection exists; GitHub creates repo | `createStarterRepo(userId, "react")` | GitHub template-generate called for the react template with default name `work-simulator` (per A-24); then `StarterRepo` row created with `fullName`, `defaultBranch`, `githubRepoId`, `starterTemplate: react` |
-| createStarterRepo — node_express and custom name | same | `createStarterRepo(userId, "node_express", "my-repo")` | Uses the Node/Express template and the name `my-repo` |
+| **createStarterRepo** — react template | connection exists; GitHub creates repo | `createStarterRepo(userId, "react")` | GitHub template-generate called for the react template with default name `work-simulator` (per A-24); then `workflow_run` webhook registered via `write:repo_hook` (EP-33 / Q-08 resolved; D-09); `StarterRepo` row created with `fullName`, `defaultBranch`, `githubRepoId`, `starterTemplate: react` |
+| createStarterRepo — node_express and custom name | same | `createStarterRepo(userId, "node_express", "my-repo")` | Uses the Node/Express template, registers webhook, and sets name `my-repo` |
+| createStarterRepo — django template | connection exists; GitHub creates repo | `createStarterRepo(userId, "django")` | Uses the Django template (supported V1 template; D-05) and registers webhook |
 | createStarterRepo — DB row only after GitHub succeeds | GitHub create rejects | same call | `starterRepo.create` NOT called |
-| createStarterRepo — unsupported template | none | `createStarterRepo(userId, "django")` | Throws 400; GitHub not called |
+| createStarterRepo — unsupported template | none | `createStarterRepo(userId, "ruby_rails")` | Throws 400; GitHub not called |
 | createStarterRepo — invalid repo name | name with illegal characters | same call | Throws 400; GitHub not called |
 | createStarterRepo — no paid access | `hasPaidAccess` → false | same call | Throws 402 |
 | createStarterRepo — no connection | no connection row | same call | Throws `ApiError(403, "GitHub is not connected. Connect GitHub to continue")` |
 | createStarterRepo — token rejected by GitHub | GitHub returns 401 | same call | Connection row deleted; throws `ApiError(403, "Your GitHub connection is no longer valid. Reconnect GitHub to continue")` |
 | createStarterRepo — repo already exists | `starterRepo` row exists | same call | Throws `ApiError(409, "You already have a starter repository")`; GitHub not called |
-| createStarterRepo — name collision at GitHub | GitHub returns name-already-exists | `createStarterRepo(userId, "react", "taken")` | Throws `ApiError(409, "A repository named 'taken' already exists in your GitHub account. Choose another name or delete it, then try again")` |
+| createStarterRepo — name collision at GitHub | GitHub returns name-already-exists | `createStarterRepo(userId, "react", "taken")` | Throws `ApiError(409, "A repository named 'taken' already exists in your GitHub account. Choose another name or delete it, then try again")` (no auto-suffix; D-13) |
 | createStarterRepo — other GitHub failure | GitHub returns 5xx | same call | Throws `ApiError(502, "GitHub could not create the repository, please try again")` |
 | createStarterRepo — GitHub succeeds, DB insert fails | `starterRepo.create` rejects | same call | Rejects (does not report success) |
 | createStarterRepo — concurrent creates | two parallel calls | same call twice | At most one GitHub create call is made; the other call gets 409 (verify with the real DB in the integration test) |
@@ -338,10 +357,11 @@ The test file must mirror the source path once it exists. Until then the cases b
 | getMentorHintStage — never goes backward | transcripts of length 0…N | call for each length | Stage never decreases as the transcript grows |
 | getMentorHintStage — no direct answer on first message | one user message, however phrased | `getMentorHintStage([msg])` | Not the most specific stage |
 | getMentorHintStage — deterministic | same transcript twice | call twice | Same stage |
-| **sendMentorMessage** — happy path | ticket `in_progress`, owned, under limit; Gemini returns text | `sendMentorMessage(userId, ticketId, "help")` | `callMentorModel` receives ticket content, ordered transcript, the message and the computed stage; a user message then a mentor message are persisted together; both returned with correct roles |
+| **sendMentorMessage** — happy path | ticket `in_progress`, owned, under limit; Gemini returns text | `sendMentorMessage(userId, ticketId, "help")` | `callMentorModel` receives ticket content, ordered transcript, the message and the computed stage; a user message then a mentor message are persisted together; single JSON reply returned, not a stream (D-15) |
+| sendMentorMessage — available during submitted_v1 | ticket `submitted_v1` (revision phase after first review) | same call | Succeeds; calls Gemini and persists messages (Q-10c resolved; D-04) |
 | sendMentorMessage — Gemini fails | `callMentorModel` rejects | same call | Throws `ApiError(502, "The mentor is unavailable, please try again")`; `mentorMessage.create` NOT called |
 | sendMentorMessage — empty Gemini reply | `callMentorModel` returns "" | same call | Treated as failure: 502, nothing persisted |
-| sendMentorMessage — ticket not in progress | one case each: `assigned`, `submitted_v1`, `resubmitted`, `done`, `abandoned` | same call | Throws `ApiError(409, "The mentor is only available while the ticket is in progress")`; Gemini not called |
+| sendMentorMessage — ticket not in permitted state | one case each: `assigned`, `resubmitted`, `done`, `abandoned` | same call | Throws `ApiError(409, "The mentor is only available while the ticket is in progress or awaiting revision")`; Gemini not called |
 | sendMentorMessage — not owned or missing | none | same call | Throws 404 "Ticket not found" |
 | sendMentorMessage — no paid access | `hasPaidAccess` → false | same call | Throws 402 |
 | sendMentorMessage — limit reached | test config limit N; N messages stored | same call | Throws `ApiError(429, "Mentor message limit reached for this ticket")`; Gemini not called |
@@ -426,6 +446,14 @@ The test file must mirror the source path once it exists. Until then the cases b
 | calculateWeightedScore — mixed | none | `(80,60,70,90)` | `74.5` |
 | calculateWeightedScore — decimal input | none | `(33.33, 66.67, 50, 50)` | Result within 0.005 of the exact value 47.4995 and stored with at most 2 decimals (rounding rule not fixed, see 9.5.2) |
 | calculateWeightedScore — invalid input | one case each: -1, 101, NaN | same call | Throws |
+
+### 9.2.12b `serializers.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **serializeEvaluation — DB to API score field mapping (D-25)** | Evaluation DB record with `requirementsMetScore: 85`, `correctnessTestsScore: 90`, `codeQualityScore: 80`, `problemSolvingScore: 75`, `totalScore: 83.25` | `serializeEvaluation(record)` | Maps all five fields to `scores.requirementsMet: 85`, `scores.correctnessTests: 90`, `scores.codeQuality: 80`, `scores.problemSolving: 75`, `scores.total: 83.25` (no `*Score` suffixes in output; D-25) |
+| serializeEvaluation — attempt 1 null scores | Evaluation for attempt 1 | `serializeEvaluation(record)` | `feedback` present; `scores: null` |
+| serializeSubscription — hides internal reminder field | Subscription DB record with `renewalReminderSentAt` set | `serializeSubscription(record)` | Result has `id`, `status`, `currentPeriodEnd`, `canceledAt`; `renewalReminderSentAt` is omitted (backend-only; DR-11) |
 
 ### 9.2.13 `github-webhook.service.test.ts`
 
@@ -513,8 +541,13 @@ Controller tests use mocked services and check wiring: which service is called w
 | createCheckout | service returns URL | POST with a body containing `amount` and `currency` | Service called with `userId` only; 201 "Checkout created", `data: { checkoutUrl }` |
 | getSubscription | service returns subscription with `chapaSubscriptionRef` | GET | `data.subscription` has only `id`, `status`, `currentPeriodEnd`, `canceledAt`; `hasAccess` present; `subscription: null` case also passes |
 | cancelSubscription | service resolves; then rejects with 409 / 502 | POST | 200 "Subscription canceled" with the public subscription; the errors reach `next` |
-| getPayments | service returns rows with `chapaTxRef` | GET | 200 "Payment history"; each item has only `id`, `amount`, `currency`, `status`, `paidAt`, `createdAt` |
 | getProfile | service returns two items | GET | 200 "Profile"; `data.items` items have exactly `ticketId`, `title`, `category`, `difficulty`, `completedAt`, `evaluation`; empty list returns `items: []` |
+
+### 9.3.2b Payment controller — `payment.controller.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| getPayments | service returns rows with `chapaTxRef` | GET | 200 "Payment history"; each item has only `id`, `amount`, `currency`, `status`, `paidAt`, `createdAt`; no `chapaTxRef` (D-16, D-32) |
 
 ### 9.3.3 Webhook controllers — `chapa.controller.test.ts` and `github.controller.test.ts` (webhooks)
 
@@ -544,7 +577,7 @@ Chapa's signature header name and algorithm are not confirmed in doc 5. Confirm 
 | callback — missing code or state | none | GET | 302 redirect with `github=error` (the reason value is not specified, see 9.5.2); no JSON, no exception |
 | getConnection and disconnect | service returns summary / resolves | GET, DELETE | 200 "GitHub connection" with `connected`, `githubLogin`, `repo`; 200 "GitHub disconnected"; a 404 from the service reaches `next` |
 | createRepo — success | service returns a repo row | POST `{ starterTemplate: "react" }` | 201 "Repository created"; `data.repo` has only `fullName`, `starterTemplate`, `defaultBranch` |
-| createRepo — validation | body `{ starterTemplate: "django" }` and `{}` | POST | 400; service not called |
+| createRepo — validation | body `{ starterTemplate: "ruby_rails" }` and `{}` | POST | 400; service not called (React, Node/Express, and Django are all valid; D-05) |
 | assignTicket | service returns a ticket with `content` | POST | 201 "Ticket assigned"; `data.ticket` keys equal the Doc 5 Ticket object; `content` is flattened into `title`, `scenario`, etc. |
 | currentTicket | service returns a ticket, then `null` | GET | 200 "Current ticket" with the ticket, then with `ticket: null` |
 | getTicket — id validation | id `"not-a-uuid"` | GET | 400; service not called |
@@ -787,13 +820,13 @@ No test is written for these until the decision exists. Writing one now would si
 
 | Item | Missing decision |
 |---|---|
-| Chapa renewal mechanics and subscription reference (Q-05) | How monthly renewals arrive and how cancellation works at Chapa. Only first-payment, failure and idempotency cases are written |
+| Chapa renewal mechanics and subscription reference (Q-05) | Platform-triggered renewals resolved (D-08). Whether Chapa provides a subscription-level ref or only per-charge transaction refs remains OPEN |
 | Ticket template selection (Q-09) | Only "returns a loadable key" and "strategy is swappable" are tested |
-| Mentor limit, window and maximum length (Q-10) | Tests use test-config values. Whether limit counting includes both roles, or user messages only, is not stated |
-| Session revocation after password reset or change (Q-11) | Not asserted either way |
+| Mentor limit, window and maximum length (Q-10) | Tests use test-config values. Q-10a/b remain open. Q-10c resolved: mentor available during `submitted_v1` (D-04) |
+| Session revocation after password reset or change (Q-11) | Password reset revokes all sessions (resolved; D-12). Change password remains unasserted |
 | Submission timeout values and the scheduler that calls `handleSubmissionTimeout` (Q-13) | Only the transition logic is tested |
 | GitHub `access_denied` (Q-16) | Callback behavior when the user cancels authorization; also missing `code` or `state`, narrower-than-requested scope, and unexpected exceptions in the callback |
-| Email verification gating (Q-04) | Only "login is not gated" is tested. Also unspecified: `verifyEmail` for an already-verified user |
+| Email verification gating (Q-04) | Resolved: email verification blocks checkout (EP-13; D-01). Already-used link returns soft 200 (D-11) |
 | Reconnecting as a different GitHub account (Q-03) and diff size limit (Q-06) | Neither behavior is specified |
 | Which function creates the first verification token at registration | doc 8 says the register flow does it but names no function; covered only through `register` in 9.3.1 |
 | Unspecified edge behaviors in doc 8 | `changePassword` with the same password; Chapa timeout after the pending payment row exists; `createTicketBranch` when the branch already exists (status not given); several open PRs for one branch; PR or branch deleted; `abandonTicket` when the GitHub token is invalid during replacement (403 versus `newTicket: null`); a late CI webhook for a submission already timed out; attempt 2 with an empty mentor transcript |
@@ -804,4 +837,4 @@ No test is written for these until the decision exists. Writing one now would si
 
 *Once this plan is reviewed, the backend test files are created empty-but-failing before implementation, in the order of the doc 8 implementation list (8.21).*
 
-Next: proceed to → ticket creation in GitHub Projects (Team Guideline, Section 4 lifecycle)
+Next: proceed to → [10. Function-Level Specification — Frontend](./work-simulator-function-level-spec-frontend.md)

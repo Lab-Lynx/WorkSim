@@ -1,15 +1,15 @@
-# 9. Test Plan & Test Files — Frontend
+# 11. Test Plan & Test Files — Frontend
 
-*Project: Work Simulator · Maps directly to `8. Function-Level Specification — Frontend`.*
+*Project: Work Simulator · Maps directly to `10. Function-Level Specification — Frontend`.*
 
 **Scope:** frontend unit, hook, component, page, routing, API-client, and cross-feature integration/system tests. The backend test plan remains the source for backend behavior; this document tests the frontend contract against the frontend function-level specification.
 
-## 9.0 Test-First Rules
+## 11.0 Test-First Rules
 
 - The frontend test file mirrors the source path under `frontend/tests/`, never co-located.
-- Every function/component/page that has a `Test file` in frontend function-level spec 8 must have that test written before implementation.
+- Every function/component/page that has a `Test file` in frontend function-level spec 10 must have that test written before implementation.
 - Tests are derived from the specified signature, rules, edge cases, and source-of-truth constraints. They must not invent unresolved product decisions.
-- Open questions remain configurable or are tested only for the behavior explicitly specified around them: Q-04, Q-08, Q-10, Q-11, Q-12, Q-13, Q-14, Q-15, Q-16, Q-17, Q-18, Q-20.
+- Open questions remain configurable or are tested only for the behavior explicitly specified around them: Q-04 (resolved by D-01), Q-08, Q-10/10a/10b (10c resolved by D-04), Q-11 (resolved by D-12), Q-12, Q-13, Q-14, Q-15, Q-16, Q-17, Q-18, Q-20.
 - HTTP is mocked at the API-client boundary for hook/component/page tests. The API client itself uses mocked `fetch`.
 - Chapa, GitHub, Gemini/Groq-backed mentor/evaluation behavior is never contacted by frontend automated tests.
 - Use fake timers for polling, cooldowns, timeouts, and delayed UI states. Never make tests wait in real time.
@@ -22,13 +22,12 @@
 - Component tests mock hooks at their boundary only where necessary; hook tests exercise the hook behavior independently.
 - Query-cache assertions must use the single `queryKeys` factory rather than hand-written cache keys.
 
-## 9.1 Test File Map
+## 11.1 Test File Map
 
-One row per source file/function group specified by frontend function-level spec 8.
+One row per source file/function group specified by frontend function-level spec 10.
 
 | Source file | Test file | Test type | Written before code? |
 |---|---|---|---|
-
 | `frontend/src/lib/api/client.ts` | `frontend/tests/lib/api/client.test.ts` | Unit (mocked fetch) | ☐ |
 | `frontend/src/lib/api/errors.ts` | `frontend/tests/lib/api/errors.test.ts` | Unit (mocked fetch) | ☐ |
 | `frontend/src/lib/ticket-phase.ts` | `frontend/tests/lib/ticket-phase.test.ts` | Unit | ☐ |
@@ -36,11 +35,17 @@ One row per source file/function group specified by frontend function-level spec
 | `frontend/src/lib/navigation.ts` | `frontend/tests/lib/navigation.test.ts` | Unit | ☐ |
 | `frontend/src/lib/format.ts` | `frontend/tests/lib/format.test.ts` | Unit | ☐ |
 | `frontend/src/lib/github.ts` | `frontend/tests/lib/github.test.ts` | Unit | ☐ |
+| `frontend/src/hooks/auth/useRegister.ts` | `frontend/tests/hooks/auth/useRegister.test.tsx` | Hook | ☐ |
 | `frontend/src/hooks/auth/useMe.ts` | `frontend/tests/hooks/auth/useMe.test.tsx` | Hook | ☐ |
 | `frontend/src/hooks/auth/useLogin.ts` | `frontend/tests/hooks/auth/useLogin.test.tsx` | Hook | ☐ |
 | `frontend/src/hooks/auth/useLogout.ts` | `frontend/tests/hooks/auth/useLogout.test.tsx` | Hook | ☐ |
+| `frontend/src/hooks/auth/useLogoutAll.ts` | `frontend/tests/hooks/auth/useLogoutAll.test.tsx` | Hook | ☐ |
 | `frontend/src/hooks/auth/useVerifyEmail.ts` | `frontend/tests/hooks/auth/useVerifyEmail.test.tsx` | Hook | ☐ |
 | `frontend/src/hooks/auth/useResendVerification.ts` | `frontend/tests/hooks/auth/useResendVerification.test.tsx` | Hook | ☐ |
+| `frontend/src/hooks/auth/useForgotPassword.ts` | `frontend/tests/hooks/auth/useForgotPassword.test.tsx` | Hook | ☐ |
+| `frontend/src/hooks/auth/useResetPassword.ts` | `frontend/tests/hooks/auth/useResetPassword.test.tsx` | Hook | ☐ |
+| `frontend/src/hooks/auth/useChangePassword.ts` | `frontend/tests/hooks/auth/useChangePassword.test.tsx` | Hook | ☐ |
+| `frontend/src/hooks/auth/useUpdateProfile.ts` | `frontend/tests/hooks/auth/useUpdateProfile.test.tsx` | Hook | ☐ |
 | `frontend/src/hooks/billing/useSubscription.ts` | `frontend/tests/hooks/billing/useSubscription.test.tsx` | Hook | ☐ |
 | `frontend/src/hooks/billing/useStartCheckout.ts` | `frontend/tests/hooks/billing/useStartCheckout.test.tsx` | Hook | ☐ |
 | `frontend/src/hooks/billing/useCancelSubscription.ts` | `frontend/tests/hooks/billing/useCancelSubscription.test.tsx` | Hook | ☐ |
@@ -115,7 +120,7 @@ One row per source file/function group specified by frontend function-level spec
 | `frontend/src/pages/settings/SettingsPage.tsx` | `frontend/tests/pages/settings/SettingsPage.test.tsx` | Page | ☐ |
 | `frontend/src/pages/NotFoundPage.tsx` | `frontend/tests/pages/NotFoundPage.test.tsx` | Page | ☐ |
 
-### 9.1.1 Proposed cross-feature integration/system test files
+### 11.1.1 Proposed cross-feature integration/system test files
 
 These tests do not mirror one source file because they verify behavior across the API client, hooks, router, cache and page/component boundaries.
 
@@ -131,7 +136,7 @@ These tests do not mirror one source file because they verify behavior across th
 | Route access/gates | `frontend/tests/integration/route-gates.integration.test.tsx` | Integration | ☐ |
 | Accessibility/security rendering | `frontend/tests/integration/security-accessibility.integration.test.tsx` | Integration | ☐ |
 
-## 9.2.1 `lib/api/client.ts` — API foundation
+## 11.2.1 `lib/api/client.ts` — API foundation
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -145,7 +150,7 @@ These tests do not mirror one source file because they verify behavior across th
 | **apiRequest — timeout** | fake timer; fetch remains pending | advance past selected timeout | throws `kind: 'timeout'`; late response is ignored |
 | **apiRequest — caller abort** | provide an `AbortSignal` that aborts | abort request | rethrows the caller abort unchanged; does not convert it to `ApiError` and does not retry |
 | **apiRequest — default timeout** | ordinary endpoint | inspect fetch/abort timing | uses `REQUEST_TIMEOUT_DEFAULT_MS` unless an explicit timeout is supplied |
-| **apiRequest — long timeout paths** | call each of EP-22, EP-23, EP-27, EP-28, EP-30 | inspect selected timeout | uses `REQUEST_TIMEOUT_LONG_MS` |
+| **apiRequest — long timeout paths** | call each of EP-13, EP-22, EP-23, EP-28, EP-30 | inspect selected timeout | uses `REQUEST_TIMEOUT_LONG_MS` |
 | **apiRequest — explicit timeout override** | ordinary and long-timeout endpoint | pass `timeoutMs` | explicit timeout wins over path defaults |
 | **apiRequest — 401 refresh/replay** | protected request returns 401; refresh succeeds | call `apiRequest` | calls refresh once, replays the original request once with refresh disabled, and returns the replay result |
 | **apiRequest — login 401 is not refreshed** | EP-02 `/auth/login` returns 401 | call `apiRequest` | does not call refresh; original 401 reaches caller |
@@ -156,7 +161,7 @@ These tests do not mirror one source file because they verify behavior across th
 | **apiRequest — no token persistence** | spy on browser storage APIs | run authenticated request | never reads/writes localStorage, sessionStorage or IndexedDB |
 | **apiRequest — no secret/body logging** | use sentinel request/response/header/error values | force success and failure paths | no request body, response body, headers or error payload are logged |
 
-## 9.2.2 `lib/api/errors.ts` — error mapping and retry
+## 11.2.2 `lib/api/errors.ts` — error mapping and retry
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -181,7 +186,7 @@ These tests do not mirror one source file because they verify behavior across th
 | **shouldRetryQuery — 4xx** | 400,401,402,403,404,409,410,429 | call function | returns false |
 | **shouldRetryQuery — abort** | aborted request error | call function | returns false |
 
-## 9.2.3 Pure helpers, config, query keys and schemas
+## 11.2.3 Pure helpers, config, query keys and schemas
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -193,7 +198,7 @@ These tests do not mirror one source file because they verify behavior across th
 | **getTicketPhase — ready** | assigned ticket with no submission | call helper | returns `ready_to_start`, start action, mentor not-started, abandon true, ticket tab default |
 | **getTicketPhase — in progress** | in-progress ticket with no submission | call helper | returns in-progress phase with submit action and mentor enabled |
 | **getTicketPhase — first review processing** | submitted_v1 + awaiting/evaluating attempt 1 | call helper | returns first-review processing and `isProcessing: true` |
-| **getTicketPhase — first feedback ready** | submitted_v1 + completed attempt 1 with evaluation | call helper | returns feedback-ready and resubmit action |
+| **getTicketPhase — first feedback ready** | submitted_v1 + completed attempt 1 with evaluation | call helper | returns feedback-ready, resubmit action, and mentor enabled (D-04) |
 | **getTicketPhase — first review failed** | submitted_v1 + failed attempt 1 | call helper | returns first-review-failed and retry attempt 1 |
 | **getTicketPhase — final review processing** | resubmitted + awaiting/evaluating attempt 2 | call helper | returns final-review-processing |
 | **getTicketPhase — final review failed** | resubmitted + failed attempt 2 | call helper | returns final-review-failed and retry attempt 2 |
@@ -217,52 +222,59 @@ These tests do not mirror one source file because they verify behavior across th
 | **shell/URL helper safety** | malformed values | call helper | does not generate an external destination outside the specified GitHub/link rules |
 | **auth schemas — valid inputs** | valid register/login/forgot/reset/change-password/profile/resend values | parse | accepts values required by the frontend spec |
 | **auth schemas — invalid inputs** | empty/invalid email, password below required constraints, mismatched reset passwords where specified | parse | rejects with field-level validation errors |
-| **GitHub repo schema — valid templates** | react and node_express with valid names | parse | accepts supported templates |
-| **GitHub repo schema — unsupported/invalid name** | django or invalid repo name | parse | rejects; client never sends unsupported template |
+| **GitHub repo schema — valid templates** | react, node_express, and django with valid names | parse | accepts supported templates (D-05) |
+| **GitHub repo schema — unsupported/invalid name** | unsupported template (e.g. rails, spring) or invalid repo name | parse | rejects; client never sends unsupported template |
 
-## 9.2.4 Auth hooks
+## 11.2.4 Auth hooks
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
-| **useMe — success** | mock EP-01 success | render hook | returns user data and caches it under `queryKeys.me` |
+| **useRegister — success** | mock EP-01 201 response with User object | mutate valid registration data | sets session cookies via Set-Cookie, seeds `queryKeys.me` with returned user data, resets session-expired guard, does not require separate login request (D-10) |
+| **useRegister — failure/duplicate** | mock 409 duplicate email | mutate | maps error to email field, no token storage |
+| **useMe — success** | mock EP-11 success | render hook | returns user data and caches it under `queryKeys.me` |
 | **useMe — 401** | mock 401 | render hook | exposes error for route handling; does not manually inspect cookies |
 | **useMe — network/5xx** | mock retryable error | render hook | uses query retry policy, not mutation retry |
 | **useLogin — success** | mock EP-02 success | mutate valid credentials | seeds/invalidate behavior specified for `me`, resets session-expired guard, returns success |
 | **useLogin — failure** | mock server error | mutate | exposes error without client-side token storage |
 | **useLogout — success** | mock EP-04 success | mutate | clears relevant auth/cache state and navigates as specified |
 | **useLogout — non-401 failure** | mock failure | mutate | does not falsely claim logout; caller can show retry/toast behavior |
-| **useVerifyEmail — success/410** | mock EP-06 success and expired/used 410 | mutate | success invalidates/refreshes user state; 410 remains recoverable |
+| **useLogoutAll — success** | mock EP-05 success | mutate | clears cache, navigates to `/login?notice=logged_out_all` (D-12) |
+| **useVerifyEmail — success/soft-success/410** | mock EP-06 200 success, 200 soft-success (already-verified user with reused token per D-11), and 410 expired unused token | mutate | 200 invalidates/refreshes user state; 410 remains recoverable with resend link |
 | **useResendVerification — cooldown** | fake timers and successful resend | invoke resend twice | second send is blocked during `RESEND_COOLDOWN_MS`; returned state exposes cooldown |
 | **useResendVerification — server failure** | mock error | invoke resend | error is exposed and cooldown behavior follows specified state contract |
+| **useForgotPassword — success** | mock EP-08 success | mutate valid email | returns success with server message; no account existence revealed |
+| **useResetPassword — success** | mock EP-09 success | mutate valid new password + token | resets password, navigates to login with notice |
+| **useChangePassword — success** | mock EP-10 success | mutate valid current + new password | changes password, retains current session cookies per D-12 |
+| **useUpdateProfile — success** | mock EP-12 success | mutate updated name | updates `queryKeys.me` cache with new user profile data |
 | **simple auth hooks** | mock corresponding endpoint | exercise each mutation hook | calls the correct endpoint/body, uses no automatic mutation retry, and exposes pending/error/data consistently |
 
-## 9.2.5 Billing hooks
+## 11.2.5 Billing hooks
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
 | **useSubscription — initial query** | mock EP-15 | render hook | uses `queryKeys.subscription` and exposes subscription/hasAccess |
 | **useSubscription — polling** | fake timers; active checkout confirmation state | advance polling interval | polls according to checkout rules and stops at max duration |
-| **useStartCheckout — success** | mock EP-22 with checkout URL | mutate | returns checkout URL and does not mark subscription active locally |
+| **useStartCheckout — success** | mock EP-13 with checkout URL | mutate | returns checkout URL and does not mark subscription active locally |
 | **useStartCheckout — failure** | mock 402/409/502 | mutate | exposes mapped error and does not retry mutation |
-| **useCancelSubscription — success** | mock EP-23 success | mutate | invalidates/refetches subscription state |
+| **useCancelSubscription — success** | mock EP-16 success | mutate | invalidates/refetches subscription state |
 | **useCancelSubscription — timeout** | mock timeout then successful refetch | mutate | refetches so UI can reflect already-canceled state |
-| **usePayments — list** | mock EP-24 | render hook | uses `queryKeys.payments` and exposes newest-first API data without client sorting |
+| **usePayments — list** | mock EP-17 | render hook | uses `queryKeys.payments` and exposes newest-first API data without client sorting |
 | **Checkout polling boundaries** | fake clock at just before/at max | advance time | stops at `CHECKOUT_POLL_MAX_MS` and shows timed-out state rather than claiming payment success |
 
-## 9.2.6 GitHub hooks
+## 11.2.6 GitHub hooks
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
 | **useGitHubConnection — connected** | mock EP-20 | render | returns connection summary under correct query key |
 | **useGitHubConnection — 403** | mock 403 | render | global error handling invalidates GitHub connection; UI can show reconnect message |
-| **useGitHubConnect — success** | mock EP-26 authorize URL | mutate | navigates/redirects to GitHub URL; does not store OAuth attempt |
+| **useGitHubConnect — success** | mock EP-18 authorize URL | mutate | navigates/redirects to GitHub URL; does not store OAuth attempt |
 | **useGitHubConnect — no access** | mock 402 | mutate | does not redirect to GitHub; exposes billing error |
-| **useDisconnectGitHub — success** | mock EP-27 | mutate | invalidates connection and leaves repository data intact at UI level |
-| **useCreateRepo — success** | mock EP-28 | mutate supported template | invalidates connection/current-ticket dependent queries as specified and exposes created repo |
+| **useDisconnectGitHub — success** | mock EP-21 | mutate | invalidates connection and leaves repository data intact at UI level |
+| **useCreateRepo — success** | mock EP-22 | mutate supported template (react, node_express, django per D-05) | invalidates connection/current-ticket dependent queries as specified and exposes created repo |
 | **useCreateRepo — unsupported/invalid** | schema-invalid input | mutate | does not call API |
 | **useCreateRepo — 403/502** | mock GitHub/provider failure | mutate | exposes mapped error and never auto-retries mutation |
 
-## 9.2.7 Ticket hooks
+## 11.2.7 Ticket hooks
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -275,18 +287,18 @@ These tests do not mirror one source file because they verify behavior across th
 | **useAbandonTicket — success** | mock abandon result with optional new ticket | mutate | updates ticket/current-ticket cache according to result |
 | **useAbandonTicket — new ticket failure** | abandon succeeds; next-ticket request fails | mutate | does not corrupt old/new ticket cache; exposes the next-ticket failure |
 
-## 9.2.8 Mentor hooks and pending-message behavior
+## 11.2.8 Mentor hooks and pending-message behavior
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
 | **useMentorMessages — history** | mock EP-29 | render | returns messages in API order under `queryKeys.mentor(id)` |
-| **useSendMentorMessage — success** | mock EP-30 success | mutate | invalidates/refetches mentor history; no duplicate mutation retry |
-| **useSendMentorMessage — 409** | mock 409 after ticket leaves progress | mutate | exposes error for pending-message reconciliation |
+| **useSendMentorMessage — success** | mock EP-28 success | mutate | invalidates/refetches mentor history; no duplicate mutation retry |
+| **useSendMentorMessage — 409** | mock 409 after ticket leaves eligible state (in_progress or submitted_v1 feedback_ready) | mutate | exposes error for pending-message reconciliation (D-04) |
 | **Mentor pending reconciliation — new message** | history count increases after send | run reconciliation | pending message is resolved/removed and real mentor response appears |
 | **Mentor pending reconciliation — send succeeds but history is delayed** | send resolves before history count changes | advance configured reconciliation/refetch behavior | does not duplicate a pending user message |
-| **Mentor pending reconciliation — retry** | send fails and ticket remains eligible | invoke retry | resends the pending content once; no duplicate concurrent send |
+| **Mentor pending reconciliation — retry** | send fails and ticket remains eligible (in_progress or feedback_ready) | invoke retry | resends the pending content once; no duplicate concurrent send (D-04) |
 
-## 9.2.9 Submission hooks and polling
+## 11.2.9 Submission hooks and polling
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -302,11 +314,11 @@ These tests do not mirror one source file because they verify behavior across th
 | **useRetrySubmission — attempt comes from submission** | submission attempt 1 or 2 supplied by page state | mutate | sends no arbitrary user-selected third attempt and uses the displayed submission attempt |
 | **useRetrySubmission — failure** | mock 502/409 | mutate | exposes mapped error; mutation is not automatically retried |
 
-## 9.2.10 Profile and cross-cutting hooks
+## 11.2.10 Profile and cross-cutting hooks
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
-| **useExperienceProfile — success** | mock EP-33 | render | returns profile items/count using `queryKeys.profile` |
+| **useExperienceProfile — success** | mock EP-34 | render | returns profile items/count using `queryKeys.profile` |
 | **useExperienceProfile — error** | mock 5xx/network | render | shows retryable query error without blanking unrelated app shell |
 | **getSetupProgress — all done** | subscription access, connected GitHub, repo and active ticket | call pure helper | all four steps done; `setupComplete` true; `canGetTicket` false when active ticket exists |
 | **getSetupProgress — initial setup** | not subscribed/disconnected/no repo/no ticket | call helper | steps 1-4 derived correctly; next step is subscribe |
@@ -322,7 +334,7 @@ These tests do not mirror one source file because they verify behavior across th
 | **useDocumentTitle — title** | render with title | mount/update/unmount | sets document title to specified page title |
 | **useFocusPageHeading — heading focus** | page contains `h1[tabIndex=-1]` | render/mount | focuses page heading without breaking normal keyboard flow |
 
-## 9.2.11 Routing components
+## 11.2.11 Routing components
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -335,7 +347,7 @@ These tests do not mirror one source file because they verify behavior across th
 | **PublicOnly — error** | 401/network error | render | renders public children |
 | **RootRedirect — pending/success/error** | mock each useMe state | render | loader for pending; dashboard on success; login on error |
 
-## 9.2.12 Layout components
+## 11.2.12 Layout components
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -348,7 +360,7 @@ These tests do not mirror one source file because they verify behavior across th
 | **EmailVerificationBanner — verified/unverified** | mock user verified/unverified | render | banner appears only when appropriate and provides specified verify/resend actions |
 | **SubscriptionBanner — access states** | mock subscription states | render | shows only the specified access/banner content and links |
 
-## 9.2.13 Common UI components
+## 11.2.13 Common UI components
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -368,7 +380,7 @@ These tests do not mirror one source file because they verify behavior across th
 | **CopyButton — success** | mock clipboard write success | click | copies exact text and announces Copied for `COPY_FEEDBACK_MS` |
 | **CopyButton — failure** | clipboard rejects | click | shows non-success state without falsely claiming Copied |
 
-## 9.2.14 Billing, GitHub and dashboard components
+## 11.2.14 Billing, GitHub and dashboard components
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -384,8 +396,8 @@ These tests do not mirror one source file because they verify behavior across th
 | **GitHubConnectionCard — connected** | connected true | render | shows login and Disconnect |
 | **GitHubConnectionCard — no access** | hasAccess false | render | Connect disabled with billing reason/link |
 | **GitHubConnectionCard — OAuth result** | success/error/unknown result | render | success is status alert; known error has mapped message; unknown reason is not echoed |
-| **RepoCreateForm — valid templates** | react/node_express values | submit | calls onCreate with validated values |
-| **RepoCreateForm — invalid input** | unsupported/invalid repo name | submit | blocks submit and shows field validation |
+| **RepoCreateForm — valid templates** | react/node_express/django values | submit | calls onCreate with validated values (D-05) |
+| **RepoCreateForm — invalid input** | unsupported (e.g. rails) or invalid repo name | submit | blocks submit and shows field validation |
 | **RepoCreateForm — pending** | isCreating true | render | fields/actions disabled and pending label shown |
 | **RepoSummary — repo links** | repo summary | render | shows repo/default branch data with safe external links |
 | **SetupChecklist — four steps** | progress states | render | always shows four steps in required order with correct status/detail and next-step action |
@@ -393,7 +405,7 @@ These tests do not mirror one source file because they verify behavior across th
 | **CurrentTicketCard — ticket present** | ticket present | render | shows ticket summary and correct phase/status label |
 | **CurrentTicketCard — no ticket** | setup complete, no ticket | render | shows Get ticket action and inline get-ticket errors |
 
-## 9.2.15 Ticket workspace components
+## 11.2.15 Ticket workspace components
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -404,14 +416,14 @@ These tests do not mirror one source file because they verify behavior across th
 | **TicketActionBar — error recovery links** | UiError go_billing/reconnect_github | render | adds matching link |
 | **TicketDetails — lists** | scenario/files/criteria/checklist populated and empty | render | preserves scenario whitespace, renders read-only lists, hides empty sections |
 | **BranchInstructions — links/commands** | repo/branch including spaces and quotes | render/copy | builds repo/branch links and safely quoted checkout command |
-| **MentorPanel — availability order** | each mentor availability + access combination | render | applies availability precedence exactly as specified |
+| **MentorPanel — availability order** | each mentor availability + access combination | render | mentor available in `in_progress` and `submitted_v1` (`feedback_ready`) (D-04); applies availability precedence exactly as specified |
 | **MentorPanel — successful send reconciliation** | mock send + history count increase | send | pending user message reconciles into real history |
-| **MentorPanel — 409 after leaving progress** | send then 409 | send | pending becomes failed and Retry is hidden |
+| **MentorPanel — 409 after leaving progress or feedback** | send then 409 | send | pending becomes failed and Retry is hidden (D-04) |
 | **MentorPanel — duplicate send** | sending in progress | send twice | second send ignored |
 | **MentorMessageList — roles/text** | user/mentor messages with HTML-like content | render | shows You/Mentor labels and raw text; never interprets HTML/Markdown |
 | **MentorMessageList — pending states** | sending and failed pending message | render | shows Mentor is thinking… or Not sent + Retry according to state |
 | **MentorComposer — empty/send** | empty, whitespace, valid text | interact | Send disabled for empty; trims valid content before callback and clears textarea after callback |
-| **MentorComposer — sending/disabled/max** | isSending, disabledReason, known maxChars | render/type | button disabled appropriately; counter appears only when maxChars is known; over-limit cannot send |
+| **MentorComposer — sending/disabled/max** | isSending, disabledReason, known maxChars | render/type | enabled only in `in_progress` and `submitted_v1` (`feedback_ready`) (D-04); button disabled appropriately; counter appears only when maxChars is known; over-limit cannot send |
 | **MentorComposer — Enter** | type multiline text | press Enter | inserts newline; does not submit |
 | **SubmissionsPanel — ordering** | attempts unordered | render | cards appear in attempt order |
 | **SubmissionsPanel — empty** | no submissions | render | shows specified empty message |
@@ -433,7 +445,7 @@ These tests do not mirror one source file because they verify behavior across th
 | **DiffViewer — text safety** | diff contains HTML/script-looking text | render | renders literal text, never HTML |
 | **DiffViewer — line endings/large diff** | CRLF and large diff | render | removes trailing CR per line and renders full diff without page horizontal overflow |
 
-## 9.2.16 Profile components
+## 11.2.16 Profile components
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -446,26 +458,24 @@ These tests do not mirror one source file because they verify behavior across th
 | **ExperienceItem — history link** | ticket id | render | links to `/tickets/{ticketId}?tab=submissions` |
 | **ExperienceItem — no share** | render | inspect actions | no share button/link exists |
 
-## 9.2.17 `PG-01 RegisterPage` page test
+## 11.2.17 `PG-01 RegisterPage` page test
 
 **Source:** `frontend/src/pages/auth/RegisterPage.tsx`  
 **Test file:** `frontend/tests/pages/auth/RegisterPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
 | **initial form** | render page | inspect | Create account title and required fields are present; no success view |
 | **validation** | invalid email/password/name | submit | client validation prevents request and shows field errors |
-| **success** | mock register success | submit valid form | shows success view, keeps registered email for resend, does not navigate/log in |
+| **success** | mock register success (EP-01 201 with User) | submit valid form | sets session cookies via Set-Cookie, seeds `queryKeys.me`, shows success view / verification banner, keeps registered email for resend (D-10) |
 | **server 409** | register returns 409 | submit | email field receives server error and focus moves to email |
 | **resend** | success view + resend hook | click Resend | uses registered email and displays server resend message unchanged |
 | **pending** | mutation pending | render/interact | fields/actions are read-only/disabled while pending |
 
-## 9.2.17 `PG-02 LoginPage` page test
+## 11.2.18 `PG-02 LoginPage` page test
 
 **Source:** `frontend/src/pages/auth/LoginPage.tsx`  
 **Test file:** `frontend/tests/pages/auth/LoginPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -475,11 +485,10 @@ These tests do not mirror one source file because they verify behavior across th
 | **429** | login returns 429 | submit | root error shown and form remains usable |
 | **no remember me** | render | inspect | no remember-me control exists |
 
-## 9.2.17 `PG-03 ForgotPasswordPage` page test
+## 11.2.19 `PG-03 ForgotPasswordPage` page test
 
 **Source:** `frontend/src/pages/auth/ForgotPasswordPage.tsx`  
 **Test file:** `frontend/tests/pages/auth/ForgotPasswordPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -487,11 +496,10 @@ These tests do not mirror one source file because they verify behavior across th
 | **different email** | success view | click use different email | clears sent message and resets form |
 | **failure** | server error | submit | shows mapped form/root error |
 
-## 9.2.17 `PG-04 ResetPasswordPage` page test
+## 11.2.20 `PG-04 ResetPasswordPage` page test
 
 **Source:** `frontend/src/pages/auth/ResetPasswordPage.tsx`  
 **Test file:** `frontend/tests/pages/auth/ResetPasswordPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -500,25 +508,23 @@ These tests do not mirror one source file because they verify behavior across th
 | **expired/used** | 410 | render/submit | shows recovery; does not perform client-side mutation |
 | **refresh token preservation** | token in URL | reload/remount | token remains usable and is not stripped |
 
-## 9.2.17 `PG-05 VerifyEmailPage` page test
+## 11.2.21 `PG-05 VerifyEmailPage` page test
 
 **Source:** `frontend/src/pages/auth/VerifyEmailPage.tsx`  
 **Test file:** `frontend/tests/pages/auth/VerifyEmailPage.test.tsx`
 
-
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
-| **successful verification** | mock EP-06 success | render | shows success; button goes dashboard when useMe has user, otherwise login |
-| **expired/used** | EP-06 410 | render | both use same resend recovery without message matching |
+| **successful verification** | mock EP-06 success (including 200 soft success for already-verified user per D-11) | render | shows success; button goes dashboard when useMe has user, otherwise login |
+| **expired unused token** | EP-06 410 | render | shows resend recovery without message matching; 410 reserved strictly for expired unused token (D-11) |
 | **prefill** | useMe has user email | render | resend email is prefilled |
 | **logged out** | useMe 401 | render | page remains usable and does not treat 401 as a crash |
 | **strict-mode double effect** | development-style double effect | render | verification request is not duplicated |
 
-## 9.2.17 `PG-06 DashboardPage` page test
+## 11.2.22 `PG-06 DashboardPage` page test
 
 **Source:** `frontend/src/pages/dashboard/DashboardPage.tsx`  
 **Test file:** `frontend/tests/pages/dashboard/DashboardPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -529,11 +535,10 @@ These tests do not mirror one source file because they verify behavior across th
 | **get ticket timeout** | EP-23 timeout then refetch finds ticket | trigger | refetch recovers without duplicate ticket |
 | **access lapse** | setup complete then hasAccess false | render | step 1 says Subscribe again |
 
-## 9.2.17 `PG-07 BillingPage` page test
+## 11.2.23 `PG-07 BillingPage` page test
 
 **Source:** `frontend/src/pages/billing/BillingPage.tsx`  
 **Test file:** `frontend/tests/pages/billing/BillingPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -544,11 +549,10 @@ These tests do not mirror one source file because they verify behavior across th
 | **cancel timeout** | timeout but backend may have canceled | cancel | hook refetches and card can show Canceled |
 | **checkout 409** | active subscription appears in another tab | click | server error shown; no false success |
 
-## 9.2.17 `PG-08 CheckoutReturnPage` page test
+## 11.2.24 `PG-08 CheckoutReturnPage` page test
 
 **Source:** `frontend/src/pages/billing/CheckoutReturnPage.tsx`  
 **Test file:** `frontend/tests/pages/billing/CheckoutReturnPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -560,11 +564,10 @@ These tests do not mirror one source file because they verify behavior across th
 | **query params ignored** | Chapa params present | render | does not trust query params to claim payment success |
 | **GitHub link** | confirmed state | render/click | Connect GitHub points to `/github` |
 
-## 9.2.17 `PG-09 GitHubSetupPage` page test
+## 11.2.25 `PG-09 GitHubSetupPage` page test
 
 **Source:** `frontend/src/pages/github/GitHubSetupPage.tsx`  
 **Test file:** `frontend/tests/pages/github/GitHubSetupPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -575,11 +578,10 @@ These tests do not mirror one source file because they verify behavior across th
 | **repo with disconnected GitHub** | repo exists, connection false | render | Connect shown while RepoSummary remains |
 | **stripped params refresh** | callback params absent after refresh | render | no stale OAuth alert is fabricated |
 
-## 9.2.17 `PG-10 TicketPage` page test
+## 11.2.26 `PG-10 TicketPage` page test
 
 **Source:** `frontend/src/pages/tickets/TicketPage.tsx`  
 **Test file:** `frontend/tests/pages/tickets/TicketPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -594,11 +596,10 @@ These tests do not mirror one source file because they verify behavior across th
 | **completed submission before ticket** | submission completed while ticket still resubmitted | poll | sync loop refetches until ticket reaches final state |
 | **abandon then next-ticket failure** | abandon succeeds; new ticket request fails | trigger | old state is not corrupted; error remains recoverable |
 
-## 9.2.17 `PG-11 ExperienceProfilePage` page test
+## 11.2.27 `PG-11 ExperienceProfilePage` page test
 
 **Source:** `frontend/src/pages/profile/ExperienceProfilePage.tsx`  
 **Test file:** `frontend/tests/pages/profile/ExperienceProfilePage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -608,26 +609,24 @@ These tests do not mirror one source file because they verify behavior across th
 | **empty state** | no items | render | specified empty message/action |
 | **error** | profile query fails | render | error state with retry |
 
-## 9.2.17 `PG-12 SettingsPage` page test
+## 11.2.28 `PG-12 SettingsPage` page test
 
 **Source:** `frontend/src/pages/settings/SettingsPage.tsx`  
 **Test file:** `frontend/tests/pages/settings/SettingsPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
 | **load** | mock current user | render | settings fields are populated from user data |
 | **profile save** | valid name | submit | updates profile and clears dirty state before navigation |
-| **change password** | valid/current-password error/validation error | submit | maps server errors to correct fields/root |
+| **change password** | valid/current-password error/validation error | submit | maps server errors to correct fields/root; retains current session on success per D-12 |
 | **dirty navigation** | unsaved changes | navigate | ConfirmDialog blocks navigation |
 | **session expiry while dirty** | session expiry redirect | trigger | does not block logout/session-expiry navigation |
 | **successful save** | dirty form | submit | dirty state resets before any navigation |
 
-## 9.2.17 `PG-13 NotFoundPage` page test
+## 11.2.29 `PG-13 NotFoundPage` page test
 
 **Source:** `frontend/src/pages/NotFoundPage.tsx`  
 **Test file:** `frontend/tests/pages/NotFoundPage.test.tsx`
-
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -636,13 +635,12 @@ These tests do not mirror one source file because they verify behavior across th
 | **pending** | useMe pending | render | uses FullPageLoader |
 | **recovery** | render | inspect | provides specified navigation back into the app |
 
-## 9.3 Component/Page Contract Coverage Checklist
+## 11.3 Component/Page Contract Coverage Checklist
 
 The following checklist ensures no function-level specification block is skipped even when a behavior is covered by a neighboring test. Each row must have at least one direct contract test in its named file.
 
 | Source function/component/page | Required test file | Covered? |
 |---|---|---|
-
 | `apiRequest` — `frontend/src/lib/api/client.ts` | `frontend/tests/lib/api/client.test.ts` | ☐ |
 | `configureApiClient` — `frontend/src/lib/api/client.ts` | `frontend/tests/lib/api/client.test.ts` | ☐ |
 | `refreshSessionOnce` — `frontend/src/lib/api/client.ts` | `frontend/tests/lib/api/client.test.ts` | ☐ |
@@ -657,11 +655,17 @@ The following checklist ensures no function-level specification block is skipped
 | `getSafeRedirectPath and buildLoginRedirect` — `frontend/src/lib/navigation.ts` | `frontend/tests/lib/navigation.test.ts` | ☐ |
 | `Formatters` — `frontend/src/lib/format.ts` | `frontend/tests/lib/format.test.ts` | ☐ |
 | `GitHub helpers` — `frontend/src/lib/github.ts` | `frontend/tests/lib/github.test.ts` | ☐ |
+| `useRegister` — `frontend/src/hooks/auth/useRegister.ts` | `frontend/tests/hooks/auth/useRegister.test.tsx` | ☐ |
 | `useMe` — `frontend/src/hooks/auth/useMe.ts` | `frontend/tests/hooks/auth/useMe.test.tsx` | ☐ |
 | `useLogin` — `frontend/src/hooks/auth/useLogin.ts` | `frontend/tests/hooks/auth/useLogin.test.tsx` | ☐ |
 | `useLogout` — `frontend/src/hooks/auth/useLogout.ts` | `frontend/tests/hooks/auth/useLogout.test.tsx` | ☐ |
+| `useLogoutAll` — `frontend/src/hooks/auth/useLogoutAll.ts` | `frontend/tests/hooks/auth/useLogoutAll.test.tsx` | ☐ |
 | `useVerifyEmail` — `frontend/src/hooks/auth/useVerifyEmail.ts` | `frontend/tests/hooks/auth/useVerifyEmail.test.tsx` | ☐ |
 | `useResendVerification` — `frontend/src/hooks/auth/useResendVerification.ts` | `frontend/tests/hooks/auth/useResendVerification.test.tsx` | ☐ |
+| `useForgotPassword` — `frontend/src/hooks/auth/useForgotPassword.ts` | `frontend/tests/hooks/auth/useForgotPassword.test.tsx` | ☐ |
+| `useResetPassword` — `frontend/src/hooks/auth/useResetPassword.ts` | `frontend/tests/hooks/auth/useResetPassword.test.tsx` | ☐ |
+| `useChangePassword` — `frontend/src/hooks/auth/useChangePassword.ts` | `frontend/tests/hooks/auth/useChangePassword.test.tsx` | ☐ |
+| `useUpdateProfile` — `frontend/src/hooks/auth/useUpdateProfile.ts` | `frontend/tests/hooks/auth/useUpdateProfile.test.tsx` | ☐ |
 | `useSubscription` — `frontend/src/hooks/billing/useSubscription.ts` | `frontend/tests/hooks/billing/useSubscription.test.tsx` | ☐ |
 | `useStartCheckout` — `frontend/src/hooks/billing/useStartCheckout.ts` | `frontend/tests/hooks/billing/useStartCheckout.test.tsx` | ☐ |
 | `useCancelSubscription` — `frontend/src/hooks/billing/useCancelSubscription.ts` | `frontend/tests/hooks/billing/useCancelSubscription.test.tsx` | ☐ |
@@ -736,22 +740,23 @@ The following checklist ensures no function-level specification block is skipped
 | `PG-12 SettingsPage` — `frontend/src/pages/settings/SettingsPage.tsx` | `frontend/tests/pages/settings/SettingsPage.test.tsx` | ☐ |
 | `PG-13 NotFoundPage` — `frontend/src/pages/NotFoundPage.tsx` | `frontend/tests/pages/NotFoundPage.test.tsx` | ☐ |
 
-## 9.4 Cross-Feature Integration Test Cases
+## 11.4 Cross-Feature Integration Test Cases
 
 These cases intentionally test the seams between the units above. They are not substitutes for unit/component tests.
 
-### 9.4.1 Authentication and session
+### 11.4.1 Authentication and session
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
-| login → protected route | login succeeds and `me` cache is seeded | navigate to `/dashboard` | `PublicOnly` and `LoginPage` converge on the same safe destination; dashboard renders without a flash to login |
+| login → protected route | login succeeds (or registration per D-10) and `me` cache is seeded | navigate to `/dashboard` | `PublicOnly` and `LoginPage` converge on the same safe destination; dashboard renders without a flash to login |
 | protected route → expired access cookie | `useMe` request gets 401 and refresh succeeds | load protected page | API client refreshes once and replays; protected page renders |
 | protected route → dead session | refresh returns 401 | load protected page | exactly one session-expiry navigation; login receives `session_expired` notice only for an existing session |
 | many requests → one refresh | multiple protected queries return 401 together | resolve refresh | only one refresh request is made; all eligible requests replay once |
-| logout all → login | logout-all succeeds | navigate/login | cache/session state is cleared and login notice is correct |
+| logout all → login | logout-all succeeds | navigate/login | cache/session state is cleared and login notice is `logged_out_all` (D-12) |
 | password reset → login | reset succeeds | visit login | `password_reset` notice is shown exactly once |
+| password change → session preserved | change password succeeds | visit dashboard | session cookies remain valid; does not require re-login (D-12) |
 
-### 9.4.2 Billing and access
+### 11.4.2 Billing and access
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -761,7 +766,7 @@ These cases intentionally test the seams between the units above. They are not s
 | access revoked → 402 | mutation/query returns 402 | render affected page | subscription cache invalidates and billing recovery link appears |
 | cancel in another tab | local state active; cancel returns 409/updated state | attempt cancel | refetch catches server truth; no false local state |
 
-### 9.4.3 GitHub setup
+### 11.4.3 GitHub setup
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -771,7 +776,7 @@ These cases intentionally test the seams between the units above. They are not s
 | disconnect with repo | connected + repo exists | disconnect | connection becomes disconnected while repository summary remains |
 | repo creation failure | GitHub provider returns 502 | create repo | no false repo is shown; error is retryable and mutation is not auto-retried |
 
-### 9.4.4 Ticket lifecycle
+### 11.4.4 Ticket lifecycle
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -783,17 +788,17 @@ These cases intentionally test the seams between the units above. They are not s
 | abandoned → next ticket | abandon succeeds | get next | route key resets page state and new ticket is shown when returned |
 | ownership failure | request another user's ticket | navigate | same not-found view as any missing ticket |
 
-### 9.4.5 Mentor
+### 11.4.5 Mentor
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
-| start → mentor send | in_progress + access | send message | pending message appears, then reconciles with server history |
-| mentor unavailable after submit | ticket leaves in_progress | open/send | composer is disabled with specified reason |
+| start → mentor send | in_progress or feedback_ready + access | send message | pending message appears, then reconciles with server history (D-04) |
+| mentor unavailable after terminal | ticket leaves eligible state (e.g. final review or done) | open/send | composer is disabled with specified reason (D-04) |
 | mentor send 409 | send begins then state changes | resolve mutation | pending message becomes failed and retry is hidden |
 | duplicate click | send pending | click Send twice | exactly one request |
 | HTML message | API returns `<script>`/HTML-like content | render | text is displayed literally |
 
-### 9.4.6 Submission polling
+### 11.4.6 Submission polling
 
 | Case | Setup | Action | Expected result |
 |---|---|---|---|
@@ -803,7 +808,7 @@ These cases intentionally test the seams between the units above. They are not s
 | completed reconciliation | poll becomes completed | render | `onSettled` fires once and ticket refetches |
 | diff open | completed submission with diff | open diff | diff request is lazy and cached separately from summary |
 
-## 9.5 Security, Privacy and Accessibility Checks
+## 11.5 Security, Privacy and Accessibility Checks
 
 | Check | Expected result |
 |---|---|
@@ -823,7 +828,7 @@ These cases intentionally test the seams between the units above. They are not s
 | Color independence | Diff additions/removals retain `+`/`-` text markers; meaning is not color-only |
 | Score semantics | Score bars expose accessible names/values while displayed numeric values remain API values |
 
-## 9.6 Timing and Polling Test Matrix
+## 11.6 Timing and Polling Test Matrix
 
 All rows use fake timers.
 
@@ -840,7 +845,7 @@ All rows use fake timers.
 | Copy feedback | `COPY_FEEDBACK_MS` | exact announcement expiry |
 | Mentor max chars | `MENTOR_MESSAGE_MAX_CHARS` | `null`, exact max, max+1 |
 
-## 9.7 Query-Key and Cache Invalidation Matrix
+## 11.7 Query-Key and Cache Invalidation Matrix
 
 | Query | Key | Must be used by | Invalidated/refetched by |
 |---|---|---|---|
@@ -856,16 +861,16 @@ All rows use fake timers.
 
 **Critical negative test:** no implementation may invalidate the bare `['ticket']` prefix, because the frontend specification explicitly forbids broad ticket invalidation.
 
-## 9.8 Open Questions — Test Treatment
+## 11.8 Open Questions — Test Treatment
 
-These remain unresolved and must not be converted into invented product requirements.
+These remain unresolved and must not be converted into invented product requirements (or note the team decision that resolved them).
 
 | ID | Test treatment |
 |---|---|
-| Q-04 | Test only the verification behavior explicitly specified; gate changes remain configuration/spec work |
+| Q-04 | **Resolved by D-01:** Email verification required before subscription/ticket assignment; user can access dashboard. Assert verification banner on dashboard; assert billing/assignment gated. |
 | Q-08 | Keep permission wording in one component constant and assert the configured value |
-| Q-10 / Q-10b / Q-10c | Use the configured mentor limit and the currently specified composer availability; do not invent a number or post-submit rule |
-| Q-11 | Do not assert behavior not specified for existing sessions after password change |
+| Q-10 / Q-10b / Q-10c | Q-10 and Q-10b remain open (use configured mentor message max chars / limits). **Q-10c resolved by D-04:** assert composer enabled during both `in_progress` and `submitted_v1` (`feedback_ready`). |
+| Q-11 | **Resolved by D-12:** Password change retains existing session cookies; logout-all is the explicit revocation path. |
 | Q-12 | Do not test cookie SameSite/CSRF behavior in frontend unit tests; browser/backend integration owns it |
 | Q-13 | Use configured submission polling/timeout constants; do not invent server timeout semantics |
 | Q-14 | Assert that price is absent; do not invent a price |
@@ -875,9 +880,9 @@ These remain unresolved and must not be converted into invented product requirem
 | Q-18 | Keep support contact behavior isolated until specified |
 | Q-20 | Assert full diff rendering and lazy opening as the interim behavior; do not add pagination/collapse |
 
-## 9.9 Definition of Done
+## 11.9 Definition of Done
 
-- [ ] Every test file named by frontend function-level spec 8 exists under `frontend/tests/`.
+- [ ] Every test file named by frontend function-level spec 10 exists under `frontend/tests/`.
 - [ ] Every named function/component/page has at least one direct contract test.
 - [ ] API client has tests for envelope validation, timeout, abort, network failure, 401 refresh, refresh deduplication, replay, session-expiry guard, credentials and secret-safe behavior.
 - [ ] Pure helpers have exhaustive state-table coverage.
@@ -896,10 +901,10 @@ These remain unresolved and must not be converted into invented product requirem
 - [ ] Fake timers are used for every time-dependent test.
 - [ ] Mutation retry is verified to be disabled.
 - [ ] Accessibility checks cover focus, labels, live regions, keyboard interaction and hidden responsive duplicates.
-- [ ] No V2/V3 UI, Django UI, Voxide UI, admin UI, MFA, localization, uploads or public-profile UI is introduced by tests.
+- [ ] No V2/V3 UI, Voxide UI, admin UI, MFA, localization, uploads or public-profile UI is introduced by tests (Django is supported in V1 per D-05).
 - [ ] Unresolved Q-items remain visible and are not silently turned into assertions.
 
-## 9.10 Traceability to Frontend Function-Level Specification
+## 11.10 Traceability to Frontend Function-Level Specification
 
 This plan is intentionally mapped to the frontend specification's source/test-file declarations. The frontend specification states that every function has a `Test file` and that those paths mirror the source path under `frontend/tests/`; this plan follows that contract. The source also explicitly requires frontend code to use cookie authentication via `credentials: 'include'`, keep server authoritative, avoid automatic mutation retries, and render API text as text, so those constraints are included as negative/security tests.
 
