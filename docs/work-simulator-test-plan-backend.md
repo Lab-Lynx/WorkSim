@@ -1,0 +1,807 @@
+# 9. Test Plan & Test Files
+
+Project: Work Simulator · Links back to: [8. Function-Level Specification — Backend] · Per the Team Guideline: test-first, test file mirrors `src/` exactly under `tests/`, never co-located.
+
+**Scope: backend only.** The frontend test plan (component tests for pages) is separate.
+
+**What this plan is built on:**
+- Source of truth is doc 8 (backend function-level spec) and the rules it cites from docs 4 and 5 (`EP-##`, `DR-##`, `A-##`, `Q-##`).
+- Open decisions are **not** turned into expected results. Where a case touches one (Q-05, Q-09, Q-10, Q-11, Q-12, Q-13, Q-16), the case uses a configurable value or is deferred to 9.5.2.
+- External providers (Chapa, GitHub, Gemini, Groq, the email provider) are always mocked in automated tests. Fake secrets are distinctive sentinel strings so log and response sweeps can detect leaks.
+- Time-dependent cases use an injected clock (`now` parameter) or fake timers. No real waiting.
+- Test framework is not named in the docs. Every case is framework-neutral.
+- **Assumption:** the cases marked "Integration (real test DB)" need a real Postgres test database and HTTP-level requests. DR-01 to DR-04 are hand-written SQL, so a mocked Prisma cannot prove them. If the Team Guideline provides no test database, the DB-level and concurrency cases move to manual QA (9.5.1) and the coverage risk stays visible.
+- **Assumption:** integration tests do not mirror a single source file, so the "mirror `src/`" rule cannot apply to them. They live under `tests/integration/`. Confirm this with the Team Guideline.
+- Where doc 8 leaves a behavior unspecified, the case says "(confirm)" or the item is listed in 9.5.2. It is not silently decided.
+- This doc introduces no new ID series. Test cases are identified by test file and case name.
+- "Unit (mocked Prisma)" is the template's label. Every service test mocks Prisma, providers and the other services it calls unless the row says otherwise.
+
+---
+
+## 9.1 Test File Map
+
+One row per source file that needs a test. This is filled in before implementation starts — the test file is written first.
+
+### 9.1.0 Files named in doc 8
+
+| Source file | Test file | Test type | Written before code? |
+|---|---|---|---|
+| `src/services/auth.service.ts` | `tests/services/auth.service.test.ts` | Unit (mocked Prisma) | ☐ |
+| `src/services/user.service.ts` | `tests/services/user.service.test.ts` | Unit (mocked Prisma) | ☐ |
+| `src/services/email.service.ts` | `tests/services/email.service.test.ts` | Unit (mocked provider) | ☐ |
+| `src/services/subscription.service.ts` | `tests/services/subscription.service.test.ts` | Unit (mocked Prisma, Chapa adapter, email) | ☐ |
+| `src/services/github.service.ts` | `tests/services/github.service.test.ts` | Unit (mocked Prisma, GitHub client) | ☐ |
+| `src/services/ticket-generation.service.ts` | `tests/services/ticket-generation.service.test.ts` | Unit (mocked Gemini) | ☐ |
+| `src/services/ticket.service.ts` | `tests/services/ticket.service.test.ts` | Unit (mocked Prisma, GitHub service, generation) | ☐ |
+| `src/services/mentor.service.ts` | `tests/services/mentor.service.test.ts` | Unit (mocked Prisma, Gemini adapter) | ☐ |
+| `src/services/submission.service.ts` | `tests/services/submission.service.test.ts` | Unit (mocked Prisma, GitHub service) | ☐ |
+| `src/services/evaluation.service.ts` | `tests/services/evaluation.service.test.ts` | Unit (mocked Prisma, Groq adapter) | ☐ |
+| `src/services/github-webhook.service.ts` | `tests/services/github-webhook.service.test.ts` | Unit (mocked Prisma, evaluation service) | ☐ |
+| `src/services/profile.service.ts` | `tests/services/profile.service.test.ts` | Unit (mocked Prisma) | ☐ |
+| `src/integrations/gemini.ts` | `tests/integrations/gemini.test.ts` | Unit (mocked HTTP/SDK) | ☐ |
+| `src/integrations/groq.ts` | `tests/integrations/groq.test.ts` | Unit (mocked HTTP/SDK) | ☐ |
+| `src/middleware/subscription.middleware.ts` | `tests/middleware/subscription.middleware.test.ts` | Unit | ☐ |
+| `src/middleware/github.middleware.ts` | `tests/middleware/github.middleware.test.ts` | Unit | ☐ |
+| `src/controllers/auth.controller.ts` | `tests/controllers/auth.controller.test.ts` | Unit (mocked services) | ☐ |
+| `src/controllers/user.controller.ts` | `tests/controllers/user.controller.test.ts` | Unit (mocked services) | ☐ |
+| `src/controllers/subscription.controller.ts` | `tests/controllers/subscription.controller.test.ts` | Unit (mocked services) | ☐ |
+| `src/controllers/webhooks/chapa.controller.ts` | `tests/controllers/webhooks/chapa.controller.test.ts` | Unit (mocked service, real signature check) | ☐ |
+| `src/controllers/github.controller.ts` | `tests/controllers/github.controller.test.ts` | Unit (mocked services) | ☐ |
+| `src/controllers/ticket.controller.ts` | `tests/controllers/ticket.controller.test.ts` | Unit (mocked services) | ☐ |
+| `src/controllers/mentor.controller.ts` | `tests/controllers/mentor.controller.test.ts` | Unit (mocked services) | ☐ |
+| `src/controllers/submission.controller.ts` | `tests/controllers/submission.controller.test.ts` | Unit (mocked services) | ☐ |
+| `src/controllers/webhooks/github.controller.ts` | `tests/controllers/webhooks/github.controller.test.ts` | Unit (mocked service, real signature check) | ☐ |
+| `src/controllers/profile.controller.ts` | `tests/controllers/profile.controller.test.ts` | Unit (mocked services) | ☐ |
+
+The existing `requireAuth` and `validate.middleware.ts` keep their existing tests. Only the added cases in 9.3.5 are new.
+
+### 9.1.1 Behaviors doc 8 specifies but gives no source file for
+
+The test file must mirror the source path once it exists. Until then the cases below are written but the file names are TBD. Do not invent paths.
+
+| Source (path not in doc 8) | Test file | Test type | Written before code? |
+|---|---|---|---|
+| Chapa client adapter (doc 8 says "Chapa adapter", no path; likely `src/integrations/chapa.ts` by analogy with gemini/groq) | TBD, mirrors the adapter path | Unit (mocked HTTP) | ☐ |
+| Serializers (`serializeUser` … `serializeEvaluation`, 8.15) | TBD, mirrors the serializer path | Unit | ☐ |
+| Zod request schemas used by `validate.middleware` (8.14) | TBD, mirrors the schema path | Unit | ☐ |
+| Mentor history query (EP-29, "mentor history query" in 8.16, no function name) | Cases in `mentor.service.test.ts` for now | Unit (mocked Prisma) | ☐ |
+| Chapa signature verifier (doc 8: "signature verifier", no path) | Cases in `chapa.controller.test.ts` for now | Unit | ☐ |
+| Submission-timeout scheduler (calls `handleSubmissionTimeout`, not specified) | TBD | Unit (fake timers) | ☐ |
+| Config loader (8.20) | TBD | Unit | ☐ |
+
+### 9.1.2 Cross-cutting integration tests (no single source file)
+
+| Source file | Test file | Test type | Written before code? |
+|---|---|---|---|
+| Auth routes/services (built + extended) | `tests/integration/auth.integration.test.ts` (extends the existing auth integration tests) | Integration (real test DB) | ☐ |
+| Prisma schema + hand-written SQL (DR-01 to DR-10) | `tests/integration/db-constraints.integration.test.ts` | Integration (real test DB) | ☐ |
+| Subscription + Chapa webhook routes | `tests/integration/subscription.integration.test.ts` | Integration (real test DB) | ☐ |
+| GitHub connection routes | `tests/integration/github.integration.test.ts` | Integration (real test DB) | ☐ |
+| Ticket routes | `tests/integration/ticket-lifecycle.integration.test.ts` | Integration (real test DB) | ☐ |
+| Mentor routes | `tests/integration/mentor.integration.test.ts` | Integration (real test DB) | ☐ |
+| Submission, evaluation, GitHub webhook, profile routes | `tests/integration/submission-pipeline.integration.test.ts` | Integration (real test DB) | ☐ |
+| All routes EP-01 to EP-34 (gates and ownership) | `tests/integration/endpoint-gates.integration.test.ts` | Integration (real test DB) | ☐ |
+| All routes (secrets, logs, provider errors) | `tests/integration/security.integration.test.ts` | Integration (real test DB) | ☐ |
+
+---
+
+## 9.2 Test Case Detail — Services, Integrations and Middleware
+
+### 9.2.1 `auth.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **registerUser** — registers a new user | mock `bcrypt.hash` → "hash123"; `prisma.user.create` resolves a user | `registerUser("Abel","a@x.com","password1")` | `create` called with `passwordHash: "hash123"`, `name`, `email`; returns the created user; no `create` argument contains "password1" |
+| registerUser — email normalization matches login | none | `registerUser(" A@X.com ",…)`, then `authenticateUser(" A@X.com ",…)` | Both use the same normalized email value, matching the existing auth behavior |
+| registerUser — duplicate email | `create` rejects with Prisma unique error (P2002) | `registerUser(…)` | Throws `ApiError(409, "Email already in use")` |
+| registerUser — concurrent duplicate | `create` resolves once, then rejects P2002 | two parallel calls | One resolves, the other throws 409 |
+| registerUser — other DB errors are not masked | `create` rejects a generic error | `registerUser(…)` | The original error is rethrown, not turned into a 409 |
+| registerUser — password never logged | spy on logger | `registerUser(…)` | No log call contains the plaintext password |
+| **authenticateUser** — valid credentials | `findUnique` → user; `bcrypt.compare` → true | `authenticateUser(email, pw)` | Returns the user |
+| authenticateUser — unknown email | `findUnique` → null | `authenticateUser(…)` | Throws `ApiError(401, "Invalid email or password")` |
+| authenticateUser — wrong password | `compare` → false | `authenticateUser(…)` | Throws the same status and message as the unknown-email case |
+| authenticateUser — malformed stored hash | `compare` throws | `authenticateUser(…)` | Same 401 error, not a 500 |
+| authenticateUser — unverified user can log in | user with `emailVerifiedAt: null` | `authenticateUser(…)` | Returns the user (no verification gate, Q-04) |
+| authenticateUser — hash never logged | spy on logger | any outcome | No log call contains the stored hash |
+| **createSession** (built; regression, keep only cases the existing tests miss) — cookies set | mock `res.cookie`; `refreshToken.create` | `createSession(user, res)` | Two httpOnly cookies set; stored `tokenHash` is not the raw refresh token |
+| createSession — tokens not in body | mock `res` | `createSession(user, res)` | Neither token is written to the response body |
+| **refreshSession** — valid token rotates | `findUnique` by hash → active token | `refreshSession(raw)` | Old token gets `revokedAt`; a new hashed token is stored; a new pair is returned; the raw token is not in any `create` argument |
+| refreshSession — missing token | none | `refreshSession("")` | 401 |
+| refreshSession — expired token | `expiresAt` in the past | `refreshSession(raw)` | 401 |
+| refreshSession — revoked token | `revokedAt` set | `refreshSession(raw)` | 401 |
+| refreshSession — reuse after rotation | rotate once, then reuse the same raw token | `refreshSession(raw)` twice | Second call is 401 |
+| refreshSession — concurrent refresh | conditional revoke returns count 1, then 0 | two parallel calls | Exactly one succeeds, the other gets 401 |
+| **revokeCurrentSession** — revokes only the presented token | `updateMany`/`update` mock | `revokeCurrentSession(raw)` | Sets `revokedAt` on that token hash only; no delete, no other rows touched |
+| revokeCurrentSession — missing cookie | none | `revokeCurrentSession(undefined)` | 401 |
+| revokeCurrentSession — already revoked or expired | token revoked / expired | `revokeCurrentSession(raw)` | Behaves as the existing implementation does (confirm against current code; do not change it) |
+| **revokeAllSessions** — revokes all active | 3 active tokens, 1 already revoked | `revokeAllSessions(userId)` | `updateMany` where `userId` and `revokedAt` null sets `revokedAt`; the already-revoked row is not overwritten |
+| revokeAllSessions — no active sessions | `updateMany` count 0 | `revokeAllSessions(userId)` | Resolves, no error |
+| revokeAllSessions — history preserved | none | `revokeAllSessions(userId)` | No `delete`/`deleteMany` call on `refreshToken` |
+| revokeAllSessions — other users untouched | none | `revokeAllSessions(userId)` | The `where` clause includes `userId` |
+| **verifyEmail** — valid token | unused, unexpired token row | `verifyEmail(raw)` | Looks up by hash of `raw`, not `raw`; sets `usedAt` and `User.emailVerifiedAt` in one transaction; returns that Date |
+| verifyEmail — unknown token | `findUnique` → null | `verifyEmail(raw)` | Throws `ApiError(400, "Invalid verification link")` |
+| verifyEmail — expired token | `expiresAt` in the past | `verifyEmail(raw)` | Throws `ApiError(410, "This verification link has expired")`; user not updated |
+| verifyEmail — used token | `usedAt` set | `verifyEmail(raw)` | Throws `ApiError(410, "This verification link has already been used")`; user not updated |
+| verifyEmail — token and user update are atomic | the user-update step rejects inside the mocked transaction | `verifyEmail(raw)` | Both writes are inside one `$transaction`; nothing is written outside it |
+| verifyEmail — double click | conditional token update returns 1, then 0 | two parallel calls | One succeeds, the other throws 410 "already been used" |
+| **resendVerificationEmail** — unverified user | `findUnique` → unverified user | `resendVerificationEmail(email)` | Creates a hashed token (`tokenHash` ≠ raw); `sendVerificationEmail` called with the raw token |
+| resendVerificationEmail — unknown email or already verified | `findUnique` → null, then a verified user | `resendVerificationEmail(email)` | Resolves; no token created; no email sent |
+| resendVerificationEmail — same outward result | the three cases above | all three | All resolve to the same value and none throws |
+| resendVerificationEmail — provider failure | `sendVerificationEmail` rejects | `resendVerificationEmail(email)` | Resolves as it does on success, to keep the response non-enumerating (confirm); error is logged without the token |
+| resendVerificationEmail — token never logged | spy on logger | any outcome | No log call contains the raw token |
+| **requestPasswordReset** — existing user | config reset TTL = X; fake clock | `requestPasswordReset(email)` | Token row has `expiresAt` = now + X; hashed; `sendPasswordResetEmail` called with the raw token |
+| requestPasswordReset — TTL comes from config | change config TTL to Y | `requestPasswordReset(email)` | `expiresAt` = now + Y (no hardcoded value) |
+| requestPasswordReset — unknown email | `findUnique` → null | `requestPasswordReset(email)` | Resolves; no row; no email |
+| requestPasswordReset — email failure | email service rejects | `requestPasswordReset(email)` | Resolves; raw token not logged |
+| requestPasswordReset — raw token not stored | none | `requestPasswordReset(email)` | Stored `tokenHash` ≠ raw token |
+| **resetPassword** — valid token | unused, unexpired token | `resetPassword(raw, "newpass123")` | `passwordHash` set to a bcrypt hash of the new password (not plaintext); token `usedAt` set; both in one transaction |
+| resetPassword — unknown token | `findUnique` → null | `resetPassword(raw, pw)` | Throws `ApiError(400, "Invalid reset link")` |
+| resetPassword — expired token | `expiresAt` in the past | `resetPassword(raw, pw)` | Throws `ApiError(410, "This reset link has expired")`; `user.update` NOT called |
+| resetPassword — used token | `usedAt` set | `resetPassword(raw, pw)` | Throws `ApiError(410, "This reset link has already been used")`; `user.update` NOT called |
+| resetPassword — password too short | valid token | `resetPassword(raw, "short")` | Throws a 400 validation error; no writes |
+| resetPassword — double submit | conditional update returns 1, then 0 | two parallel calls | One succeeds, the other throws 410 |
+| resetPassword — secrets never logged | spy on logger | any outcome | No log call contains the plaintext password or raw token |
+| **changePassword** — correct current password | `compare` → true | `changePassword(userId, cur, new)` | `passwordHash` updated to a hash of the new password |
+| changePassword — wrong current password | `compare` → false | `changePassword(userId, cur, new)` | Throws `ApiError(400, "Current password is incorrect")`; `user.update` NOT called |
+| changePassword — verified before mutation | record call order | `changePassword(…)` | `compare` runs before `update` |
+| changePassword — new password too short | none | `changePassword(userId, cur, "short")` | Throws a 400 validation error; no update |
+| changePassword — secrets never logged/stored | spy on logger | any outcome | No plaintext password in logs or DB write arguments |
+
+### 9.2.2 `user.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| getCurrentUser — returns own user | `findUnique` → row including `passwordHash` | `getCurrentUser(userId)` | Result has `id`, `name`, `email`, `role`, `emailVerifiedAt`, `createdAt` and no `passwordHash` key |
+| getCurrentUser — user not found | `findUnique` → null | `getCurrentUser(userId)` | Throws an `ApiError` with 401 or 404, per the existing authenticated-user convention (confirm which) |
+| updateDisplayName — updates only the name | `update` resolves | `updateDisplayName(userId, "New Name")` | `update` data is exactly `{ name: "New Name" }`; `email` and `passwordHash` never appear |
+| updateDisplayName — result is public | `update` returns a row with `passwordHash` | `updateDisplayName(…)` | Result has no `passwordHash` key |
+| updateDisplayName — user deleted meanwhile | `update` rejects Prisma record-not-found (P2025) | `updateDisplayName(…)` | Throws `ApiError(404)` |
+
+### 9.2.3 `email.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| sendVerificationEmail — content | mock provider; config base URL | `sendVerificationEmail("a@x.com", "rawtok")` | Provider called once with `to: "a@x.com"`; the body contains a verification URL containing `rawtok` |
+| sendVerificationEmail — token not logged | spy on logger | `sendVerificationEmail(…)` | No log call contains `rawtok` |
+| sendVerificationEmail — provider failure | provider rejects | `sendVerificationEmail(…)` | Rejects with the provider error (the service does not swallow it; callers decide) |
+| sendPasswordResetEmail — content and failure | mock provider | `sendPasswordResetEmail("a@x.com", "rawtok")` | Body contains the reset URL with the token; token not logged; provider failure rejects |
+| sendPaymentFailureEmail — content | mock provider | `sendPaymentFailureEmail("a@x.com", endDate)` | Body includes the access-end date; contains none of the sentinel Chapa secret, transaction reference or card values |
+| sendPaymentFailureEmail — provider failure | provider rejects | `sendPaymentFailureEmail(…)` | Rejects (keeping the payment state is the caller's job; see subscription tests) |
+
+### 9.2.4 `subscription.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **createCheckout** — new subscriber | no subscription; config amount/currency set to distinctive values; Chapa adapter returns a URL | `createCheckout(userId)` | Creates `Payment` with `status: pending`, the configured amount/currency and a `chapaTxRef` equal to the reference sent to Chapa; returns `{ checkoutUrl }` |
+| createCheckout — creates no subscription | as above | `createCheckout(userId)` | `subscription.create` is NOT called |
+| createCheckout — only allowed payment fields stored | as above | `createCheckout(userId)` | `Payment.create` data keys are a subset of `userId`, `chapaTxRef`, `amount`, `currency`, `status`; no card-like keys |
+| createCheckout — active subscription | subscription `active` | `createCheckout(userId)` | Throws `ApiError(409, "You already have an active subscription")`; no `Payment` created; Chapa not called |
+| createCheckout — past_due subscription | subscription `past_due` | `createCheckout(userId)` | Same 409 |
+| createCheckout — canceled with future access | subscription `canceled`, `currentPeriodEnd` in future | `createCheckout(userId)` | Allowed; creates a pending payment |
+| createCheckout — Chapa failure | adapter rejects | `createCheckout(userId)` | Throws `ApiError(502, "Could not start checkout with Chapa, please try again")`; no `Subscription` created |
+| **processChapaWebhook** — first successful payment | payment `pending`, no subscription | `processChapaWebhook({ ref, outcome: success })` | Payment becomes `succeeded` with `paidAt`; a `Subscription` is created with `status: active`, linked to the payment |
+| processChapaWebhook — first period length (per Doc 5 A-30) | fake clock | same | `currentPeriodEnd` = `paidAt` + one month. Update if the team changes A-30 |
+| processChapaWebhook — repeated success | payment already `succeeded` | same call again | No writes; no second subscription; resolves |
+| processChapaWebhook — first payment fails | payment `pending`, no subscription | `{ ref, outcome: failed }` | Payment becomes `failed`; no subscription created; no failure email |
+| processChapaWebhook — renewal payment fails | payment belongs to an existing subscription | `{ ref, outcome: failed }` | Subscription becomes `past_due`; `sendPaymentFailureEmail(userEmail, currentPeriodEnd)` called |
+| processChapaWebhook — failure email throws | email service rejects | `{ ref, outcome: failed }` | Payment and subscription changes are still written; function resolves; error logged |
+| processChapaWebhook — repeated failure | payment already `failed` | same call again | No writes; no second email |
+| processChapaWebhook — out-of-order events | payment already `succeeded` | `{ ref, outcome: failed }` | No change (terminal states are final) |
+| processChapaWebhook — unknown reference | `findUnique` → null | `{ ref: "unknown", … }` | Resolves; a warning is logged; no writes |
+| processChapaWebhook — malformed payload | missing reference | `processChapaWebhook({})` | Throws the malformed-payload error (400 "Invalid webhook payload" once mapped) |
+| processChapaWebhook — concurrent deliveries | conditional update from `pending` returns 1, then 0 | two parallel identical calls | Exactly one subscription is created; the second is a no-op |
+| **getSubscriptionStatus** — never subscribed | no rows | `getSubscriptionStatus(userId)` | `{ subscription: null, hasAccess: false }` |
+| getSubscriptionStatus — latest row returned | several historical rows | `getSubscriptionStatus(userId)` | `subscription` is the most recent row |
+| getSubscriptionStatus — canceled with time left | `canceled`, end in future | `getSubscriptionStatus(userId)` | `hasAccess: true` |
+| getSubscriptionStatus — past_due with time left | `past_due`, end in future | `getSubscriptionStatus(userId)` | `hasAccess: true` |
+| getSubscriptionStatus — active but ended | `active`, end in the past | `getSubscriptionStatus(userId)` | `hasAccess: false` |
+| **cancelSubscription** — active subscription | `active`; Chapa cancel resolves | `cancelSubscription(userId)` | Chapa cancel called, then `status: canceled` and `canceledAt` set; `currentPeriodEnd` unchanged |
+| cancelSubscription — past_due can be canceled | `past_due` | `cancelSubscription(userId)` | Succeeds |
+| cancelSubscription — Chapa fails | Chapa cancel rejects | `cancelSubscription(userId)` | Throws `ApiError(502, "Could not cancel with Chapa, please try again")`; local status NOT updated |
+| cancelSubscription — nothing to cancel | no subscription, or only `canceled` | `cancelSubscription(userId)` | Throws `ApiError(409, "No active subscription to cancel")` |
+| cancelSubscription — concurrent cancel | conditional update returns 1, then 0 | two parallel calls | One succeeds, the other throws 409 |
+| cancelSubscription — retry after timeout | Chapa cancel rejects once (timeout), then resolves | call twice | Second call succeeds and the subscription ends `canceled` |
+| **listPayments** — newest first | 3 payments with different `createdAt` | `listPayments(userId)` | Ordered by `createdAt` descending |
+| listPayments — own payments only | payments for two users | `listPayments(userId)` | `where` is scoped to `userId` |
+| listPayments — no Chapa reference | rows include `chapaTxRef` | `listPayments(userId)` | No item has a `chapaTxRef` key |
+| listPayments — empty and unpaginated | no rows | `listPayments(userId)` | Returns `[]`; no `take`/`skip` in the query |
+| **hasPaidAccess** — no subscription | no rows | `hasPaidAccess(userId, now)` | `false` |
+| hasPaidAccess — future end | `currentPeriodEnd` after `now` | `hasPaidAccess(userId, now)` | `true` |
+| hasPaidAccess — past end | `currentPeriodEnd` before `now` | `hasPaidAccess(userId, now)` | `false` |
+| hasPaidAccess — exactly at the end | `currentPeriodEnd` equals `now` | `hasPaidAccess(userId, now)` | `false` |
+| hasPaidAccess — status is ignored | one row each: `canceled`, `past_due`, `active`, all with future end | `hasPaidAccess(userId, now)` per row | `true` for each |
+| hasPaidAccess — any row counts | old expired row + one future row | `hasPaidAccess(userId, now)` | `true` |
+| hasPaidAccess — uses the passed clock | fake system time differs from `now` | `hasPaidAccess(userId, now)` | Result follows `now`, not the system time |
+
+### 9.2.5 Chapa adapter test (file name TBD, see 9.1.1)
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| Create checkout | mock HTTP | create checkout with amount, currency and reference | The request carries the configured amount, currency, reference and frontend return URL; returns the hosted checkout URL |
+| Provider error | HTTP 500 | create checkout | Throws a normalized provider error (callers map it to 502) |
+| Timeout | HTTP times out | create checkout | Throws a normalized provider error |
+| Secret not leaked | provider error text includes the sentinel Chapa key | create checkout | The thrown error message and logs never contain the key |
+
+### 9.2.6 `github.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **createGitHubAuthorizeUrl** — builds URL | config client ID, scope, callback URL | `createGitHubAuthorizeUrl(userId)` | URL contains the client ID, the configured scope and a `state` value; no access token |
+| createGitHubAuthorizeUrl — scope from config | change config scope | same call | URL scope follows config (nothing hardcoded) |
+| createGitHubAuthorizeUrl — no paid access | `hasPaidAccess` → false | same call | Throws 402 |
+| createGitHubAuthorizeUrl — state is user-bound | build state for user A | verify the state as user B | Fails for user B and passes for user A |
+| createGitHubAuthorizeUrl — state expires | fake clock past the state TTL | verify the state | Fails |
+| createGitHubAuthorizeUrl — missing config | remove client ID | same call | Throws a configuration error (no silent default) |
+| **handleGitHubCallback** — valid callback | valid state; exchange returns token and granted scope within the requested scope | `handleGitHubCallback(userId, code, state)` | `GitHubConnection` written with `githubUserId`, `githubLogin`, `scope`; `accessTokenEncrypted` ≠ raw token and decrypts back to it |
+| handleGitHubCallback — wrong user's state | state built for another user | same call | Fails with category `state_invalid`; nothing stored |
+| handleGitHubCallback — expired or tampered state | fake clock / altered state | same call | Fails with `state_invalid`; nothing stored |
+| handleGitHubCallback — exchange fails | exchange rejects | same call | Fails with `exchange_failed`; nothing stored |
+| handleGitHubCallback — scope broader than requested | granted scope includes an extra scope | same call | Fails with `scope_invalid`; nothing stored |
+| handleGitHubCallback — reconnect | connection row already exists | same call | The row is replaced, not duplicated; new token stored |
+| handleGitHubCallback — token never logged or leaked | spy on logger; exchange error contains the sentinel token | same call | No log or thrown message contains the token or the client secret |
+| handleGitHubCallback — failures are typed | each failure above | inspect the thrown error | Category is exactly one of `state_invalid`, `scope_invalid`, `exchange_failed` |
+| **getGitHubConnection** — connected with repo | connection + repo rows | `getGitHubConnection(userId)` | `{ connected: true, githubLogin, repo: { fullName, starterTemplate, defaultBranch } }` |
+| getGitHubConnection — not connected, no repo | no rows | same call | `{ connected: false, githubLogin: null, repo: null }` |
+| getGitHubConnection — disconnected but repo kept | repo row only | same call | `connected: false`, `githubLogin: null`, `repo` still present |
+| getGitHubConnection — no token in result | connection has sentinel token | same call | The serialized result never contains the token |
+| **disconnectGitHub** — deletes the connection only | connection row exists | `disconnectGitHub(userId)` | Only the `githubConnection` row is deleted; `starterRepo`, tickets, submissions and evaluations are untouched |
+| disconnectGitHub — no revoke at GitHub | mock GitHub client | same call | No GitHub revoke/grant-delete call is made (per A-32) |
+| disconnectGitHub — not connected | no connection row | same call | Throws `ApiError(404, "GitHub is not connected")` |
+| **createStarterRepo** — react template | connection exists; GitHub creates repo | `createStarterRepo(userId, "react")` | GitHub template-generate called for the react template with default name `work-simulator` (per A-24); then `StarterRepo` row created with `fullName`, `defaultBranch`, `githubRepoId`, `starterTemplate: react` |
+| createStarterRepo — node_express and custom name | same | `createStarterRepo(userId, "node_express", "my-repo")` | Uses the Node/Express template and the name `my-repo` |
+| createStarterRepo — DB row only after GitHub succeeds | GitHub create rejects | same call | `starterRepo.create` NOT called |
+| createStarterRepo — unsupported template | none | `createStarterRepo(userId, "django")` | Throws 400; GitHub not called |
+| createStarterRepo — invalid repo name | name with illegal characters | same call | Throws 400; GitHub not called |
+| createStarterRepo — no paid access | `hasPaidAccess` → false | same call | Throws 402 |
+| createStarterRepo — no connection | no connection row | same call | Throws `ApiError(403, "GitHub is not connected. Connect GitHub to continue")` |
+| createStarterRepo — token rejected by GitHub | GitHub returns 401 | same call | Connection row deleted; throws `ApiError(403, "Your GitHub connection is no longer valid. Reconnect GitHub to continue")` |
+| createStarterRepo — repo already exists | `starterRepo` row exists | same call | Throws `ApiError(409, "You already have a starter repository")`; GitHub not called |
+| createStarterRepo — name collision at GitHub | GitHub returns name-already-exists | `createStarterRepo(userId, "react", "taken")` | Throws `ApiError(409, "A repository named 'taken' already exists in your GitHub account. Choose another name or delete it, then try again")` |
+| createStarterRepo — other GitHub failure | GitHub returns 5xx | same call | Throws `ApiError(502, "GitHub could not create the repository, please try again")` |
+| createStarterRepo — GitHub succeeds, DB insert fails | `starterRepo.create` rejects | same call | Rejects (does not report success) |
+| createStarterRepo — concurrent creates | two parallel calls | same call twice | At most one GitHub create call is made; the other call gets 409 (verify with the real DB in the integration test) |
+| **createTicketBranch** — creates from the current base head | GitHub returns base head SHA | `createTicketBranch(userId, "ticket/abc", "main")` | Reads the current head of `main` first, then creates the branch from that SHA |
+| createTicketBranch — token rejected | GitHub returns 401 | same call | Connection row deleted; throws 403 |
+| createTicketBranch — GitHub failure or timeout | GitHub 5xx / timeout | same call | Throws 502 |
+| createTicketBranch — branch already exists | GitHub returns already-exists | same call | Rejects with an `ApiError` (exact status not specified in doc 8, see 9.5.2); never resolves silently |
+| **getBranchSubmissionState** — reuses open PR | open PR exists for the branch | `getBranchSubmissionState(userId, branch)` | No PR create call; returns PR number, URL, head SHA and the full diff |
+| getBranchSubmissionState — creates PR | no PR for the branch | same call | Creates a PR with head = the ticket branch, base = default branch |
+| getBranchSubmissionState — no commits | branch has no commits beyond base | same call | Throws `ApiError(400, "No commits found on branch '<branchName>'. Push your work before submitting")` |
+| getBranchSubmissionState — head SHA read fresh | branch head moved (force-push) between calls | same call twice | Second call returns the new head SHA (nothing cached) |
+| getBranchSubmissionState — full diff kept | 2 MB diff mock | same call | Diff returned in full, not truncated |
+| getBranchSubmissionState — token revoked | GitHub 401 | same call | Connection row deleted; throws 403 |
+| getBranchSubmissionState — read failure | GitHub 5xx | same call | Throws `ApiError(502, "Could not read your pull request from GitHub, please try again")` |
+
+### 9.2.7 `ticket-generation.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **loadTicketTemplate** — known key | a valid template in the registry | `loadTicketTemplate(key)` | Returns a typed template with category, difficulty, touched files, acceptance-criteria structure and test-checklist structure |
+| loadTicketTemplate — unknown key | none | `loadTicketTemplate("nope")` | Throws an internal configuration error (fails loudly, never returns null/undefined) |
+| loadTicketTemplate — malformed template | template missing a required field | `loadTicketTemplate(key)` | Throws |
+| loadTicketTemplate — duplicate keys | registry with two templates sharing a key | build the registry | Throws at load time |
+| every shipped template is valid | load the real registry | run the schema check on each template | All pass |
+| **selectNextTicketTemplate** — returns a loadable key | registry populated | `selectNextTicketTemplate(userId)` | The returned key loads with `loadTicketTemplate` (Q-09: no ordering/randomness asserted) |
+| selectNextTicketTemplate — strategy is swappable | inject a stub strategy returning key X | same call | Returns X |
+| selectNextTicketTemplate — no side effects | mock Prisma | same call | No writes |
+| **generateTicketContent** — valid Gemini output | Gemini returns JSON matching the shape | `generateTicketContent(template, ctx)` | Returns `TicketContent`; category, difficulty and touched files equal the template's |
+| generateTicketContent — missing field | output lacks `acceptanceCriteria` | same call | Throws a validation error |
+| generateTicketContent — extra fields | output has an extra key | same call | Either rejects, or returns content with no extra keys. Never returns extras |
+| generateTicketContent — content contradicts template | output changes `difficulty` | same call | Rejected; fixed structure not altered |
+| generateTicketContent — non-JSON output | Gemini returns prose | same call | Throws |
+| generateTicketContent — provider failure or timeout | Gemini rejects | same call | Throws an upstream error (the caller maps it to 502) |
+| generateTicketContent — key not leaked | provider error includes the sentinel Gemini key | same call | Thrown message does not contain the key |
+
+### 9.2.8 `ticket.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **assignNextTicket** — happy path and order | all gates pass; record call order | `assignNextTicket(userId)` | Order is access → connection → repo → active-ticket check → select template → generate → create branch → create Ticket; ticket has `status: assigned`, `templateKey`, `content`, and `branchName` equal to the branch created |
+| assignNextTicket — no paid access | `hasPaidAccess` → false | same call | Throws 402; Gemini and GitHub not called |
+| assignNextTicket — no GitHub connection | no connection row | same call | Throws 403 with the Doc 5 message; Gemini not called |
+| assignNextTicket — no repo | no `starterRepo` row | same call | Throws `ApiError(409, "Create your starter repository before requesting a ticket")` |
+| assignNextTicket — active ticket exists | one ticket in each of `assigned`, `in_progress`, `submitted_v1`, `resubmitted` (one case per status) | same call | Throws `ApiError(409, "You already have an active ticket")`; Gemini not called |
+| assignNextTicket — done and abandoned do not block | only `done` and `abandoned` tickets | same call | Ticket assigned |
+| assignNextTicket — generation fails | generation rejects | same call | Throws `ApiError(502, "Could not generate a ticket, please try again")`; branch NOT created; `ticket.create` NOT called |
+| assignNextTicket — invalid generated content | generation returns invalid content | same call | Same 502; no ticket row |
+| assignNextTicket — branch creation fails | `createTicketBranch` rejects with 502 | same call | Throws `ApiError(502, "Could not create the ticket branch on GitHub, please try again")`; no ticket row |
+| assignNextTicket — token invalid at branch step | `createTicketBranch` rejects with 403 | same call | Throws 403 with the reconnect message; no ticket row |
+| assignNextTicket — ticket insert fails after branch | `ticket.create` rejects | same call | Rejects; no partial ticket row |
+| assignNextTicket — concurrent assignment | `ticket.create` rejects with the DR-01 unique error | same call | Maps to `ApiError(409, "You already have an active ticket")` |
+| **getCurrentTicket** — none | no tickets | `getCurrentTicket(userId)` | `null` |
+| getCurrentTicket — done and abandoned excluded | only `done` and `abandoned` rows | same call | `null` |
+| getCurrentTicket — each active status | one case per active status | same call | Returns that ticket including its content |
+| getCurrentTicket — two active rows (corrupt data) | two active rows | same call | Throws a data-integrity error; does not pick one |
+| **getTicketById** — own ticket | ticket with 0, 1 and 2 submissions | `getTicketById(userId, id)` | Returns ticket and submissions ordered by `attempt`; no `diff` key on any submission |
+| getTicketById — someone else's ticket | ticket owned by another user | same call | Throws `ApiError(404, "Ticket not found")` |
+| getTicketById — non-existent id | no row | same call | Same status and message as the previous case |
+| getTicketById — done and abandoned are readable | `done` / `abandoned` rows | same call | Returned |
+| **startTicket** — assigned → in_progress | ticket `assigned` | `startTicket(userId, id)` | Update is conditional on `status: assigned`; returns ticket in `in_progress` |
+| startTicket — not owned or missing | none | same call | Throws 404 "Ticket not found" |
+| startTicket — already started | ticket `in_progress`, and one case per later status | same call | Throws `ApiError(409, "This ticket has already been started")` |
+| startTicket — no paid access | `hasPaidAccess` → false | same call | Throws 402 |
+| startTicket — double start | conditional update returns 1, then 0 | two parallel calls | One succeeds, the other 409 |
+| **abandonTicket** — from assigned or in_progress | one case per status; `assignNextTicket` succeeds | `abandonTicket(userId, id)` | Ticket becomes `abandoned` with `abandonedAt`; returns `{ abandonedTicketId, newTicket }` |
+| abandonTicket — after submission | one case each: `submitted_v1`, `resubmitted`, `done` | same call | Throws `ApiError(409, "A ticket cannot be abandoned after it has been submitted")` |
+| abandonTicket — not owned | other user's ticket | same call | Throws 404 |
+| abandonTicket — replacement generation fails | `assignNextTicket` rejects with 502 | same call | Abandon stays persisted; returns `newTicket: null` (no error) |
+| abandonTicket — replacement branch fails | branch creation rejects | same call | Same as the previous case |
+| abandonTicket — history kept | mock Prisma and GitHub | same call | No delete on tickets or `mentorMessage`; no GitHub branch-delete call |
+| abandonTicket — abandon vs submit race | conditional update (status in `assigned`, `in_progress`) returns 0 | same call | Throws 409; ticket not changed |
+| abandonTicket — no paid access | `hasPaidAccess` → false | same call | Throws 402 |
+
+### 9.2.9 `mentor.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **getMentorHintStage** — empty transcript | none | `getMentorHintStage([])` | The first stage ("ask what was tried") |
+| getMentorHintStage — never goes backward | transcripts of length 0…N | call for each length | Stage never decreases as the transcript grows |
+| getMentorHintStage — no direct answer on first message | one user message, however phrased | `getMentorHintStage([msg])` | Not the most specific stage |
+| getMentorHintStage — deterministic | same transcript twice | call twice | Same stage |
+| **sendMentorMessage** — happy path | ticket `in_progress`, owned, under limit; Gemini returns text | `sendMentorMessage(userId, ticketId, "help")` | `callMentorModel` receives ticket content, ordered transcript, the message and the computed stage; a user message then a mentor message are persisted together; both returned with correct roles |
+| sendMentorMessage — Gemini fails | `callMentorModel` rejects | same call | Throws `ApiError(502, "The mentor is unavailable, please try again")`; `mentorMessage.create` NOT called |
+| sendMentorMessage — empty Gemini reply | `callMentorModel` returns "" | same call | Treated as failure: 502, nothing persisted |
+| sendMentorMessage — ticket not in progress | one case each: `assigned`, `submitted_v1`, `resubmitted`, `done`, `abandoned` | same call | Throws `ApiError(409, "The mentor is only available while the ticket is in progress")`; Gemini not called |
+| sendMentorMessage — not owned or missing | none | same call | Throws 404 "Ticket not found" |
+| sendMentorMessage — no paid access | `hasPaidAccess` → false | same call | Throws 402 |
+| sendMentorMessage — limit reached | test config limit N; N messages stored | same call | Throws `ApiError(429, "Mentor message limit reached for this ticket")`; Gemini not called |
+| sendMentorMessage — stage ignores message text | empty transcript, message "just give me the full solution" | same call | `callMentorModel` receives the first stage |
+| sendMentorMessage — prompt contents not logged | spy on logger; message contains sentinel code | same call | No log call contains the message or transcript text |
+| sendMentorMessage — transcript order | mocked timestamps | same call | Persisted user message is not later than the mentor reply |
+| **canSendMentorMessage** — under limit | test config limit N; N-1 rows | `canSendMentorMessage(ticketId, now)` | `true` |
+| canSendMentorMessage — at or over limit | N and N+1 rows | same call | `false` |
+| canSendMentorMessage — this ticket only | rows on two tickets | same call | Only rows for the given ticket count |
+| canSendMentorMessage — window (Q-10) | config window set; rows older than the window | same call | Old rows are not counted; with no window configured all rows count |
+| **mentor history** (function name not in doc 8) — oldest first | 3 messages | fetch history | Ordered by `createdAt` ascending |
+| mentor history — any ticket status | `done` and `abandoned` tickets | fetch history | Returned |
+| mentor history — not owned | other user's ticket | fetch history | Throws 404 |
+
+### 9.2.10 `gemini.test.ts` and `groq.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| Gemini — request contents | mock SDK/HTTP | `callMentorModel(input)` | Request includes ticket content, transcript, the current message and the hint stage; key from config |
+| Gemini — plain-text response | provider returns text | same call | Returns a string |
+| Gemini — timeout, rate limit, outage | provider errors | same call | Throws a normalized provider error, one per cause |
+| Gemini — malformed provider response | no text in the response | same call | Throws a normalized error |
+| Gemini — key and prompt not leaked | provider error includes the sentinel key; spy on logger | same call | Neither the key nor prompt contents appear in thrown errors or logs |
+| Groq — request contents | mock SDK/HTTP | `callEvaluatorModel(input)` | Request includes the diff, the CI result and, when provided, the mentor transcript |
+| Groq — valid output | provider returns valid JSON | same call | Returns the parsed `EvaluatorOutput` |
+| Groq — invalid JSON | provider returns prose | same call | Throws a normalized error |
+| Groq — timeout, rate limit, outage | provider errors | same call | Throws a normalized provider error |
+| Groq — key not leaked | provider error includes the sentinel key | same call | Thrown error and logs do not contain it |
+
+### 9.2.11 `submission.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **determineSubmissionAttempt** — valid states | none | `determineSubmissionAttempt("in_progress")`, then `("submitted_v1")` | `1`, then `2` |
+| determineSubmissionAttempt — other states | `assigned`, `resubmitted`, `done`, `abandoned` | one call each | Each throws a 409 conflict |
+| **submitWork** — first submission | ticket `in_progress`; `getBranchSubmissionState` returns PR, SHA and diff | `submitWork(userId, ticketId)` | Submission created with `attempt: 1`, `status: awaiting_ci`, PR number, head SHA and the full diff; ticket becomes `submitted_v1` in the same transaction; returns the submission |
+| submitWork — resubmission | ticket `submitted_v1`; attempt-1 submission `completed` | same call | Submission `attempt: 2` with the same PR number as attempt 1; ticket becomes `resubmitted` |
+| submitWork — attempt 1 still processing | attempt 1 `awaiting_ci` or `evaluating` | same call | Throws `ApiError(409, "Wait for feedback on your first submission before resubmitting")`; no submission; ticket unchanged |
+| submitWork — attempt 1 failed | attempt 1 `failed` | same call | Same 409; no submission |
+| submitWork — wrong ticket state | one case each: `assigned`, `resubmitted`, `done`, `abandoned` | same call | Throws `ApiError(409, "This ticket cannot be submitted in its current state")`; no submission created |
+| submitWork — no commits | `getBranchSubmissionState` throws 400 | same call | 400 propagated; no submission; ticket status unchanged |
+| submitWork — no paid access | `hasPaidAccess` → false | same call | Throws 402 |
+| submitWork — GitHub connection invalid | `getBranchSubmissionState` throws 403 | same call | 403 propagated; no submission |
+| submitWork — not owned | other user's ticket | same call | Throws 404 |
+| submitWork — GitHub read failure | throws 502 | same call | Throws `ApiError(502, "Could not read your pull request from GitHub, please try again")`; no submission |
+| submitWork — double submit | ticket update conditional on the current status returns 1, then 0 | two parallel calls | One succeeds, the other 409 |
+| submitWork — never a third attempt | run every successful path | inspect the `attempt` values written | Always 1 or 2 |
+| submitWork — stored diff matches | diff mock | same call | The stored `diff` equals the diff from GitHub exactly |
+| **getSubmission** — processing, no diff | attempt 1 `awaiting_ci` | `getSubmission(userId, ticketId, 1, false)` | `evaluation` null; no `diff` key; diff not selected from the DB |
+| getSubmission — diff requested | same | `getSubmission(…, true)` | `diff` present |
+| getSubmission — completed attempt 1 | `completed` with evaluation | `getSubmission(…, 1, false)` | `evaluation.scores` is `null` |
+| getSubmission — completed attempt 2 | `completed` with scores | `getSubmission(…, 2, false)` | Four category scores and total present |
+| getSubmission — failed | `failed` with `failureReason` | `getSubmission(…)` | `status: failed` and the reason returned |
+| getSubmission — missing or not owned | no row / other user's ticket | same call | Throws `ApiError(404, "Submission not found")`, same for both |
+| **retrySubmission** — failed submission | submission `failed` | `retrySubmission(userId, ticketId, 1)` | Same row (same id, attempt, PR, SHA) returns to a non-terminal status; pipeline started once; ticket state unchanged; no new `Submission` row |
+| retrySubmission — not failed | one case each: `awaiting_ci`, `evaluating`, `completed` | same call | Throws `ApiError(409, "Only a failed submission can be retried")` |
+| retrySubmission — concurrent retries | conditional update returns 1, then 0 | two parallel calls | One succeeds, the other 409; pipeline started once |
+| retrySubmission — no paid access / not owned | `hasPaidAccess` → false; other user's ticket | same call | 402; then 404 "Submission not found" |
+
+### 9.2.12 `evaluation.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **buildEvaluationInput** — attempt 1 | submission attempt 1 with `ciPassed: true`, ticket, a transcript passed in | `buildEvaluationInput(sub, ticket, transcript)` | Includes diff, CI result and ticket content; does not include the transcript (transcript is for attempt 2 only) |
+| buildEvaluationInput — attempt 2 | attempt 2, transcript of 4 messages | same call | Includes diff, CI result, ticket content and the transcript in order |
+| buildEvaluationInput — missing CI result | `ciPassed: null` | same call | Throws (the evaluator never receives the diff alone) |
+| buildEvaluationInput — malformed ticket content | content missing `acceptanceCriteria` | same call | Throws |
+| **evaluateSubmission** — attempt 1 | Groq returns feedback (and, in a second case, also scores) | `evaluateSubmission(id)` | Evaluation saved with feedback; all score fields and total are `null`, even if the model returned scores; `calculateWeightedScore` not called |
+| evaluateSubmission — attempt 2 | Groq returns feedback and four valid scores | `evaluateSubmission(id)` | Evaluation saved with the four scores and `totalScore` = weighted total |
+| evaluateSubmission — missing category | Groq output lacks `codeQuality` | same call | Throws; no Evaluation saved |
+| evaluateSubmission — out-of-range score | one case each: 101, -1 | same call | Throws; no Evaluation saved |
+| evaluateSubmission — non-numeric score | `"high"` and `NaN` | same call | Throws; no Evaluation saved |
+| evaluateSubmission — missing or empty feedback | feedback `""` / absent, both attempts | same call | Throws (feedback is required on both passes) |
+| evaluateSubmission — provider failure | Groq rejects (timeout) | same call | Throws a provider error; no Evaluation saved |
+| evaluateSubmission — duplicate | `evaluation.create` rejects with the unique error | same call | No second Evaluation; existing row unchanged |
+| evaluateSubmission — one model call | mock Groq | same call | Groq called exactly once |
+| **calculateWeightedScore** — all 100 and all 0 | none | `(100,100,100,100)`, `(0,0,0,0)` | `100` and `0` |
+| calculateWeightedScore — requirements weight | none | `(100,0,0,0)` | `40` |
+| calculateWeightedScore — correctness weight | none | `(0,100,0,0)` | `25` |
+| calculateWeightedScore — code quality weight | none | `(0,0,100,0)` | `20` |
+| calculateWeightedScore — problem-solving weight | none | `(0,0,0,100)` | `15` |
+| calculateWeightedScore — mixed | none | `(80,60,70,90)` | `74.5` |
+| calculateWeightedScore — decimal input | none | `(33.33, 66.67, 50, 50)` | Result within 0.005 of the exact value 47.4995 and stored with at most 2 decimals (rounding rule not fixed, see 9.5.2) |
+| calculateWeightedScore — invalid input | one case each: -1, 101, NaN | same call | Throws |
+
+### 9.2.13 `github-webhook.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| **verifyGitHubWebhookSignature** — valid | HMAC-SHA256 of the raw body with the test secret, header `sha256=<hex>` | `verifyGitHubWebhookSignature(rawBody, header)` | `true` |
+| verifySignature — altered body | change one byte | same call | `false` |
+| verifySignature — wrong secret | signed with another secret | same call | `false` |
+| verifySignature — missing or malformed header | `undefined`, `""`, no `sha256=` prefix, non-hex, wrong length | same call | `false`, never throws |
+| verifySignature — uses raw bytes | body with unusual whitespace and key order | same call | `true` for the original bytes; `false` for `JSON.stringify(JSON.parse(body))` |
+| verifySignature — replay | same valid request twice | same call twice | `true` both times (replay protection is the idempotency below, not this function) |
+| **processWorkflowRunWebhook** — attempt 1, CI success | submission attempt 1 `awaiting_ci`; evaluation service mocked to succeed | `processWorkflowRunWebhook(event)` | `ciPassed: true`; status goes `evaluating` → `completed`; ticket status unchanged; `completedAt` not set |
+| processWorkflowRunWebhook — CI failure | conclusion `failure` | same call | `ciPassed: false`; evaluation still runs and completes |
+| processWorkflowRunWebhook — attempt 2 done | attempt 2 submission; ticket `resubmitted` | same call | Submission `completed`; ticket becomes `done` with `completedAt` |
+| processWorkflowRunWebhook — attempt 2 evaluation fails | evaluation service rejects | same call | Submission `failed` with a `failureReason`; ticket stays `resubmitted`; not `done` |
+| processWorkflowRunWebhook — attempt 1 never completes ticket | attempt 1 completes | same call | Ticket never becomes `done` |
+| processWorkflowRunWebhook — cancelled or timed out | one case each: `cancelled`, `timed_out` | same call | Submission `failed` with a non-empty `failureReason`; evaluator not called |
+| processWorkflowRunWebhook — no matching submission | unknown repo / SHA | same call | Resolves; no writes |
+| processWorkflowRunWebhook — match needs repo and SHA | same SHA in another repo; same repo with an older SHA | same call | No match; no writes in either case |
+| processWorkflowRunWebhook — duplicate delivery | submission already `completed` | same event twice | No second evaluation; evaluator called once in total |
+| processWorkflowRunWebhook — concurrent deliveries | conditional `awaiting_ci` → `evaluating` returns 1, then 0 | two parallel identical events | Exactly one proceeds; evaluator called once |
+| processWorkflowRunWebhook — evaluator error is contained | evaluation service rejects with an error containing the sentinel Groq key | same call | Submission `failed`; `failureReason` and logs do not contain the key or provider internals; a processing-failed log entry is written |
+| **handleSubmissionTimeout** — non-terminal submission | one case each: `awaiting_ci`, `evaluating` | `handleSubmissionTimeout(id)` | Becomes `failed` with a `failureReason` |
+| handleSubmissionTimeout — terminal submission | one case each: `completed`, `failed` | same call | No change |
+| handleSubmissionTimeout — duplicate job | call twice | same call twice | One transition; second is a no-op |
+| handleSubmissionTimeout — completes just before timeout | webhook moved the row to `completed` first | same call | Stays `completed` (conditional update) |
+
+### 9.2.14 `profile.service.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| Completed tickets only | tickets in `assigned`, `in_progress`, `submitted_v1`, `resubmitted`, `abandoned`, `done` | `getExperienceProfile(userId)` | Only the `done` ticket appears |
+| Newest first | 3 `done` tickets with different `completedAt` | same call | Ordered by `completedAt` descending |
+| Final evaluation only | `done` ticket with attempt-1 and attempt-2 evaluations | same call | The item's evaluation is the attempt-2 one with scores |
+| Item shape | one `done` ticket | same call | Item has `ticketId`, `title`, `category`, `difficulty`, `completedAt`, `evaluation` |
+| No completed tickets | none | same call | `[]` |
+| Own tickets only | `done` tickets for two users | same call | Only the caller's |
+| Missing final evaluation | `done` ticket with no attempt-2 evaluation | same call | Throws a data-integrity error; the ticket is not silently shown or skipped |
+
+### 9.2.15 `subscription.middleware.test.ts` and `github.middleware.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| requirePaidAccess — has access | `hasPaidAccess` → true | run middleware | Calls `next()` with no error |
+| requirePaidAccess — no access | `hasPaidAccess` → false | run middleware | `next` receives `ApiError(402, "An active subscription is required")` |
+| requirePaidAccess — same rule as EP-15 | mock `hasPaidAccess` | run middleware | Calls `hasPaidAccess(req.user.id)` and does not re-implement the rule |
+| requireGitHubConnection — connected | connection row exists | run middleware | Calls `next()` |
+| requireGitHubConnection — not connected | no row | run middleware | `next` receives 403 with the Doc 5 message "GitHub is not connected. Connect GitHub to continue" |
+| requireGitHubConnection — no token check | connection row with a revoked token | run middleware | Passes; makes no GitHub call (revoked tokens are handled by the GitHub service) |
+| requireStarterRepo — repo exists | repo row exists | run middleware | Calls `next()` |
+| requireStarterRepo — no repo | no row | run middleware | `next` receives `ApiError(409, "Create your starter repository before requesting a ticket")` |
+
+---
+
+## 9.3 Test Case Detail — Controllers, Validation, Serializers and Integration
+
+Controller tests use mocked services and check wiring: which service is called with which arguments, the exact envelope and status, and that errors reach `next`. Every success envelope is `{ statusCode, success: true, message, data }`.
+
+### 9.3.1 `auth.controller.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| register — success | `registerUser` returns a full user row including `passwordHash` and `role` | POST with valid body | 201 with message "User registered" and `data` keys exactly `id`, `name`, `email` |
+| register — verification email sent | email service mocked | same | Verification email dispatched once to the new user's address |
+| register — email failure keeps the account | email service rejects | same | Still 201 |
+| register — duplicate | `registerUser` throws 409 | same | `next` receives the `ApiError(409, "Email already in use")` |
+| login — success | `authenticateUser` returns a user | POST valid credentials | `createSession` called; 200 "Logged in"; `data.user` has only public fields |
+| login — bad credentials | service throws 401 | same | `next` receives the 401; no cookies set |
+| refresh | mock service | POST with refresh cookie | Service called with the cookie value only; new cookies set; 200 "Session refreshed", `data: null` |
+| refresh — token in body or header ignored | valid token in body, no cookie | POST | 401; service not called with the body token |
+| logout | mock service | POST authenticated | `revokeCurrentSession` called with the refresh cookie; auth cookies cleared; 200 "Logged out" |
+| logoutAll | mock service | POST authenticated | `revokeAllSessions(req.user.id)` called; cookies cleared; 200 "Logged out of all devices" |
+| verifyEmail | service returns a Date | POST `{ token }` | 200 "Email verified", `data.emailVerifiedAt` set; a 410 from the service reaches `next` |
+| resendVerification and forgotPassword — fixed messages | service resolves | POST valid email | 200 with exactly "If an unverified account exists for this email, a new verification link has been sent" and "If an account exists for this email, a reset link has been sent" respectively |
+| resetPassword | service resolves | POST `{ token, newPassword }` | 200 "Password reset", `data: null`; 400/410 from the service reach `next` |
+| changePassword | service resolves | POST authenticated | Service called with `req.user.id` (a `userId` in the body is ignored); 200 "Password changed"; wrong current password reaches `next` as 400 |
+
+### 9.3.2 `user.controller.test.ts`, `subscription.controller.test.ts`, `profile.controller.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| getMe | service returns a row with `passwordHash` | GET | 200 "Current user"; `data.user` has only the six public fields |
+| updateMe — success | mock service | PATCH `{ name }` | `updateDisplayName(req.user.id, name)` called; 200 "Profile updated" |
+| updateMe — extra fields ignored | body has `email`, `role` | PATCH | Only `name` reaches the service |
+| createCheckout | service returns URL | POST with a body containing `amount` and `currency` | Service called with `userId` only; 201 "Checkout created", `data: { checkoutUrl }` |
+| getSubscription | service returns subscription with `chapaSubscriptionRef` | GET | `data.subscription` has only `id`, `status`, `currentPeriodEnd`, `canceledAt`; `hasAccess` present; `subscription: null` case also passes |
+| cancelSubscription | service resolves; then rejects with 409 / 502 | POST | 200 "Subscription canceled" with the public subscription; the errors reach `next` |
+| getPayments | service returns rows with `chapaTxRef` | GET | 200 "Payment history"; each item has only `id`, `amount`, `currency`, `status`, `paidAt`, `createdAt` |
+| getProfile | service returns two items | GET | 200 "Profile"; `data.items` items have exactly `ticketId`, `title`, `category`, `difficulty`, `completedAt`, `evaluation`; empty list returns `items: []` |
+
+### 9.3.3 Webhook controllers — `chapa.controller.test.ts` and `github.controller.test.ts` (webhooks)
+
+Chapa's signature header name and algorithm are not confirmed in doc 5. Confirm them before writing the test helper that signs requests.
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| Chapa — invalid signature | body signed with the wrong secret | POST | 401 "Invalid webhook signature"; `processChapaWebhook` NOT called; a rejected event is logged |
+| Chapa — missing signature | no header | POST | 401; service not called |
+| Chapa — signature checked on raw bytes | valid signature over the original bytes with unusual spacing | POST | 200; the same body re-serialized fails the check |
+| Chapa — valid and processed | valid signature and payload | POST | Service called once; 200 "Webhook processed", `data: null`; received and verified events logged |
+| Chapa — malformed payload | valid signature, missing reference | POST | 400 "Invalid webhook payload"; service not called |
+| Chapa — unknown or repeated event | service resolves | POST twice | 200 both times |
+| GitHub — invalid signature | wrong secret | POST | 401 "Invalid webhook signature"; `processWorkflowRunWebhook` NOT called |
+| GitHub — completed workflow_run | valid signature, event `workflow_run`, action `completed` | POST | 200 "Webhook received"; service called once with the parsed event |
+| GitHub — acknowledged promptly | service returns a promise that never resolves | POST | The 200 response is still sent |
+| GitHub — background failure contained | service rejects after the response | POST | No unhandled rejection; a processing-failed log entry is written |
+| GitHub — ping and other events | events `ping`, `push`, and `workflow_run` with action `requested` and `in_progress` | POST each | 200; service NOT called |
+
+### 9.3.4 `github.controller.test.ts`, `ticket.controller.test.ts`, `mentor.controller.test.ts`, `submission.controller.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| connect | service returns URL | GET | 200 "GitHub authorization URL", `data: { authorizeUrl }` |
+| callback — success | service resolves | GET with `code` and `state` | Called with `req.user.id`, `code`, `state`; 302 redirect to the frontend `/github?github=connected` (URL from config) |
+| callback — each failure | service throws `state_invalid`, then `scope_invalid`, then `exchange_failed` | GET | 302 redirect with `github=error&reason=<category>`; never a JSON body |
+| callback — missing code or state | none | GET | 302 redirect with `github=error` (the reason value is not specified, see 9.5.2); no JSON, no exception |
+| getConnection and disconnect | service returns summary / resolves | GET, DELETE | 200 "GitHub connection" with `connected`, `githubLogin`, `repo`; 200 "GitHub disconnected"; a 404 from the service reaches `next` |
+| createRepo — success | service returns a repo row | POST `{ starterTemplate: "react" }` | 201 "Repository created"; `data.repo` has only `fullName`, `starterTemplate`, `defaultBranch` |
+| createRepo — validation | body `{ starterTemplate: "django" }` and `{}` | POST | 400; service not called |
+| assignTicket | service returns a ticket with `content` | POST | 201 "Ticket assigned"; `data.ticket` keys equal the Doc 5 Ticket object; `content` is flattened into `title`, `scenario`, etc. |
+| currentTicket | service returns a ticket, then `null` | GET | 200 "Current ticket" with the ticket, then with `ticket: null` |
+| getTicket — id validation | id `"not-a-uuid"` | GET | 400; service not called |
+| getTicket — not owned | service throws 404 | GET | `next` receives 404 "Ticket not found" |
+| startTicket and abandonTicket | services resolve | POST | 200 "Ticket started"; 200 "Ticket abandoned" with `abandonedTicketId` and `newTicket` (a ticket, and a `null` case) |
+| sendMessage — success | service returns two messages | POST `{ content: "hi" }` | 201 "Mentor replied", `data: { userMessage, mentorMessage }` |
+| sendMessage — validation | empty content, whitespace-only, content longer than the configured maximum | POST | 400 for each; service not called |
+| sendMessage — client hint level ignored | body includes `hintLevel` and `stage` | POST | Service called with `(userId, ticketId, content)` only |
+| sendMessage — errors | service throws 409, 429, 502 | POST | Each reaches `next` with the exact Doc 5 message; no provider text in the response |
+| getMessages | service returns messages | GET | 200 "Mentor history", `data: { messages }` in the order the service returned |
+| submit — success | service returns a submission | POST | 202 "Submission received", `data: { submission }` |
+| submit — attempt in body ignored | body `{ attempt: 2 }` | POST | Service called with `(userId, ticketId)` only |
+| getSubmission — attempt validation | attempt `"1"`, `"2"` accepted; `"0"`, `"3"`, `"abc"`, `"1.5"` rejected | GET | Accepted values reach the service as numbers; others get 400 (confirm the status, see 9.5.2) |
+| getSubmission — includeDiff | absent, `"true"`, `"false"` | GET | Service receives `false`, `true`, `false` |
+| retry | service returns a submission | POST | 202 "Retry started"; bad attempt rejected as above |
+
+### 9.3.5 Validation schemas, serializers and existing middleware (file names TBD, see 9.1.1)
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| register schema | none | validate: name of 1 char, invalid email, password of 7 characters | Each fails with a field-specific message; the 7-character password gives "Password must be at least 8 characters"; a valid body passes |
+| other schemas | none | validate: login without password, verify without token, reset password of 7 characters, change-password without current password, profile name of only spaces | Each fails with a field-specific 400 message |
+| repo schema | none | `starterTemplate` values `"react"`, `"node_express"`, `"django"`, missing | First two pass; the others fail; `repoName` is optional |
+| ID and query schemas | none | non-UUID `ticketId`; `attempt` 0/3; `includeDiff` `"maybe"` | Each fails |
+| serializeUser | row with `passwordHash`, extra fields | `serializeUser(row)` | Keys exactly `id`, `name`, `email`, `role`, `emailVerifiedAt`, `createdAt` |
+| serializeSubscription and serializePayment | rows with `chapaSubscriptionRef`, `chapaTxRef` | serialize | Only the documented keys; neither reference appears; `amount` is a string |
+| serializeRepo | row with `githubRepoId` | `serializeRepo(row)` | Keys exactly `fullName`, `starterTemplate`, `defaultBranch` |
+| serializeTicket | row with `content` | `serializeTicket(row)` | Keys equal the Doc 5 Ticket object; content fields flattened; `repo` has `fullName` and `defaultBranch` |
+| serializeSubmission — diff | `includeDiff` false, then true | `serializeSubmission(row, opts)` | No `diff` key at all when false; `diff` present when true |
+| serializeSubmission — PR URL | repo `owner/name`, PR 7 | same | `prUrl` is `https://github.com/owner/name/pull/7` (format assumed; confirm) |
+| serializeEvaluation — attempt 1 | evaluation with null scores | `serializeEvaluation(row)` | `{ feedback, scores: null, createdAt }` |
+| serializeEvaluation — attempt 2 | evaluation with scores and a Decimal total | same | `scores` has `requirementsMet`, `correctnessTests`, `codeQuality`, `problemSolving`, `total`; `total` is a JSON number, not a string |
+| requireAuth (existing) — Bearer alone | valid access token only in an `Authorization: Bearer` header, no cookie | run middleware | 401 (unless the existing template already accepts Bearer; check first and record the finding) |
+
+### 9.3.6 `auth.integration.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| Register and login | empty DB | POST register, then POST login | 201, then 200 with httpOnly access and refresh cookies; no token in any response body |
+| Duplicate email via the real constraint | one existing user | POST register with the same email | 409 "Email already in use"; still one user row |
+| Concurrent registration | none | two simultaneous registers, same email | One 201 and one 409; one row |
+| Login errors are indistinguishable | one user | login with an unknown email, then with a wrong password | Same status and same response body |
+| Login rate limit | `authLimiter` configured | repeated bad logins on one account | 429 once the limit is hit |
+| Unverified login allowed | user with `emailVerifiedAt` null | login | 200 (Q-04) |
+| Concurrent refresh | one session | two simultaneous refreshes with the same cookie | One 200, one 401 |
+| Reuse after rotation | refresh once | refresh again with the old cookie | 401 |
+| Logout-all | two sessions | POST logout-all with session A | Refresh with session B's old cookie is 401; refresh-token rows kept with `revokedAt` set |
+| Email verification | register (email mocked) | POST verify with the emailed token, twice | First 200 and `emailVerifiedAt` set; second 410 "already been used" |
+| Expired verification link | token with `expiresAt` in the past | POST verify | 410 "expired"; user not verified |
+| Password reset once only | forgot-password, capture the token | POST reset twice | First 200; second 410; password changed once |
+| Change password | logged in | wrong current, then correct current | 400 "Current password is incorrect", then 200; login works with the new password |
+| Bearer-only request | valid access token in a Bearer header, no cookie | GET `/users/me` | 401 (subject to the check in 9.3.5) |
+
+### 9.3.7 `db-constraints.integration.test.ts`
+
+These run raw SQL/Prisma writes against the migrated test database. They prove the hand-written SQL, which mocked tests cannot.
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| DR-01 one active ticket | user with one `in_progress` ticket | insert a second ticket in `assigned` | Rejected by the DB |
+| DR-01 inactive tickets allowed | user with one active ticket | insert `done` and `abandoned` tickets | Accepted |
+| DR-02 one live subscription | user with an `active` subscription | insert an `active`, then a `past_due` subscription | Both rejected |
+| DR-02 canceled rows allowed | user with a `canceled` subscription | insert an `active` subscription | Accepted |
+| DR-03 duplicate attempt | ticket with an attempt-1 submission | insert another attempt 1 | Rejected |
+| DR-03 attempt range | none | insert attempts 0 and 3 | Both rejected |
+| DR-04 score consistency | attempt-2 submission | insert an evaluation with only some scores set | Rejected |
+| DR-04 score ranges | none | insert a category score of 101 and of -1; a total of 100.01 | All rejected |
+| DR-04 valid rows | none | insert all-null scores; insert all valid scores | Both accepted |
+| One evaluation per submission | submission with an evaluation | insert a second | Rejected (unique `submissionId`) |
+| Unique columns | none | duplicate `User.email`, `Payment.chapaTxRef`, `GitHubConnection.userId`, `StarterRepo.userId`, `StarterRepo.githubRepoId` | Each rejected |
+| DR-09 branch names | two tickets for one user | same `branchName`; then two `null` branch names | The duplicate name is rejected; two nulls accepted |
+| DR-08 no cascading delete | user with a ticket | delete the user | Rejected (Restrict) |
+| No `scored` state | none | insert a ticket with status `scored` | Rejected; `TicketStatus` contains exactly the six documented values |
+
+### 9.3.8 `subscription.integration.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| Checkout does not activate | Chapa mocked | POST checkout, then GET `/subscriptions/me` repeatedly | `hasAccess: false`; only a `pending` payment exists |
+| Valid webhook activates | pending payment | POST `/webhooks/chapa` with a valid signature and success | Payment `succeeded`; subscription `active`; `hasAccess: true` |
+| Bad signature | pending payment | POST with a bad signature | 401; DB unchanged |
+| Duplicate and concurrent webhooks | pending payment | same valid webhook twice, and twice in parallel | One subscription, one succeeded payment |
+| Failed renewal | active subscription with a payment | POST a failed-payment webhook | Subscription `past_due`; failure email mock called once |
+| Cancel | active subscription | POST cancel | Status `canceled`; `hasAccess` still true until `currentPeriodEnd` |
+| Cancel when Chapa fails | Chapa cancel mocked to fail | POST cancel | 502; subscription still `active` |
+| After the period ends | set `currentPeriodEnd` in the past | call a paid endpoint, then read endpoints | Paid endpoints return 402; `GET /payments`, `GET /profile`, `GET /tickets/:id` and `GET /subscriptions/me` still return 200 |
+
+### 9.3.9 `github.integration.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| Connect | GitHub mocked; user has paid access | GET connect, then GET callback with the state | Connection row exists; the token column does not contain the raw token; redirect has `github=connected` |
+| Tampered state | none | GET callback with an altered state | Redirect with `reason=state_invalid`; no connection row |
+| Disconnect keeps the repo | connection and repo exist | DELETE connection | Repo row remains; `GET /github/connection` shows `connected: false` with the repo |
+| Disconnected user | disconnected | POST repo, POST ticket, POST abandon, POST submission | Each returns 403 |
+| Revoked token | GitHub mock returns 401 | POST repo | 403 with the reconnect message; connection row deleted |
+| Double repo creation | connection exists | two parallel POST repo | One 201 and one 409; GitHub create called once |
+
+### 9.3.10 `ticket-lifecycle.integration.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| Assign | paid, connected, repo | POST tickets | 201; ticket `assigned` with a branch name; branch created in the GitHub mock |
+| Second assign and parallel assign | active ticket; and two parallel requests for a new user | POST tickets | 409 "You already have an active ticket"; in the parallel case one 201 and one 409 |
+| Start | assigned ticket | POST start twice | First 200 (`in_progress`); second 409 |
+| Abandon before submission | assigned, then in-progress ticket | POST abandon | 200; old ticket `abandoned`; new ticket assigned |
+| Abandon after submission | ticket `submitted_v1` | POST abandon | 409 |
+| Generation failure | Gemini mock rejects | POST tickets | 502; no ticket row; GitHub branch not created |
+| Branch failure | GitHub branch mock rejects | POST tickets | 502; no ticket row |
+| Ownership | ticket owned by user A | user B calls GET, start, abandon, submit and mentor endpoints on it | Each returns 404 with the same body as for a random UUID |
+| Gate order | user with no subscription, no connection, no repo | POST tickets | 402 first; after subscribing 403; after connecting 409 |
+
+### 9.3.11 `mentor.integration.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| Message in progress | ticket `in_progress`; Gemini mocked | POST message | 201; two rows stored in order (user, then mentor) |
+| Gemini failure | Gemini mock rejects | POST message | 502; zero rows stored |
+| Wrong state | tickets in `assigned`, `submitted_v1`, `resubmitted`, `done`, `abandoned` | POST message | 409 for each (Q-10(c) may change the `submitted_v1` case) |
+| Limit | test config limit N | send N+1 messages | The (N+1)th returns 429 |
+| Limit race | N-1 messages stored | two parallel messages | Total user messages never exceeds N |
+| History | `done` and `abandoned` tickets | GET messages | 200 with all messages, oldest first |
+| Hint level ignored | body includes `hintLevel` | POST message | Stage used matches the transcript, not the body |
+
+### 9.3.12 `submission-pipeline.integration.test.ts`
+
+GitHub, Groq and the workflow webhook are mocked; requests use the real routes and DB.
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| Full two-pass flow | ticket `in_progress` | submit; signed `workflow_run` success; poll EP-31; resubmit; signed webhook; poll | Attempt 1 `completed` with feedback and `scores: null`, ticket `submitted_v1`; attempt 2 `completed` with four scores and total, ticket `done` with `completedAt`; exactly two submission rows |
+| Attempt 2 reuses the PR | as above | compare PR numbers | Same PR number on both attempts |
+| Rubric weights end to end | Groq mock returns scores 80/60/70/90 | attempt 2 completes | Stored total is 74.5 |
+| No third submission | ticket `done`; and ticket `resubmitted` | POST submissions | 409 both times; still two rows |
+| Resubmit too early | attempt 1 `awaiting_ci` | POST submissions | 409 "Wait for feedback on your first submission before resubmitting" |
+| Double submit | ticket `in_progress` | two parallel POST submissions | One 202 and one 409; one attempt-1 row |
+| No commits | branch has none | POST submissions | 400; ticket still `in_progress` |
+| CI already finished | completed run exists for the head SHA at submit time | POST submissions | Submission completes without waiting for a new webhook (Doc 5 A-28) |
+| Bad or missing webhook signature | pending submission | POST `/webhooks/github` unsigned / wrongly signed | 401; DB unchanged |
+| Unknown SHA and unrelated events | none | webhook for an unknown SHA; `ping`; `push` | 200; DB unchanged |
+| Replayed webhook | completed submission | send the same signed event twice | Groq called once; no second evaluation |
+| CI cancelled | pending submission | webhook with conclusion `cancelled` | Submission `failed`; poll shows the retry state |
+| Evaluator failure and retry | Groq mock rejects once | webhook; POST retry; webhook or automatic re-run completes | Submission `failed`, then `completed` on the same submission id; row count unchanged; a second retry while processing returns 409 |
+| Invalid evaluator output | Groq mock returns score 150 | webhook | Submission `failed`; no evaluation row |
+| Timeout | test config timeout T; fake timers | advance past T with no webhook | Submission `failed` with a reason |
+| Diff handling | PR diff mock | poll without and with `includeDiff=true` | No diff key by default; diff equals the mocked diff when requested |
+| Profile | one `done` ticket, one `abandoned`, one in progress | GET `/profile` | Only the done ticket with its attempt-2 score; feedback of attempt 1 reachable through EP-25 / EP-31 |
+
+### 9.3.13 `endpoint-gates.integration.test.ts`
+
+One table-driven test covers every route. Expected status when the named precondition is missing (— means not applicable).
+
+| Endpoint | No session | No paid access | GitHub not connected | No starter repo | Other user's resource |
+|---|---|---|---|---|---|
+| EP-01, EP-02, EP-06, EP-07, EP-08, EP-09 (public) | — | — | — | — | — |
+| EP-03 | 401 (no or invalid refresh cookie) | — | — | — | — |
+| EP-04, EP-05, EP-10, EP-11, EP-12 | 401 | — | — | — | — |
+| EP-13, EP-15, EP-16, EP-17 | 401 | — | — | — | — |
+| EP-14, EP-33 (webhooks) | — (bad signature: 401) | — | — | — | — |
+| EP-18 | 401 | 402 | — | — | — |
+| EP-19, EP-20, EP-21 | 401 | — | — | — | — |
+| EP-22 | 401 | 402 | 403 | — | — |
+| EP-23 | 401 | 402 | 403 | 409 | — |
+| EP-24, EP-34 | 401 | — | — | — | — |
+| EP-25, EP-29, EP-31 | 401 | — | — | — | 404 |
+| EP-26, EP-28, EP-32 | 401 | 402 | — | — | 404 |
+| EP-27, EP-30 | 401 | 402 | 403 | 409 | 404 |
+
+Every route must also be checked for method and path exactly as in Doc 5, so a missing or renamed route fails.
+
+### 9.3.14 `security.integration.test.ts`
+
+| Case | Setup | Action | Expected result |
+|---|---|---|---|
+| No secrets in responses | run every endpoint's success and error cases with seeded sentinel values | deep-search every JSON body | No `passwordHash`, `tokenHash`, `accessTokenEncrypted`, `chapaTxRef`, `chapaSubscriptionRef`, raw token or sentinel secret appears |
+| No secrets in logs | capture Pino output through a full user journey | search the logs | No password, raw access/refresh/verification/reset token, OAuth token or Chapa payment data appears |
+| Provider errors are generic | each provider mock throws an error containing a sentinel API key | trigger every provider call | Responses are the documented 502 messages; neither responses nor logs contain the key or provider internals |
+| Database errors are hidden | force a Prisma error | call an endpoint | Response has no SQL or Prisma text |
+| AI output is untrusted | Gemini returns wrong-shape ticket content; Groq returns out-of-range scores | run assign and evaluate | No ticket row; submission `failed` with no evaluation row |
+| Operational logs carry the request ID | force an error | call an endpoint | The error log entry includes the existing request ID |
+| Webhook log events | send valid, invalid and failing webhooks | inspect logs | Received, verified, rejected and processing-failed entries are distinct |
+
+---
+
+## 9.4 Coverage Honesty Check (per PR Steward, at review time)
+
+Per the Team Guideline: "Reviewer checks coverage honesty, not just pass/fail." Use this checklist, don't just trust the green checkmark.
+
+- [ ] Test actually fails if the implementation logic is wrong (not just if the file is missing). Run the mutation spot-checks below for any PR that touches those functions.
+- [ ] Error/edge cases from Sections 9.2 and 9.3 are actually covered, not just the happy path.
+- [ ] No test is asserting against a hardcoded mock value that would pass regardless of real logic. Where a service is mocked, assert the arguments it received and the DB write arguments, not just the value the mock returns.
+- [ ] Mocked Prisma is not used to "prove" a database constraint. DR-01 to DR-04, unique columns and Restrict deletes are proven only by the integration DB tests in 9.3.7.
+- [ ] Time-based cases use the injected clock or fake timers, never real sleeps.
+- [ ] Every provider mock has failure cases (timeout, 4xx/5xx, malformed output), not only success.
+- [ ] Cases that touch an open decision use a configurable value, not a hardcoded product value.
+- [ ] Secrets in tests are distinctive sentinel strings, so leak sweeps can actually detect them.
+
+**Mutation spot-checks.** Break the code as described. The named tests must fail.
+
+| Break this | These tests must fail |
+|---|---|
+| Swap any two rubric weights in `calculateWeightedScore` | The single-category weight cases (40, 25, 20, 15) |
+| Change `hasPaidAccess` from `>` to `>=` | "exactly at the end" |
+| Make `hasPaidAccess` require `status: active` | "status is ignored" cases |
+| Remove the `userId` condition from ticket lookups | Ownership 404 cases (service and integration) |
+| Remove the status condition from the `startTicket` update | "double start" |
+| Make either signature verifier always return `true` | Bad-signature cases (unit and integration, DB unchanged) |
+| Parse the webhook body as JSON before verifying | "signature checked on raw bytes" |
+| Persist mentor messages before calling Gemini | "Gemini fails persists nothing" |
+| Let `evaluateSubmission` write scores on attempt 1 | Attempt-1 null-score cases (service, DB rule, serializer) |
+| Allow attempt 3 in `submitWork` | "never a third attempt", DB attempt-range case |
+| Create the ticket row before the branch | "generation fails" and "branch fails" cases (no ticket row) |
+| Make `retrySubmission` insert a new row | "same row" retry case |
+| Remove the `usedAt` check in `resetPassword` | "used token" (user not updated) |
+| Return the attempt-1 evaluation from the profile | "final evaluation only" |
+| Return the full DB row from a serializer | Serializer key-set cases and the response sweep |
+| Log a raw token or password anywhere | The log-sweep cases |
+
+---
+
+## 9.5 Out of Scope for Automated Testing (and why)
+
+### 9.5.1 Manual QA or other checks
+
+| Item | How it is covered | Why not automated |
+|---|---|---|
+| Real Chapa, GitHub (OAuth, API, Actions), Gemini, Groq and email calls | Manual smoke test in a staging environment before the demo | Automated tests mock providers so they are deterministic and free (AI cost control, doc 2) |
+| Quality of AI output (mentor hint quality, feedback fairness, ticket wording) | Team review of real outputs | Not machine-checkable; automated tests check only shape, validation and failure handling |
+| Cookie `SameSite` and CSRF position (Q-12) | Manual check against the deployed auth before production, as doc 8 requires | Not defined in the docs; encoding a guess in a test would hide the open question |
+| Attaching the `workflow_run` webhook to user repos and the OAuth scope (Q-08) | Manual check with a real repo | Registration is deliberately outside the tested state-processing code |
+| Performance targets (mentor about 3 s p95, evaluator under 30 s p95) and 50 concurrent users | Manual timing and a light load test if time allows | Doc 2 lists these as manual verification |
+| Server restart keeps subscription and ticket state | Manual restart test during integration testing | Doc 2 lists this as manual verification |
+| Email deliverability and rendering | Manual check with the real provider | Depends on the external provider |
+| Applying the migration to a copy of real data | Manual dry run of `prisma migrate dev` per the doc 4 migration notes | Depends on the production data; constraint behavior itself is automated in 9.3.7 |
+| Deployment configuration on EthioDeploy | Manual environment checklist | Environment-specific |
+
+### 9.5.2 Waiting on a decision, or on something doc 8 does not specify
+
+No test is written for these until the decision exists. Writing one now would silently pick an answer.
+
+| Item | Missing decision |
+|---|---|
+| Chapa renewal mechanics and subscription reference (Q-05) | How monthly renewals arrive and how cancellation works at Chapa. Only first-payment, failure and idempotency cases are written |
+| Ticket template selection (Q-09) | Only "returns a loadable key" and "strategy is swappable" are tested |
+| Mentor limit, window and maximum length (Q-10) | Tests use test-config values. Whether limit counting includes both roles, or user messages only, is not stated |
+| Session revocation after password reset or change (Q-11) | Not asserted either way |
+| Submission timeout values and the scheduler that calls `handleSubmissionTimeout` (Q-13) | Only the transition logic is tested |
+| GitHub `access_denied` (Q-16) | Callback behavior when the user cancels authorization; also missing `code` or `state`, narrower-than-requested scope, and unexpected exceptions in the callback |
+| Email verification gating (Q-04) | Only "login is not gated" is tested. Also unspecified: `verifyEmail` for an already-verified user |
+| Reconnecting as a different GitHub account (Q-03) and diff size limit (Q-06) | Neither behavior is specified |
+| Which function creates the first verification token at registration | doc 8 says the register flow does it but names no function; covered only through `register` in 9.3.1 |
+| Unspecified edge behaviors in doc 8 | `changePassword` with the same password; Chapa timeout after the pending payment row exists; `createTicketBranch` when the branch already exists (status not given); several open PRs for one branch; PR or branch deleted; `abandonTicket` when the GitHub token is invalid during replacement (403 versus `newTicket: null`); a late CI webhook for a submission already timed out; attempt 2 with an empty mentor transcript |
+| Numeric conventions | Weighted-score rounding rule; the `prUrl` format; whether `evaluation.scores.total` is a number (Doc 5 shows a number); HTTP status for an invalid `attempt`/`includeDiff` (Doc 5 lists only 404) |
+| Source files with no path in doc 8 | Chapa adapter, serializers, request schemas, config loader, Chapa signature verifier (9.1.1) |
+
+---
+
+*Once this plan is reviewed, the backend test files are created empty-but-failing before implementation, in the order of the doc 8 implementation list (8.21).*
+
+Next: proceed to → ticket creation in GitHub Projects (Team Guideline, Section 4 lifecycle)
