@@ -7,13 +7,13 @@ This becomes `prisma/schema.prisma` almost line for line, so it is written as Pr
 **Decisions this doc is built on** (locked or confirmed with the team):
 - `User.id` is a UUID string; `User.role` is an existing enum
 - `name` and `emailVerifiedAt` are added to the built `User` model (FR-01, FR-13, FR-05, FR-06)
-- One GitHub repo per user, created from a starter template (React or Node/Express); each ticket is a branch/PR in that repo
+- One GitHub repo per user, created from a starter template (React, Node/Express, or Django); each ticket is a branch/PR in that repo
 - Team-authored ticket templates live as files in the codebase; the DB stores only a template key on each ticket
-- Ticket status enum is exactly `assigned, in_progress, submitted_v1, resubmitted, done, abandoned`. There is no `scored` state: the score is stored on the evaluation record. This changes FR-33 in doc 2 (see 4.9)
+- Ticket status enum is exactly `assigned, in_progress, submitted_v1, resubmitted, done, abandoned`. There is no `scored` state: the score is stored on the evaluation record. This matches the amended FR-33 in doc 2
 - Two-pass flow: first submission = feedback only, resubmission = final score
 - Subscription stores only Chapa references, never card or payment details (FR-17), and is confirmed only by a verified webhook (FR-18, FR-19)
 - Rubric weights are fixed: 40 / 25 / 20 / 15
-- Django starter template is unconfirmed, so it is not in the V1 schema. "Voxide" is still undefined, so it has no entity (FR-53)
+- Django is a V1 starter template. "Voxide" is a V2 mandated external integration (see problem/solution doc §1.5), so it has no V1 entity (~~FR-53~~)
 
 **Source note:** only doc 2 (requirements) was available while writing this. Entities and V2 notes come from doc 2 plus the locked decisions. This doc does not reference `UC-##` numbers. Verify the entity list against docs 1 and 3 before treating it as final (A-01).
 
@@ -40,7 +40,7 @@ This becomes `prisma/schema.prisma` almost line for line, so it is written as Pr
 - FR-09, FR-10, FR-11: only update `RefreshToken.revokedAt` and `User.passwordHash`.
 - FR-41: the per-ticket mentor rate limit is computed from `MentorMessage` rows.
 - FR-50, FR-51: the profile page is derived from `Ticket`, `Submission` and `Evaluation`; the "practice record" label is UI text.
-- FR-53 ("Voxide"): unresolved, so no entity exists for it.
+- FR-53 ("Voxide"): deferred to V2 (mandated external integration); no V1 entity.
 
 ---
 
@@ -56,7 +56,7 @@ Notation: `Type?` means nullable. "As built" means the field already exists in p
 | `TicketStatus` | `assigned`, `in_progress`, `submitted_v1`, `resubmitted`, `done`, `abandoned` | Matches the locked state machine. `abandoned` is reachable only from `assigned` or `in_progress` |
 | `SubscriptionStatus` | `active`, `past_due`, `canceled` | Matches FR-20 |
 | `PaymentStatus` | `pending`, `succeeded`, `failed` | `pending` = checkout started, webhook not yet received |
-| `StarterTemplate` | `react`, `node_express` | Django is unconfirmed and deliberately absent |
+| `StarterTemplate` | `react`, `node_express`, `django` | All three are V1 |
 | `SubmissionStatus` | `awaiting_ci`, `evaluating`, `completed`, `failed` | `failed` = a pipeline error (GitHub Actions or evaluator call), which drives the retry state in FR-49 |
 | `MentorMessageRole` | `user`, `mentor` | |
 
@@ -143,8 +143,9 @@ Kept separate from `GitHubConnection` so the repo record survives a disconnect (
 | userId | String | FK → User.id, required | Not unique: a user can have several over time (A-15) |
 | status | SubscriptionStatus | required | |
 | chapaSubscriptionRef | String? | unique, nullable | Chapa reference only, no card data (FR-17). Nullable because it is not settled whether Chapa issues a subscription-level ID (Q-05) |
-| currentPeriodEnd | DateTime | required | Next billing date (FR-20) and the end of paid access (FR-21) |
+| currentPeriodEnd | DateTime | required | Next billing date (FR-20) and the end of paid access (FR-21). Access ends exactly at this instant regardless of `status` (no separate grace period) |
 | canceledAt | DateTime? | nullable | Set when the user cancels; access continues until `currentPeriodEnd` |
+| renewalReminderSentAt | DateTime? | nullable | Set when the 7-day renewal reminder email is sent. Backend-only — not exposed on the API Subscription object. Prevents the scheduled renewal job from double-sending (DR-11) |
 | createdAt | DateTime | default `now()` | |
 | updatedAt | DateTime | `@updatedAt` | |
 
@@ -217,14 +218,16 @@ The full transcript is retained and readable (FR-39) and passed to the evaluator
 | id | String (UUID) | PK, default `uuid()` | |
 | submissionId | String | FK → Submission.id, unique, required | One evaluation per submission |
 | feedback | String (`@db.Text`) | required | Given on both passes (A-14) |
-| requirementsMetScore | Int? | nullable, 0–100 | Rubric category, weight 40% |
-| correctnessTestsScore | Int? | nullable, 0–100 | Rubric category, weight 25% |
-| codeQualityScore | Int? | nullable, 0–100 | Rubric category, weight 20% |
-| problemSolvingScore | Int? | nullable, 0–100 | Rubric category, weight 15%. Scored from the mentor transcript |
-| totalScore | Decimal(5,2)? | nullable, 0–100 | Weighted total, stored so it never shifts if code changes |
+| requirementsMetScore | Int? | nullable, 0–100 | Rubric category, weight 40%. **API/UI name:** `scores.requirementsMet` (intentional rename in the serializer — see note after this table) |
+| correctnessTestsScore | Int? | nullable, 0–100 | Rubric category, weight 25%. **API/UI name:** `scores.correctnessTests` |
+| codeQualityScore | Int? | nullable, 0–100 | Rubric category, weight 20%. **API/UI name:** `scores.codeQuality` |
+| problemSolvingScore | Int? | nullable, 0–100 | Rubric category, weight 15%. Scored from the mentor transcript. **API/UI name:** `scores.problemSolving` |
+| totalScore | Decimal(5,2)? | nullable, 0–100 | Weighted total, stored so it never shifts if code changes. **API/UI name:** `scores.total` |
 | createdAt | DateTime | default `now()` | |
 
 The five score fields are all `null` on attempt 1 and all filled on attempt 2 (DR-04, DR-05). The weights (40/25/20/15) are applied in code and are not stored (A-14).
+
+**Score field naming (intentional):** the DB columns use the `*Score` / `totalScore` suffix; the API Evaluation object (doc 5 §5.3.0) and the UI use shorter keys (`requirementsMet`, `correctnessTests`, `codeQuality`, `problemSolving`, `total`). That rename is serializer behavior, not a drift to "fix" by aligning either side.
 
 ---
 
@@ -326,6 +329,7 @@ erDiagram
         string chapaSubscriptionRef UK "nullable"
         datetime currentPeriodEnd
         datetime canceledAt "nullable"
+        datetime renewalReminderSentAt "nullable"
         datetime createdAt
         datetime updatedAt
     }
@@ -404,6 +408,7 @@ These are numbered `DR-##` so later docs and tests can reference them. Prisma ca
 | DR-08 | No deletes and no soft-delete in V1. All new relations use `onDelete: Restrict` | Data retention (doc 2, 2.2), FR-14 | Explicit `onDelete: Restrict` on every new relation. The `RefreshToken` relation stays as built. The one exception is the `GitHubConnection` row, which is deleted on disconnect (A-07) |
 | DR-09 | Ticket branch names are unique per user when set | FR-27 | `@@unique([userId, branchName])`. Postgres allows multiple `null` values |
 | DR-10 | Supporting indexes for the known queries | FR-20, FR-23, FR-39, FR-50 | `Ticket(userId, status)`, `Subscription(userId, status)`, `Payment(userId, createdAt)`, `MentorMessage(ticketId, createdAt)` |
+| DR-11 | A subscription receives at most one renewal-reminder email per billing period | Platform-triggered renewals (doc 5 §5.7) | Application rule: the scheduled job only sends when `renewalReminderSentAt` is null (or older than the current period start) and then sets `renewalReminderSentAt`; covered by a unit test. Not a DB unique constraint |
 
 Abandoned tickets and their mentor messages are kept (DR-08). Only completed tickets appear on the profile.
 
@@ -430,7 +435,7 @@ Each assumption is one the attached docs do not settle. Correct any that are wro
 | A-01 | Docs 1 (problem/solution) and 3 (use cases) were not available. The entity list and V2 notes come from doc 2 and the locked decisions only | Whole doc |
 | A-02 | The built `Role` enum's name and values are not restated. Constraints on built models beyond the project brief are marked "as built" and need checking against the real file | 4.2.1, 4.2.2, 4.2.3 |
 | A-03 | Production `User` rows exist, so `name` is nullable in the DB and required only by API validation | `User.name` |
-| A-04 | `emailVerifiedAt = null` means unverified. Doc 2 does not say what an unverified user may or may not do, so no schema depends on it | `User.emailVerifiedAt` |
+| A-04 | `emailVerifiedAt = null` means unverified. **Updated:** email verification blocks starting checkout (Q-04 resolved). Schema still stores only the timestamp; the gate is enforced in the API | `User.emailVerifiedAt` |
 | A-05 | Verification and reset tokens are two separate tables, both hashed like `RefreshToken`, with `usedAt` for one-time use | 4.2.4, 4.2.5 |
 | A-06 | The GitHub token is stored encrypted at rest (doc 2 says "never logged" but not "encrypted"). No refresh-token fields exist, which assumes a token that does not expire unless revoked. If the team uses an expiring-token GitHub integration, add refresh and expiry fields | `GitHubConnection` |
 | A-07 | A `GitHubConnection` row existing means "connected". Disconnecting or detecting a revoked token deletes the row. Repo and submission records survive | FR-26, FR-29 |
@@ -441,7 +446,7 @@ Each assumption is one the attached docs do not settle. Correct any that are wro
 | A-12 | Exactly two submission attempts per ticket. A pipeline error sets `status = failed` on the same row, and a retry re-runs it. A retry is not a new attempt | `Submission` |
 | A-13 | The full diff text is stored in the DB, not just the PR link | `Submission.diff` |
 | A-14 | One `Evaluation` per `Submission`, not per ticket, so the pass-1 feedback has a home. Scores are null on pass 1. Feedback text is required on both passes. Category scores are 0–100. The weighted total is stored as a decimal, with weights applied in code | `Evaluation` |
-| A-15 | A `Subscription` row exists only after the webhook confirms the first payment, and a re-subscribe after canceling creates a new row. Cancel sets `status = canceled` immediately and records `canceledAt`. Access is granted when status is `active`, or when status is `canceled` and `currentPeriodEnd` is in the future | `Subscription`, `Payment` |
+| A-15 | A `Subscription` row exists only after the webhook confirms the first payment, and a re-subscribe after canceling creates a new row. Cancel sets `status = canceled` immediately and records `canceledAt`. **Access rule (resolved with Q-01 / Q-07):** a user has paid access when any `Subscription` has `currentPeriodEnd` in the future, whatever its `status`. There is no separate grace period beyond `currentPeriodEnd`. Platform-triggered renewals set/clear `renewalReminderSentAt` per DR-11 | `Subscription`, `Payment` |
 | A-16 | Amounts are stored as `Decimal(12,2)` with a `currency` column. No currency is assumed | `Payment` |
 | A-17 | Webhook events are logged (per doc 2, 2.2), not stored in their own table | Observability |
 | A-18 | Transcript order is `MentorMessage.createdAt` (millisecond precision). No separate sequence column | `MentorMessage` |
@@ -452,14 +457,14 @@ Each assumption is one the attached docs do not settle. Correct any that are wro
 
 The schema above works whichever way these go, but the answers change behavior in doc 5 and in the code.
 
-| ID | Question | Affects |
-|---|---|---|
-| Q-01 | How long is the `past_due` grace period, and does `past_due` still grant access? FR-22 says access is not cut "immediately" but gives no length | Access rule in A-15 |
-| Q-02 | Who creates the ticket branch and PR: the platform at assignment, or the user? | `Ticket.branchName` (nullable until answered) |
-| Q-03 | If a user reconnects GitHub as a different account than the one that owns their repo, what happens? | `StarterRepo`, `GitHubConnection` |
-| Q-04 | Does email verification block anything (subscribing, starting a ticket)? Are existing users backfilled as verified? | `User.emailVerifiedAt` |
-| Q-05 | Does Chapa's recurring billing give a subscription-level reference, or only per-charge transaction references? Does Chapa or the platform trigger each monthly charge? | `Subscription.chapaSubscriptionRef`, webhook handling |
-| Q-06 | Is there a size limit on a stored diff, and what happens above it? | `Submission.diff` |
+| ID | Question | Affects | Status |
+|---|---|---|---|
+| Q-01 | How long is the `past_due` grace period, and does `past_due` still grant access? FR-22 says access is not cut "immediately" but gives no length | Access rule in A-15 | **Resolved (doc 5):** access when any `currentPeriodEnd` is in the future, whatever status. No separate grace period (see also Q-07) |
+| Q-02 | Who creates the ticket branch and PR: the platform at assignment, or the user? | `Ticket.branchName` (nullable until answered) | **Resolved (doc 5):** platform creates the branch at assignment; `branchName` is always set |
+| Q-03 | If a user reconnects GitHub as a different account than the one that owns their repo, what happens? | `StarterRepo`, `GitHubConnection` | **Still open** |
+| Q-04 | Does email verification block anything (subscribing, starting a ticket)? Are existing users backfilled as verified? | `User.emailVerifiedAt` | **Resolved for gating:** verification blocks starting checkout (EP-13). Backfill of existing users remains an ops decision at migration time (see 4.5) |
+| Q-05 | Does Chapa's recurring billing give a subscription-level reference, or only per-charge transaction references? Does Chapa or the platform trigger each monthly charge? | `Subscription.chapaSubscriptionRef`, webhook handling | **Partially resolved:** the platform triggers each monthly charge (and the 7-day reminder) via a scheduled job (doc 5 §5.7). Whether Chapa also issues a subscription-level reference remains **open** — needs Chapa API docs/support, do not invent |
+| Q-06 | Is there a size limit on a stored diff, and what happens above it? | `Submission.diff` | **Still open** (an engineering default of 500KB with truncation was discussed but not locked) |
 
 ---
 
@@ -469,7 +474,7 @@ One sentence per entity, limited to what doc 2 marks as deferred. Nothing here i
 
 - **User:** public/shareable profile links (FR-52) can be added as a new nullable column or a new table keyed on `User.id`, and self-service account deletion (FR-14) can later be added as a delete policy change or a `deletedAt` column, since V1 code relies on neither.
 - **Ticket:** streaks and leaderboards can be computed from `completedAt`, which V1 already stores, and a new ticket template or category needs no migration because `templateKey` is a plain string.
-- **StarterRepo:** adding Django (unconfirmed) is a one-line addition to the `StarterTemplate` enum.
+- **StarterRepo:** adding further stacks beyond React / Node/Express / Django is a one-line addition to the `StarterTemplate` enum.
 - **Subscription / Payment:** in-app self-service refunds (FR-24) can be added as nullable refund fields or a new table without changing existing rows.
 - **Submission / Evaluation:** `attempt` is an integer rather than a boolean, so if a later version makes scoring iterative, the change is relaxing the `CHECK` in DR-03 and DR-05 rather than restructuring these tables.
 - **Notifications (deferred, see 2.3):** async product notifications would be a new table alongside `User`, with no change to existing tables.
@@ -478,9 +483,9 @@ One sentence per entity, limited to what doc 2 marks as deferred. Nothing here i
 
 ## 4.9 Changes to Doc 2
 
-Numbering is not changed. These are wording amendments, made because the locked state machine differs from doc 2.
+Numbering is not changed. These are wording amendments already applied in doc 2 (or retained here for history).
 
-- **FR-33:** replace the state list with `assigned → in_progress → submitted_v1 → resubmitted → done`, plus `abandoned` (reachable only from `assigned` or `in_progress`). The `scored` state is removed. The score is stored on `Evaluation` (4.2.13). FR-48 still holds: on a scored resubmission the ticket moves to `done`.
+- **FR-33:** state list is `assigned → in_progress → submitted_v1 → resubmitted → done`, plus `abandoned` (reachable only from `assigned` or `in_progress`). The `scored` state is removed. The score is stored on `Evaluation` (4.2.13). FR-48 still holds: on a scored resubmission the ticket moves to `done`.
 - **FR-35:** "which resets it" becomes "which marks it `abandoned` (the row is kept) and immediately issues a new one".
 - **FR-36:** retention also applies to `abandoned` tickets and their mentor history, though only `done` tickets appear on the profile.
 

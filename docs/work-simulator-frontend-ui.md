@@ -2,7 +2,7 @@
 
 Project: Work Simulator · Links back to: [5. API Specification](./work-simulator-api-spec.md)
 
-Every page and component here traces back to a Use Case (descriptive placeholders from doc 2 until doc 3's IDs exist, see A-35) and forward to a file in [7. Folder & File Structure]. The file paths below are proposals until doc 7 exists (A-36). `EP-##` means an endpoint in doc 5, section 5.3.
+Every page and component here traces back to a Use Case (`UC-##` from [3. Use Cases](./work-simulator-use-cases.md), see A-35) and forward to a file in [7. Folder & File Structure](./work-simulator-folder-file-structure.md). The file paths below are proposals confirmed in doc 7 (A-36). `EP-##` means an endpoint in doc 5, section 5.3.
 
 **Decisions this doc is built on** (locked or confirmed with the team):
 - Auth is email + password. Sessions are httpOnly access + refresh cookies, so frontend code never reads or stores a token. GitHub is connected separately, after login, for repo access only
@@ -11,11 +11,11 @@ Every page and component here traces back to a Use Case (descriptive placeholder
 - Two-pass flow: first submission = feedback only, resubmission = final score, final for V1. Ticket statuses are exactly `assigned → in_progress → submitted_v1 → resubmitted → done`, plus `abandoned` (only reachable before submission)
 - A real GitHub PR/diff is required. The UI never offers a paste-a-diff fallback
 - One active ticket at a time
-- The starter template picker offers React and Node/Express only. Django is unconfirmed and is not shown
-- "Voxide" is still undefined (FR-53), so no page, component or hook exists for it
+- The starter template picker offers React, Node/Express, and Django
+- Voxide is a V2 mandated external integration (see [problem/solution](./work-simulator-problem-solution-v2.md) §1.5); no V1 page, component or hook exists for it (~~FR-53~~ deferred)
 - Deferred by doc 2, section 2.3, so no UI exists for them: account deletion, self-service refunds, admin panel, MFA, uploads, search/filter/bulk actions, public profile links, localization
 
-**Source note:** docs 2 and 5 were available. Docs 3 (use cases) and 4 (database) were not. Request and response shapes come from doc 5, so any risk doc 5 flags (for example A-20, the assumed built-auth shapes) carries over here. A 42-topic frontend checklist was also supplied. It was used only to check coverage (section 6.6), not as a source of requirements. Where it lists something doc 2 excludes, doc 2 wins.
+**Source note:** Request and response shapes come from doc 5, so any risk doc 5 flags (for example A-20, the assumed built-auth shapes) carries over here. A 42-topic frontend checklist was also supplied. It was used only to check coverage (section 6.6), not as a source of requirements. Where it lists something doc 2 excludes, doc 2 wins.
 
 **What this doc adds to the template:** a `PG-##` ID on every page, and sections 6.5 to 6.9 (shared behavior, checklist coverage, assumptions, open questions, changes to earlier docs), mirroring how doc 5 ends.
 
@@ -25,21 +25,21 @@ Every page and component here traces back to a Use Case (descriptive placeholder
 
 | ID | Route | Page component | Public/Protected | Layout | Linked Use Case | Linked FR |
 |---|---|---|---|---|---|---|
-| PG-01 | `/register` | RegisterPage | Public (logged-in users go to `/dashboard`) | AuthLayout | Register | FR-01, FR-02, FR-03, FR-05 |
-| PG-02 | `/login` | LoginPage | Public (logged-in users go to `/dashboard`) | AuthLayout | Login | FR-04, FR-12 |
-| PG-03 | `/forgot-password` | ForgotPasswordPage | Public (logged-in users go to `/dashboard`) | AuthLayout | Reset Password | FR-07 |
-| PG-04 | `/reset-password?token=…` | ResetPasswordPage | Public (any login state) | AuthLayout | Reset Password | FR-07, FR-08 |
-| PG-05 | `/verify-email?token=…` | VerifyEmailPage | Public (any login state) | AuthLayout | Verify Email | FR-05, FR-06 |
-| PG-06 | `/dashboard` | DashboardPage | Protected | AppLayout | Get Ticket, View Ticket (entry point to Subscribe, Connect GitHub, Start Project) | FR-15, FR-26, FR-30, FR-34 |
-| PG-07 | `/billing` | BillingPage | Protected | AppLayout | Subscribe, View Subscription, Cancel Subscription, View Billing History, Payment Failed | FR-15 – FR-17, FR-20 – FR-23 |
-| PG-08 | `/billing/return` | CheckoutReturnPage | Protected | AppLayout | Subscribe | FR-18 |
-| PG-09 | `/github` | GitHubSetupPage | Protected | AppLayout | Connect GitHub, Disconnect GitHub, Start Project | FR-25 – FR-29 |
-| PG-10 | `/tickets/:ticketId` | TicketPage | Protected | AppLayout | View Ticket, Start Ticket, Get Ticket, Ask Mentor, View Mentor History, Submit Work, Revise & Resubmit, Get Feedback, Get Score, Abandon Ticket, View Past Ticket | FR-30, FR-32 – FR-39, FR-41 – FR-49 |
-| PG-11 | `/profile` | ExperienceProfilePage | Protected | AppLayout | View Profile | FR-36, FR-50, FR-51 |
-| PG-12 | `/settings` | SettingsPage | Protected | AppLayout | Edit Profile, Change Password, Logout Everywhere, Verify Email (resend) | FR-05, FR-09, FR-11, FR-13 |
-| PG-13 | `*` | NotFoundPage | Public | AuthLayout when logged out, AppLayout when logged in | (system) | — |
+| PG-01 | `/register` | RegisterPage | Public (logged-in users go to `/dashboard`) | AuthLayout | UC-01 | FR-01, FR-02, FR-03, FR-05 |
+| PG-02 | `/login` | LoginPage | Public (logged-in users go to `/dashboard`) | AuthLayout | UC-03 | FR-04, FR-12 |
+| PG-03 | `/forgot-password` | ForgotPasswordPage | Public (logged-in users go to `/dashboard`) | AuthLayout | UC-04 | FR-07 |
+| PG-04 | `/reset-password?token=…` | ResetPasswordPage | Public (any login state) | AuthLayout | UC-05 | FR-07, FR-08 |
+| PG-05 | `/verify-email?token=…` | VerifyEmailPage | Public (any login state) | AuthLayout | UC-02 | FR-05, FR-06 |
+| PG-06 | `/dashboard` | DashboardPage | Protected | AppLayout | UC-19, UC-20 (entry to UC-10, UC-16, UC-18) | FR-15, FR-26, FR-30, FR-34 |
+| PG-07 | `/billing` | BillingPage | Protected | AppLayout | UC-10, UC-12, UC-13, UC-15, UC-14 | FR-15 – FR-17, FR-20 – FR-23 |
+| PG-08 | `/billing/return` | CheckoutReturnPage | Protected | AppLayout | UC-10 | FR-18 |
+| PG-09 | `/github` | GitHubSetupPage | Protected | AppLayout | UC-16, UC-17, UC-18 | FR-25 – FR-29 |
+| PG-10 | `/tickets/:ticketId` | TicketPage | Protected | AppLayout | UC-19, UC-20, UC-21, UC-23, UC-24, UC-25, UC-26, UC-22 | FR-30, FR-32 – FR-39, FR-41 – FR-49 |
+| PG-11 | `/profile` | ExperienceProfilePage | Protected | AppLayout | UC-27 | FR-36, FR-50, FR-51 |
+| PG-12 | `/settings` | SettingsPage | Protected | AppLayout | UC-09, UC-06, UC-08, UC-02 | FR-05, FR-09, FR-11, FR-13 |
+| PG-13 | `*` | NotFoundPage | Public | AuthLayout when logged out, AppLayout when logged in | (system) — | — |
 
-Not pages: `/` renders no UI and redirects (6.5.1). Logout (FR-10) is an action in AppLayout's user menu. FR-14, FR-24, FR-52 and FR-53 have no UI by design. FR-12 (login rate limit) appears only as the 429 message on PG-02.
+Not pages: `/` renders no UI and redirects (6.5.1). Logout (FR-10) is an action in AppLayout's user menu. FR-14, FR-24, FR-52 and ~~FR-53~~ (deferred to V2) have no UI by design. FR-12 (login rate limit) appears only as the 429 message on PG-02.
 
 ---
 
@@ -55,7 +55,7 @@ Shared form behavior (section 6.5.6), shared error handling (6.5.3), and shared 
 
 **Layout description:** Centered card (AuthLayout). Top to bottom: heading "Create your account"; name field; email field; password field with a show/hide toggle and the hint "At least 8 characters"; a form-level error area; a full-width "Create account" button; the line "Already have an account? Log in".
 
-On success the card content is replaced, in place, by a "Check your email" view: "We've sent a verification link to {email}. If it doesn't arrive, you can send it again." A "Resend verification email" button and a "Go to login" link sit below. Registering does not log the user in (EP-01), so login is the next step.
+On success the card content is replaced, in place, by a "Check your email" view: "We've sent a verification link to {email}. If it doesn't arrive, you can send it again." A "Resend verification email" button and a "Go to dashboard" (or continue) control sit below. EP-01 sets access + refresh cookies and returns `user`, so the user is logged in; they are not forced through login again. Resend remains available.
 
 The template's example `referralCode` field is not part of V1: FR-01 lists name, email and password only.
 
@@ -185,7 +185,7 @@ Server error mapping: 409 sets the message "Email already in use" on the email f
 - [ ] Invalid link (400 "Invalid reset link"): view with the message and a link to `/forgot-password`
 - [ ] Expired or already used (410): the server message ("expired" or "already been used") plus a "Request a new link" button to `/forgot-password`. The password is not changed (FR-08)
 - [ ] Validation or network error: `errors.root`
-- [ ] Success: navigate with `replace` to `/login` with the "Password reset" notice. Whether other sessions are also revoked is open (Q-11), and the UI does not depend on it
+- [ ] Success: navigate with `replace` to `/login` with the "Password reset" notice. EP-09 revokes all other sessions (Q-11 reset resolved); the UI still only needs the login notice
 
 ### PG-05 · VerifyEmailPage (`src/pages/auth/VerifyEmailPage.tsx`)
 
@@ -193,9 +193,9 @@ Server error mapping: 409 sets the message "Email already in use" on the email f
 
 **Traces to:** FR-05, FR-06 · EP-06, EP-07
 
-**Layout description:** Centered card. It shows one of four views, decided by the request outcome. Verifying: a small spinner with "Verifying your email…". Success: "Your email is verified" and one button ("Go to dashboard" if logged in, otherwise "Go to login"). Problem (invalid, expired, used): the server message, then "Send a new verification link" with an email field (prefilled from the `['me']` cache when logged in) and a send button.
+**Layout description:** Centered card. It shows one of four views, decided by the request outcome. Verifying: a small spinner with "Verifying your email…". Success: "Your email is verified" and one button ("Go to dashboard" if logged in, otherwise "Go to login"). Already verified (soft success for an already-used token): "already verified" (or the server message) with the same continue button. Problem (invalid, or unused+expired): the server message, then "Send a new verification link" with an email field (prefilled from the `['me']` cache when logged in) and a send button.
 
-The page calls EP-06 automatically on load, exactly once per page load. The call is guarded so that React StrictMode's double effect in development cannot send it twice (the second call would come back as "already used"). A missing token skips the call and shows the invalid view.
+The page calls EP-06 automatically on load, exactly once per page load. The call is guarded so that React StrictMode's double effect in development cannot send it twice (the second call is soft success "already verified"). A missing token skips the call and shows the invalid view.
 
 **Components used:** Card, Input, Label, Button, Alert (shadcn, unmodified); AuthLayout, FormRootError, SubmitButton (see PG-01).
 
@@ -215,10 +215,11 @@ The page calls EP-06 automatically on load, exactly once per page load. The call
 **States to handle explicitly:**
 - [ ] Verifying (request in flight)
 - [ ] Success: `emailVerifiedAt` is written to the `['me']` cache if the user is logged in, so the banner disappears
+- [ ] Already verified (soft success for an already-used token): same continue UX as success; not a 410
 - [ ] Invalid (400 "Invalid verification link"): message + resend form
-- [ ] Expired or already used (410): the server message + resend form (FR-06). No message matching is needed; both 410 cases offer the same recovery
+- [ ] Unused and expired (410): the server message + resend form (FR-06). Only unused+expired is 410; already-used is soft success
 - [ ] Resend: same behavior as PG-01 (server message as returned, 60 s cooldown, 429 inline)
-- [ ] Refreshing after success returns "already used". The message is accurate, and a logged-in user also sees a "Go to dashboard" link
+- [ ] Refreshing after success returns soft "already verified". A logged-in user also sees a "Go to dashboard" link
 - [ ] Network error: `ErrorState` with a Retry button that re-fires EP-06
 
 ### PG-06 · DashboardPage (`src/pages/dashboard/DashboardPage.tsx`)
@@ -316,7 +317,7 @@ The next billing date is `currentPeriodEnd`. The API has no separate field (A-48
 - [ ] Empty payments: "No payments yet." No next action is needed on this card
 - [ ] Payment `pending`: badge "Pending". `paidAt` is null, so the date column shows `createdAt`
 - [ ] Subscribe, loading: button disabled with a spinner, label "Opening Chapa…". On 201 the browser navigates (same tab) to `checkoutUrl`, and the button stays disabled until the page unloads, so a second click cannot create a second pending payment
-- [ ] Subscribe, errors: 409 "already have an active subscription" refetches EP-15 (the card then shows the right state); 502 shows the server message with Retry
+- [ ] Subscribe, errors: 403 "Verify your email before subscribing" (or equivalent) shows the server message with a resend path (EP-07 / banner resend); unverified users can still browse Billing, but checkout is gated. 409 "already have an active subscription" refetches EP-15 (the card then shows the right state); 502 shows the server message with Retry
 - [ ] Cancel: `ConfirmDialog` text is "Your access continues until {currentPeriodEnd}, then ends. Future charges will stop." Confirm label "Cancel subscription". On success EP-15 is refetched. 409 refetches and closes the dialog. 502 keeps the dialog open with the server message and an enabled confirm button
 - [ ] Payment failed (FR-22): the badge and text above, plus `SubscriptionBanner` in AppLayout. The failure email is sent by the backend
 
@@ -355,7 +356,7 @@ The page ignores any query parameters Chapa may add (A-37). The only source of t
 
 Card 1, "GitHub connection". Not connected: a short explanation ("Work Simulator needs permission to create a repository in your account and push to it."), and a "Connect GitHub" button. Connected: "Connected as @{githubLogin}" and a "Disconnect GitHub" button. The permission wording depends on the exact scope (Q-08).
 
-Card 2, "Starter repository". If a repo exists: `RepoSummary` (owner/name as an external link, template, default branch) and a "Go to dashboard" button. There is no create form, because there is one repo per user. If no repo, and GitHub is connected, and the user has access: a form with a template choice (radio group: React, Node/Express, no default selected) and a repository name field (prefilled `work-simulator`). If GitHub is not connected or access has lapsed, the form is replaced by a message and the right link.
+Card 2, "Starter repository". If a repo exists: `RepoSummary` (owner/name as an external link, template, default branch) and a "Go to dashboard" button. There is no create form, because there is one repo per user. If no repo, and GitHub is connected, and the user has access: a form with a template choice (radio group: React, Node/Express, Django, no default selected) and a repository name field (prefilled `work-simulator`). If GitHub is not connected or access has lapsed, the form is replaced by a message and the right link.
 
 OAuth error text, by `reason`:
 
@@ -390,7 +391,7 @@ OAuth error text, by `reason`:
 
 | Field | Type | Validation |
 |---|---|---|
-| starterTemplate | radio | required; `react` or `node_express` |
+| starterTemplate | radio | required; `react`, `node_express`, or `django` |
 | repoName | text | optional; default `work-simulator`; must match `^[A-Za-z0-9._-]{1,100}$` and not be `.` or `..` (A-45, client-side convenience only; the server is authoritative) |
 
 **States to handle explicitly:**
@@ -404,7 +405,6 @@ OAuth error text, by `reason`:
 - [ ] Create repo, loading: form disabled, button label "Creating repository…"
 - [ ] Create repo, success: `RepoSummary` replaces the form. Focus moves to it
 - [ ] Create repo, errors (FR-28): 409 shows the server message in `errors.root` (it says whether it is a name collision or an existing repo), moves focus to the repo name field, and refetches EP-20 in case the repo now exists. 403 refetches EP-20 and shows the server message with the Connect button. 402 links to PG-07. 502 shows the server message and leaves the form filled so the user can retry. 400 shows in `errors.root`
-- [ ] Django is not offered (unconfirmed)
 
 ### PG-10 · TicketPage (`src/pages/tickets/TicketPage.tsx`)
 
@@ -428,15 +428,15 @@ The phase is derived from `ticket.status` plus the latest submission's `status` 
 |---|---|---|---|---|---|
 | `assigned` | none | Ready to start | "Start working" (EP-26) | Disabled: "Start the ticket to use the mentor." | Yes |
 | `in_progress` | none | In progress | "Submit for feedback" (EP-30). Helper text: "Your first submission gets feedback only, no score. You can then revise and resubmit once for your final score." | Enabled | Yes |
-| `submitted_v1` | #1 `awaiting_ci` or `evaluating` | First review in progress | none (wait) | Disabled: "The mentor is only available while the ticket is in progress." | No |
-| `submitted_v1` | #1 `completed` | Feedback ready | "Resubmit for final score" (EP-30, with confirmation, below) | Disabled (same text) | No |
-| `submitted_v1` | #1 `failed` | Review failed | "Retry review" (EP-32) | Disabled (same text) | No |
-| `resubmitted` | #2 `awaiting_ci` or `evaluating` | Final review in progress | none (wait) | Disabled (same text) | No |
+| `submitted_v1` | #1 `awaiting_ci` or `evaluating` | First review in progress | none (wait) | Enabled | No |
+| `submitted_v1` | #1 `completed` | Feedback ready | "Resubmit for final score" (EP-30, with confirmation, below) | Enabled | No |
+| `submitted_v1` | #1 `failed` | Review failed | "Retry review" (EP-32) | Enabled | No |
+| `resubmitted` | #2 `awaiting_ci` or `evaluating` | Final review in progress | none (wait) | Disabled: "The mentor is not available after final submission." | No |
 | `resubmitted` | #2 `failed` | Final review failed | "Retry review" (EP-32) | Disabled (same text) | No |
 | `done` | #2 `completed` | Done | "Get next ticket" (EP-23) | Read-only history | No |
 | `abandoned` | any or none | Abandoned | none | Read-only history | No |
 
-The composer is disabled in `submitted_v1` and `resubmitted` because EP-28 rejects messages then (Q-10c). If the team reverses that, only this table changes.
+The composer is **Enabled** during `submitted_v1` (feedback ready / first review processing / failed) — Q-10c resolved; EP-28 accepts messages then. It stays **Disabled** for `assigned` (not started), `resubmitted`, `done`, and `abandoned`.
 
 **Components used:**
 
@@ -494,7 +494,7 @@ Attempt 1 has `scores: null` and shows the feedback text only, under the label "
 - [ ] Final review completed (attempt 2 `completed`): refetch EP-25. If the ticket still reads `resubmitted`, refetch up to 3 more times, 2 s apart, until it reads `done`. Then invalidate `['ticket','current']` and `['profile']`
 - [ ] Done: score breakdown, both attempts' feedback, diff sections, read-only mentor history, and a "Get next ticket" button. Errors from EP-23 follow the dashboard list (PG-06)
 - [ ] Abandoned: banner "This ticket was abandoned." Read-only mentor history. A link to the dashboard
-- [ ] Abandon: `ConfirmDialog` text is "This resets the ticket and gives you a new one. Your mentor conversation is kept and the branch stays in your repository. You can't abandon a ticket after submitting." Confirm label "Abandon ticket". Success with `newTicket`: navigate with `replace` to the new ticket and show a toast. Success with `newTicket: null`: go to the dashboard with the toast "Ticket abandoned. We couldn't issue a new one right now. Try again from the dashboard." (EP-27, A-31). 409 "cannot be abandoned after submission" (stale tab) refetches and closes the dialog
+- [ ] Abandon: `ConfirmDialog` text is "This will be marked abandoned and a new ticket issued — your work stays on record. Your mentor conversation is kept and the branch stays in your repository. You can't abandon a ticket after submitting." Confirm label "Abandon ticket". Success with `newTicket`: navigate with `replace` to the new ticket and show a toast. Success with `newTicket: null`: go to the dashboard with the toast "Ticket abandoned. We couldn't issue a new one right now. Try again from the dashboard." (EP-27, A-31). 409 "cannot be abandoned after submission" (stale tab) refetches and closes the dialog
 - [ ] Mentor, empty: "Ask the mentor about this ticket. It starts by asking what you've tried, then gives hints. It won't hand you the solution."
 - [ ] Mentor, sending: the user's message appears immediately in a pending style (local only; nothing is stored until the mentor replies, A-29), the send button is disabled, and a "Mentor is thinking…" line appears. On 201 both server messages replace the pending one
 - [ ] Mentor, failed send: 502 shows "The mentor is unavailable, please try again" under the message with a "Retry" button. The typed text is kept and nothing is duplicated (EP-28 stores nothing on failure). A network error behaves the same
@@ -644,7 +644,7 @@ All are TanStack Query hooks. Location shows the folder; the file is named after
 | Hook | Location | Wraps | Purpose | On success |
 |---|---|---|---|---|
 | useMe | `src/hooks/auth/` | Query, EP-11 | Current user. Its result is the app's "logged in" fact | key `['me']` |
-| useRegister | `src/hooks/auth/` | Mutation, EP-01 | Create an account | none |
+| useRegister | `src/hooks/auth/` | Mutation, EP-01 | Create an account (cookies set; user logged in) | writes `user` to `['me']` |
 | useLogin | `src/hooks/auth/` | Mutation, EP-02 | Log in | writes `user` to `['me']` |
 | useLogout | `src/hooks/auth/` | Mutation, EP-04 | Log out this device | clears the whole query cache (6.5.2) |
 | useLogoutAll | `src/hooks/auth/` | Mutation, EP-05 | Log out every device | clears the whole query cache |
@@ -723,10 +723,10 @@ One shared client (proposed `src/lib/api/`) sends every request, unwraps the doc
 | 400 | Validation failure or malformed token | Show the server message in the form (`errors.root`, or a field per A-41). Never triggers refresh or logout |
 | 401 | Session problem (or wrong credentials on EP-02) | Session flow (6.5.2) |
 | 402 | Paid access required | Message "An active subscription is required" with a link to PG-07. Refetch `['subscription']` so actions become disabled |
-| 403 | GitHub not connected, or token no longer valid | Show the server message and a "Reconnect GitHub" link to PG-09. Refetch `['github-connection']` |
+| 403 | GitHub not connected / token no longer valid, **or** email not verified on checkout (EP-13) | GitHub: show the server message and a "Reconnect GitHub" link to PG-09; refetch `['github-connection']`. EP-13: show the server message ("Verify your email…") with a resend path; unverified users can still browse |
 | 404 | Not found, or not owned | "Not found" state. Same text either way |
 | 409 | Wrong state or conflict | Show the server message and refetch the affected resource (the screen was stale) |
-| 410 | Link expired or already used | Show the server message and offer a new link (PG-04, PG-05) |
+| 410 | Link expired (verify: unused+expired only) or expired/already-used (reset) | Show the server message and offer a new link (PG-04, PG-05). Already-used verify is soft success, not 410 |
 | 429 | Rate limited | Show the server message. Keep the form values. No automatic retry |
 | 502 | Upstream failure (Chapa, GitHub, Gemini, Groq) | Show the server message and a user-started Retry button |
 | Network error, timeout, non-envelope 5xx | — | "Can't reach the server. Check your connection and try again." with Retry |
@@ -802,7 +802,7 @@ Text is sized in `rem`, and pages must stay usable at 200% browser zoom. Long re
 
 ### 6.5.8 Accessibility
 
-Target: WCAG 2.1 AA (A-51). Verified by a manual keyboard pass and a screen-reader spot check of every page before the demo, matching doc 2's "manual spot-check".
+**Design target:** designed toward WCAG 2.1 AA (A-51). This is a design target, not a blocking V1 ship gate. Verified by a manual keyboard pass and a screen-reader spot check of every page before the demo, matching doc 2's "manual spot-check".
 
 - Every page has landmarks (`header`, `nav`, `main`), exactly one `<h1>`, and a "Skip to main content" link as the first focusable element in AppLayout.
 - On every route change the document title updates (`useDocumentTitle`) and focus moves to the `<h1>` (`tabIndex={-1}`), so screen-reader users hear the new page.
@@ -835,7 +835,7 @@ Each one uses `ConfirmDialog`. Esc and Cancel close it (unless the request is ru
 |---|---|---|---|
 | Cancel subscription | PG-07 | Stops future charges. Access continues to `currentPeriodEnd` | The user can subscribe again once access ends (A-48) |
 | Disconnect GitHub | PG-09 | Removes the stored connection. Records are kept. The grant at GitHub is not revoked (A-32) | Yes, by reconnecting |
-| Abandon ticket | PG-10 | Resets the ticket and issues a new one. Mentor history and branch are kept | No |
+| Abandon ticket | PG-10 | Marks the ticket abandoned and issues a new one. Mentor history and branch are kept | No |
 | Resubmit for final score | PG-10 | Produces the final score, and the ticket cannot be revised after | No |
 | Log out of all devices | PG-12 | Revokes every refresh token | Yes, by logging in again |
 
@@ -899,15 +899,15 @@ Numbering continues from doc 5 (A-01 to A-34). Correct any that are wrong before
 
 | ID | Assumption | Where it matters |
 |---|---|---|
-| A-35 | Doc 3 (use cases) was not available, so `Linked Use Case` uses the same descriptive placeholders as docs 2 and 5. Replace them with real `UC-##` IDs when doc 3 exists. This continues A-21 of doc 5 | 6.1, all pages |
-| A-36 | The frontend stack is what the template implies: React + TypeScript, shadcn/ui on Radix with Tailwind, react-hook-form with Zod, TanStack Query. Only Card, Input and Button are confirmed to exist. The router library is not named in any doc, so this doc describes routing behavior only. All file paths are proposals until doc 7 | 6.2 – 6.4 |
+| A-35 | `Linked Use Case` IDs in 6.1 are filled from doc 3 (`UC-##`). They are no longer descriptive placeholders | 6.1, all pages |
+| A-36 | The frontend stack is what the template implies: React + TypeScript, shadcn/ui on Radix with Tailwind, react-hook-form with Zod, TanStack Query. Only Card, Input and Button are confirmed to exist. The router library is not named in any doc, so this doc describes routing behavior only. File paths are confirmed in doc 7 | 6.2 – 6.4 |
 | A-37 | Route paths are this doc's choice. Four things outside the frontend must match them: the verification email links to `/verify-email?token=…`; the reset email links to `/reset-password?token=…`; Chapa's `return_url` is `{frontend}/billing/return`; the GitHub callback redirects to `/github` (doc 5 left these last two to this doc). Chapa may add its own query parameters to the return URL, and the page ignores them | PG-04, PG-05, PG-08, PG-09 |
 | A-38 | There is no landing or marketing page in V1. Nothing in doc 2 asks for one. `/` redirects | 6.5.1 |
-| A-39 | Email verification blocks nothing in the UI. Unverified users can do everything the API allows and see a banner. If Q-04 decides an action needs verification, a gate would be added | PG-02, EmailVerificationBanner |
+| A-39 | Email verification blocks starting checkout (EP-13). Unverified users can still browse; `EmailVerificationBanner` remains. Subscribe/checkout is gated: EP-13 403 "Verify your email…" is shown with a resend path | PG-02, PG-07, EmailVerificationBanner |
 | A-40 | Client session handling (restore through EP-11, one shared refresh on 401, the exclusions, the logout behavior) is designed in 6.5.2. Doc 5 defines the endpoints only | 6.5.2 |
 | A-41 | Server errors carry one message string and no field (A-19), so they show in `errors.root`. Exactly two are placed on fields: EP-01 409 goes to `email`; EP-10 400 with the exact message "Current password is incorrect" goes to `currentPassword`. The second depends on that text staying the same, and the mapping lives in one file | all forms, 6.5.3 |
 | A-42 | These timing values are this doc's choices, not from docs 2 or 5, and are constants in one config file to tune after testing: checkout poll every 2 s for 60 s; submission poll every 3 s, then every 10 s after 2 minutes, hint at 2 minutes, auto-stop at 10 minutes; verification-resend cooldown 60 s; request timeout 30 s (60 s for EP-22, EP-23, EP-27, EP-28, EP-30); queries retry once, mutations never retry | 6.5.3, 6.5.5 |
-| A-43 | The phase shown on a ticket comes from `ticket.status` plus the latest submission's `status` (table in PG-10). The mentor composer is disabled in `submitted_v1` and `resubmitted` because EP-28 rejects messages then (Q-10c). If that is reversed, only that table changes | PG-10 |
+| A-43 | The phase shown on a ticket comes from `ticket.status` plus the latest submission's `status` (table in PG-10). The mentor composer is **Enabled** during `submitted_v1` (Q-10c resolved; EP-28 accepts then) and **Disabled** for `assigned`, `resubmitted`, `done`, and `abandoned` | PG-10 |
 | A-44 | GitHub links are built from `repo.fullName` and `branchName` on `github.com` (no GitHub Enterprise) | PG-09, PG-10 |
 | A-45 | The repo-name pattern `^[A-Za-z0-9._-]{1,100}$` (and not `.` or `..`) is a client-side check based on GitHub's naming rules. Doc 5 says only "string, optional". The server stays authoritative | PG-09 |
 | A-46 | Mentor replies, feedback, `failureReason` and diffs are rendered as plain text with whitespace kept, never as HTML, and without Markdown. The docs do not say whether the models return Markdown (Q-17). Diffs have no syntax highlighting | PG-10, PG-11 |
@@ -915,7 +915,7 @@ Numbering continues from doc 5 (A-01 to A-34). Correct any that are wrong before
 | A-48 | "Next billing date" (FR-20) is `currentPeriodEnd`, because the API has no separate field. For a canceled subscription the same value is labeled "Access ends". "Subscribe" is offered only when `hasAccess` is `false`, and never for `past_due` (Q-15). This avoids starting a checkout while a canceled subscription still has paid time, a case doc 5 does not define for EP-14 | PG-07 |
 | A-49 | Dates show in English in the browser's timezone (for example "19 Sep 2026"). Amounts show as returned (`amount` string plus `currency`). There is no localization (doc 2, 2.3) | PG-07, PG-10, PG-11 |
 | A-50 | Category and difficulty are free strings whose values are unknown, so they are shown as given, with no per-value colors or icons | PG-06, PG-10, PG-11 |
-| A-51 | The accessibility target is WCAG 2.1 AA, checked manually. Doc 2 only says elements are keyboard-navigable through Radix and spot-checked. Naming a WCAG level is this doc's extension | 6.5.8 |
+| A-51 | WCAG 2.1 AA is a **design target** (designed toward), not a blocking V1 ship gate. Manual keyboard and screen-reader spot-check remains, matching doc 2. Naming a WCAG level is this doc's extension | 6.5.8 |
 | A-52 | Breakpoints are Tailwind's defaults. `md` (768 px) is the main switch between phone and larger layouts | 6.5.7 |
 | A-53 | Nothing is stored in the browser (no `localStorage`, `sessionStorage` or IndexedDB). A page refresh or a session redirect therefore loses unsent mentor text and unsaved settings edits. The small amount of state that must survive a refresh lives in the URL | 6.5.6, 6.5.9 |
 | A-54 | Supported browsers are the current stable Chrome, Edge, Firefox, Safari (macOS and iOS) and Chrome on Android. No unsupported-browser page is built | all |
@@ -924,12 +924,15 @@ Numbering continues from doc 5 (A-01 to A-34). Correct any that are wrong before
 
 ## 6.8 Open Questions
 
-Numbering continues from doc 5 (Q-01 to Q-13). Q-03 to Q-13 from docs 4 and 5 are still open, and several affect this doc: Q-04 (verification gating), Q-05 and Q-07 (renewals and grace period), Q-08 (GitHub scope wording), Q-10 (mentor limits and revision-phase access), Q-11 (sessions after a password change), Q-12 (cookie `SameSite`), Q-13 (submission timeouts).
+Numbering continues from doc 5 (Q-01 to Q-13). Status of prior questions that affect this doc:
+
+- **Resolved:** Q-04 (verification gating — blocks checkout EP-13), Q-07 (no separate grace period; access ends at `currentPeriodEnd`), Q-08 (GitHub scope includes `write:repo_hook`; webhook registered in EP-22), Q-10c (mentor available during `submitted_v1`), Q-11 for reset (EP-09 revokes all sessions).
+- **Still open / half open:** Q-03, Q-05 (half), Q-06, Q-09, Q-10a/b, Q-12, Q-13, plus this doc's Q-14–Q-18 below.
 
 | ID | Question | Affects |
 |---|---|---|
 | Q-14 | **Where does the price come from?** No endpoint returns it (EP-13 reads price and currency from server config), so the Subscribe UI cannot show one. Options: add `price` and `currency` to EP-15 or a new endpoint; copy the value into a frontend environment variable (can drift from the server); or show none and rely on Chapa's page. Interim: no price is shown before checkout | PG-07, EP-13, EP-15 |
-| Q-15 | **A `past_due` user has no way to pay again.** EP-13 returns 409 for `past_due`, and by Q-07 `past_due` effectively means access ends. A failed renewal can therefore leave a user locked out with no in-app fix. Should EP-13 accept `past_due` users, or is this handled by hand through the Chapa dashboard (and should the UI say so)? Interim: the card shows the failure and no button | PG-07, EP-13, Q-05, Q-07 |
+| Q-15 | **A `past_due` user has no way to pay again.** EP-13 returns 409 for `past_due`, and by resolved Q-07 `past_due` means access ends at `currentPeriodEnd`. A failed renewal can therefore leave a user locked out with no in-app fix. Should EP-13 accept `past_due` users, or is this handled by hand through the Chapa dashboard (and should the UI say so)? Interim: the card shows the failure and no button | PG-07, EP-13, Q-05, Q-07 |
 | Q-16 | **What does EP-19 do when the user cancels GitHub authorization?** GitHub sends the browser back with an error, and EP-19's `reason` values (`state_invalid`, `scope_invalid`, `exchange_failed`) have none for it. Should `access_denied` be added? Interim: the UI shows the generic text | PG-09, EP-19 |
 | Q-17 | **Do Gemini's and Groq's outputs use Markdown that the team wants rendered** (code blocks especially)? It needs a sanitizing Markdown renderer as a new dependency. Interim: plain text | PG-10, PG-11 |
 | Q-18 | **Is there any support contact for V1?** Refunds are manual (FR-24) and Q-15 shows cases a user cannot fix alone, but no doc names a place to send them. Interim: the UI never says "contact support"; it says to try again | PG-07, 6.5.3 |
@@ -946,11 +949,9 @@ Numbering is not changed. These are amendments.
 - **Q-14, Q-15, Q-16.** Each may need an API change if answered yes (EP-15 or a new endpoint; EP-13; EP-19). Nothing is changed in doc 5 by this doc.
 
 **Doc 2:**
-- **Accessibility NFR.** WCAG 2.1 AA is named as the target (A-51). This extends the row, and the "manual spot-check" verification stays as it is.
-- **FR-37.** Applied literally in the UI, as in doc 5 (Q-10c).
+- **Accessibility NFR.** WCAG 2.1 AA is named as a design target (A-51), not a blocking ship gate. The "manual spot-check" verification stays as it is.
+- **FR-37.** Mentor available during `submitted_v1` (Q-10c resolved), as in doc 5.
 - No FR is added, removed or renumbered.
-
-No locked decision is changed.
 
 ---
 

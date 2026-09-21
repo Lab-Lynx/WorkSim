@@ -2,21 +2,23 @@
 
 Project: Work Simulator · Links back to: [4. Database Requirements & ER Diagram]
 
-Every endpoint here traces back to a Use Case (placeholders from doc 2 until doc 3's IDs are available, see A-21) and forward to a controller file in [7. Folder & File Structure] (TBD until that doc exists).
+Every endpoint here traces back to a Use Case (`UC-##` from doc 3) and forward to a controller file in [7. Folder & File Structure](./work-simulator-folder-file-structure.md).
 
 Backend PR reviewers: use this doc, alongside the Team Guideline's PR checklist, to confirm the shipped endpoint matches what was specced.
 
 **Decisions this doc is built on** (locked or confirmed with the team):
 - Auth is httpOnly access + refresh cookies with rotation, as already built. It is not a Bearer token (the template's default) and is not redesigned here
-- CI completion reaches the platform through a GitHub `workflow_run` webhook; the client polls the platform for submission status
+- Registration logs the user in (matches the built auth controller and UC-01)
+- CI completion reaches the platform through a GitHub `workflow_run` webhook; the client polls the platform for submission status. The platform registers that webhook on the user's repo immediately after starter-repo creation (EP-22)
 - The platform creates the ticket's branch when the ticket is assigned. The user pushes to it and submits by ticket
-- Access ends at `currentPeriodEnd`, whatever the subscription status (resolves Q-01 from doc 4; see 5.6)
+- Access ends at `currentPeriodEnd`, whatever the subscription status (resolves Q-01 and Q-07; no separate grace period)
+- Email verification is required before starting checkout (resolves Q-04 gating)
 - Two-pass flow: first submission = feedback only, resubmission = final score. The ticket state machine is exactly `assigned → in_progress → submitted_v1 → resubmitted → done`, plus `abandoned` (only before submission)
-- Chapa is confirmed only by a verified webhook, never by the client redirect alone (FR-18, FR-19)
-- Gemini is the mentor, Groq is the evaluator. The rubric is fixed at 40 / 25 / 20 / 15
-- "Voxide" is still undefined, so no endpoint exists for it (FR-53)
-
-**Source note:** only docs 2 and 4 were available. The request/response shapes for the already-built auth endpoints are assumed, not read from code (A-20). Verify them against the real router before this doc is treated as final.
+- Mentor is available while the ticket is `in_progress` or `submitted_v1` (resolves Q-10c)
+- Chapa is confirmed only by a verified webhook, never by the client redirect alone (FR-18, FR-19). Monthly renewals are **platform-triggered** (see §5.7); whether Chapa also issues a subscription-level reference remains open (Q-05 half)
+- Gemini is the mentor and the ticket-content generator; Groq is the evaluator. The rubric is fixed at 40 / 25 / 20 / 15
+- Starter templates: `react`, `node_express`, `django`
+- "Voxide" is a V2 mandated external integration (problem/solution §1.5), so no V1 endpoint exists for it (~~FR-53~~)
 
 ---
 
@@ -65,42 +67,42 @@ Backend PR reviewers: use this doc, alongside the Team Guideline's PR checklist,
 
 | ID | Method | Path | Auth | Linked Use Case | Linked FR |
 |---|---|---|---|---|---|
-| EP-01 | POST | /auth/register | Public | Register | FR-01, FR-02, FR-03, FR-05 |
-| EP-02 | POST | /auth/login | Public | Login | FR-04, FR-12 |
-| EP-03 | POST | /auth/refresh | Public (refresh cookie) | Login | FR-04 |
-| EP-04 | POST | /auth/logout | Required | Logout | FR-10 |
-| EP-05 | POST | /auth/logout-all | Required | Logout Everywhere | FR-11 |
-| EP-06 | POST | /auth/verify-email | Public | Verify Email | FR-06 |
-| EP-07 | POST | /auth/resend-verification | Public | Verify Email | FR-06 |
-| EP-08 | POST | /auth/forgot-password | Public | Reset Password | FR-07 |
-| EP-09 | POST | /auth/reset-password | Public | Reset Password | FR-07, FR-08 |
-| EP-10 | POST | /auth/change-password | Required | Change Password | FR-09 |
-| EP-11 | GET | /users/me | Required | Edit Profile | FR-13 |
-| EP-12 | PATCH | /users/me | Required | Edit Profile | FR-13 |
-| EP-13 | POST | /subscriptions/checkout | Required | Subscribe | FR-16, FR-17 |
-| EP-14 | POST | /webhooks/chapa | Webhook | Subscribe, Payment Failed | FR-18, FR-19, FR-22 |
-| EP-15 | GET | /subscriptions/me | Required | View Subscription | FR-20 |
-| EP-16 | POST | /subscriptions/cancel | Required | Cancel Subscription | FR-21 |
-| EP-17 | GET | /payments | Required | View Billing History | FR-23 |
-| EP-18 | GET | /github/connect | Required + Sub | Connect GitHub | FR-25 |
-| EP-19 | GET | /github/callback | Required (cookie) | Connect GitHub | FR-25 |
-| EP-20 | GET | /github/connection | Required | Connect GitHub | FR-25, FR-26, FR-29 |
-| EP-21 | DELETE | /github/connection | Required | Disconnect GitHub | FR-26 |
-| EP-22 | POST | /github/repo | Required + Sub + GitHub | Start Project | FR-27, FR-28, FR-29 |
-| EP-23 | POST | /tickets | Required + Sub + GitHub + Repo | Get Ticket | FR-15, FR-30, FR-31, FR-34 |
-| EP-24 | GET | /tickets/current | Required | View Ticket | FR-32 |
-| EP-25 | GET | /tickets/:ticketId | Required | View Ticket, View Past Ticket | FR-32, FR-36 |
-| EP-26 | POST | /tickets/:ticketId/start | Required + Sub | Start Ticket | FR-33 |
-| EP-27 | POST | /tickets/:ticketId/abandon | Required + Sub + GitHub + Repo | Abandon Ticket | FR-35 |
-| EP-28 | POST | /tickets/:ticketId/mentor/messages | Required + Sub | Ask Mentor | FR-37, FR-38, FR-41 |
-| EP-29 | GET | /tickets/:ticketId/mentor/messages | Required | View Mentor History | FR-39 |
-| EP-30 | POST | /tickets/:ticketId/submissions | Required + Sub + GitHub + Repo | Submit Work, Revise & Resubmit | FR-42 – FR-46 |
-| EP-31 | GET | /tickets/:ticketId/submissions/:attempt | Required | Get Feedback, Get Score | FR-36, FR-44, FR-47, FR-49 |
-| EP-32 | POST | /tickets/:ticketId/submissions/:attempt/retry | Required + Sub | (edge case) | FR-49 |
-| EP-33 | POST | /webhooks/github | Webhook | (system) | FR-43, FR-46, FR-48 |
-| EP-34 | GET | /profile | Required | View Profile | FR-50, FR-51 |
+| EP-01 | POST | /auth/register | Public | UC-01 | FR-01, FR-02, FR-03, FR-05 |
+| EP-02 | POST | /auth/login | Public | UC-03 | FR-04, FR-12 |
+| EP-03 | POST | /auth/refresh | Public (refresh cookie) | UC-03 | FR-04 |
+| EP-04 | POST | /auth/logout | Required | UC-07 | FR-10 |
+| EP-05 | POST | /auth/logout-all | Required | UC-08 | FR-11 |
+| EP-06 | POST | /auth/verify-email | Public | UC-02 | FR-06 |
+| EP-07 | POST | /auth/resend-verification | Public | UC-02 | FR-06 |
+| EP-08 | POST | /auth/forgot-password | Public | UC-04 | FR-07 |
+| EP-09 | POST | /auth/reset-password | Public | UC-05 | FR-07, FR-08 |
+| EP-10 | POST | /auth/change-password | Required | UC-06 | FR-09 |
+| EP-11 | GET | /users/me | Required | UC-09 | FR-13 |
+| EP-12 | PATCH | /users/me | Required | UC-09 | FR-13 |
+| EP-13 | POST | /subscriptions/checkout | Required | UC-10 | FR-15, FR-16, FR-17 |
+| EP-14 | POST | /webhooks/chapa | Webhook | UC-11, UC-14 | FR-18, FR-19, FR-22 |
+| EP-15 | GET | /subscriptions/me | Required | UC-12 | FR-20 |
+| EP-16 | POST | /subscriptions/cancel | Required | UC-13 | FR-21 |
+| EP-17 | GET | /payments | Required | UC-15 | FR-23 |
+| EP-18 | GET | /github/connect | Required + Sub | UC-16 | FR-25 |
+| EP-19 | GET | /github/callback | Required (cookie) | UC-16 | FR-25 |
+| EP-20 | GET | /github/connection | Required | UC-16, UC-17 | FR-25, FR-26, FR-29 |
+| EP-21 | DELETE | /github/connection | Required | UC-17 | FR-26 |
+| EP-22 | POST | /github/repo | Required + Sub + GitHub | UC-18 | FR-27, FR-28, FR-29 |
+| EP-23 | POST | /tickets | Required + Sub + GitHub + Repo | UC-19 | FR-15, FR-30, FR-31, FR-34 |
+| EP-24 | GET | /tickets/current | Required | UC-20 | FR-32 |
+| EP-25 | GET | /tickets/:ticketId | Required | UC-20, UC-22 | FR-32, FR-36 |
+| EP-26 | POST | /tickets/:ticketId/start | Required + Sub | UC-19 | FR-33 |
+| EP-27 | POST | /tickets/:ticketId/abandon | Required + Sub + GitHub + Repo | UC-21 | FR-35 |
+| EP-28 | POST | /tickets/:ticketId/mentor/messages | Required + Sub | UC-23 | FR-37, FR-38, FR-41 |
+| EP-29 | GET | /tickets/:ticketId/mentor/messages | Required | UC-24 | FR-39 |
+| EP-30 | POST | /tickets/:ticketId/submissions | Required + Sub + GitHub + Repo | UC-25, UC-26 | FR-42 – FR-46 |
+| EP-31 | GET | /tickets/:ticketId/submissions/:attempt | Required | UC-25, UC-26 | FR-36, FR-44, FR-47, FR-49 |
+| EP-32 | POST | /tickets/:ticketId/submissions/:attempt/retry | Required + Sub | UC-25, UC-26 | FR-49 |
+| EP-33 | POST | /webhooks/github | Webhook | (system; CI for UC-25/UC-26) | FR-43, FR-46, FR-48 |
+| EP-34 | GET | /profile | Required | UC-27 | FR-50, FR-51 |
 
-`Linked Use Case` values are the descriptive placeholders from doc 2 (A-21).
+`Linked Use Case` values are the real `UC-##` IDs from doc 3.
 
 ---
 
@@ -148,7 +150,7 @@ Timestamps are ISO 8601 UTC strings. IDs are UUID strings. Example values in JSO
 ```json
 {
   "fullName": "owner/name",
-  "starterTemplate": "react | node_express",
+  "starterTemplate": "react | node_express | django",
   "defaultBranch": "string"
 }
 ```
@@ -174,7 +176,7 @@ Timestamps are ISO 8601 UTC strings. IDs are UUID strings. Example values in JSO
 }
 ```
 
-**Evaluation.** `scores` is `null` on attempt 1 (feedback only, FR-44) and filled on attempt 2 (FR-47). Category scores are 0–100; `total` is the weighted total (40 / 25 / 20 / 15).
+**Evaluation.** `scores` is `null` on attempt 1 (feedback only, FR-44) and filled on attempt 2 (FR-47). Category scores are 0–100; `total` is the weighted total (40 / 25 / 20 / 15). These JSON keys intentionally differ from the DB column names (`requirementsMetScore`, etc.) — the serializer performs that rename (see doc 4 §4.2.13).
 ```json
 {
   "feedback": "string",
@@ -223,7 +225,7 @@ Timestamps are ISO 8601 UTC strings. IDs are UUID strings. Example values in JSO
 
 #### EP-01 · POST /auth/register
 
-**Purpose:** Create an account and send a verification email. Already built; this doc adds `name` (new in doc 4). Does not log the user in.
+**Purpose:** Create an account, send a verification email, and log the user in. Already built: the real auth controller issues access + refresh cookies on successful registration (matches UC-01). This doc adds `name` (new in doc 4).
 
 **Request body:**
 ```json
@@ -234,13 +236,13 @@ Timestamps are ISO 8601 UTC strings. IDs are UUID strings. Example values in JSO
 }
 ```
 
-**Success response — 201:**
+**Success response — 201:** sets both cookies (httpOnly), same session behavior as login.
 ```json
 {
   "statusCode": 201,
   "success": true,
   "message": "User registered",
-  "data": { "id": "uuid", "name": "string", "email": "string" }
+  "data": { "user": "User" }
 }
 ```
 
@@ -252,9 +254,9 @@ Timestamps are ISO 8601 UTC strings. IDs are UUID strings. Example values in JSO
 | 400 | Zod validation failure (missing/malformed field) | field-specific, from validate.middleware |
 | 409 | Email already registered; no second account is created (FR-02) | "Email already in use" |
 
-If sending the verification email fails, the account is still created and the user can use EP-07.
+If sending the verification email fails, the account is still created (and the user is still logged in) and the user can use EP-07.
 
-**Implemented in:** TBD (doc 7)
+**Implemented in:** existing auth route/controller (doc 7)
 
 #### EP-02 · POST /auth/login
 
@@ -283,9 +285,9 @@ If sending the verification email fails, the account is still created and the us
 | 401 | Wrong email or password | "Invalid email or password" |
 | 429 | Too many failed attempts (`authLimiter`, FR-12) | as built |
 
-Login does not check `emailVerifiedAt`. Whether anything is gated on verification is open (Q-04). The frontend can read `emailVerifiedAt` from `user`.
+Login does not check `emailVerifiedAt`. Checkout (EP-13) does — verification blocks starting a subscription (Q-04 resolved). The frontend can read `emailVerifiedAt` from `user`.
 
-**Implemented in:** TBD (doc 7)
+**Implemented in:** existing auth route/controller (doc 7)
 
 #### EP-03 · POST /auth/refresh
 
@@ -354,12 +356,13 @@ Login does not check `emailVerifiedAt`. Whether anything is gated on verificatio
 | Status | Condition | Message |
 |---|---|---|
 | 400 | Token unknown or malformed | "Invalid verification link" |
-| 410 | Token past `expiresAt` | "This verification link has expired" |
-| 410 | Token already used (`usedAt` set) | "This verification link has already been used" |
+| 410 | Token past `expiresAt` and never used | "This verification link has expired" |
 
-On either 410 the frontend offers to resend via EP-07 (FR-06).
+**Already-used token (soft success):** if the token's `usedAt` is already set (or the account is already verified via this token), respond **200** with an "already verified" style message and the current `emailVerifiedAt` — not a 410. Only an unused, expired token returns 410 (matches UC-02).
 
-**Implemented in:** TBD (doc 7)
+On a 410 for expiry the frontend offers to resend via EP-07 (FR-06).
+
+**Implemented in:** existing/new auth route + `email-verification.service.ts` (doc 7)
 
 #### EP-07 · POST /auth/resend-verification
 
@@ -421,6 +424,8 @@ On either 410 the frontend offers to resend via EP-07 (FR-06).
 { "statusCode": 200, "success": true, "message": "Password reset", "data": null }
 ```
 
+On success the service also revokes every refresh token for that user (forces re-login everywhere — matches UC-05; Q-11 resolved). Cookies on the current browser, if any, should be cleared by the client on the next authenticated call.
+
 **Error responses:**
 
 | Status | Condition | Message |
@@ -430,9 +435,7 @@ On either 410 the frontend offers to resend via EP-07 (FR-06).
 | 410 | Token expired | "This reset link has expired" |
 | 410 | Token already used | "This reset link has already been used" |
 
-Whether a successful reset also revokes existing sessions is open (Q-11).
-
-**Implemented in:** TBD (doc 7)
+**Implemented in:** existing/new auth route + `password-reset.service.ts` (doc 7)
 
 #### EP-10 · POST /auth/change-password
 
@@ -509,6 +512,8 @@ The wrong-password case is 400, not 401, so the frontend does not mistake it for
 
 **Purpose:** Start a subscription. Creates a `Payment` with status `pending`, asks Chapa for a hosted checkout and returns its URL (FR-16). Price and currency come from server configuration, never from the request. No card data touches the platform (FR-17).
 
+Requires a verified email (`emailVerifiedAt` set). Unverified users are blocked before any Chapa call (Q-04 / FR-15).
+
 The `return_url` given to Chapa is a frontend page (defined in doc 6). That page only polls EP-15. Reaching it does not activate anything (FR-18).
 
 **Request body:** none.
@@ -527,10 +532,11 @@ The `return_url` given to Chapa is a frontend page (defined in doc 6). That page
 
 | Status | Condition | Message |
 |---|---|---|
+| 403 | Email not verified | "Verify your email before subscribing" |
 | 409 | User already has a subscription in `active` or `past_due` (DR-02) | "You already have an active subscription" |
 | 502 | Chapa checkout creation failed | "Could not start checkout with Chapa, please try again" |
 
-**Implemented in:** TBD (doc 7)
+**Implemented in:** `subscription.routes.ts` / `subscription.controller.ts` (doc 7)
 
 #### EP-14 · POST /webhooks/chapa
 
@@ -547,7 +553,7 @@ The `return_url` given to Chapa is a frontend page (defined in doc 6). That page
 - Unknown transaction reference: logged as a warning, answers 200 so Chapa does not keep retrying.
 - Every event is logged as received, verified or rejected, separately from normal request logs (doc 2, 2.2).
 
-How Chapa triggers monthly renewals, and whether it sends a subscription-level reference, is still open (Q-05), so the renewal path of this handler is not final.
+How Chapa triggers monthly renewals is resolved as **platform-triggered** (see §5.7). Whether Chapa also sends a subscription-level reference remains open (Q-05 half), so persistence of `chapaSubscriptionRef` is still optional until that half is answered.
 
 **Success response — 200:**
 ```json
@@ -630,7 +636,7 @@ How Chapa triggers monthly renewals, and whether it sends a subscription-level r
 
 #### EP-18 · GET /github/connect
 
-**Purpose:** Return the GitHub OAuth authorize URL (FR-25). The frontend navigates to it. The URL carries a `state` value that is signed, short-lived and bound to the user (A-19; no table for it in doc 4). The requested scope is limited to repo creation + push (exact value: see Q-08).
+**Purpose:** Return the GitHub OAuth authorize URL (FR-25). The frontend navigates to it. The URL carries a `state` value that is signed, short-lived and bound to the user (A-19; no table for it in doc 4). The requested scope covers repository create/push **and** `write:repo_hook` so EP-22 can register the `workflow_run` webhook (Q-08 resolved).
 
 **Success response — 200:**
 ```json
@@ -707,12 +713,12 @@ This relies on the browser sending the login cookie on this cross-site redirect,
 
 #### EP-22 · POST /github/repo
 
-**Purpose:** Create the user's single repo from a starter template in their GitHub account (FR-27). One repo per user. Django is not accepted (unconfirmed).
+**Purpose:** Create the user's single repo from a starter template in their GitHub account (FR-27). One repo per user. After the repo is successfully created, the platform registers a `workflow_run` webhook on that repo pointed at EP-33 (`POST /webhooks/github`), using the `write:repo_hook` scope granted at connect time (Q-08 resolved).
 
 **Request body:**
 ```json
 {
-  "starterTemplate": "react | node_express",
+  "starterTemplate": "react | node_express | django",
   "repoName": "string, optional, default \"work-simulator\""
 }
 ```
@@ -737,9 +743,11 @@ This relies on the browser sending the login cookie on this cross-site redirect,
 | 403 | GitHub rejected the stored token (the connection row is deleted, FR-29) | "Your GitHub connection is no longer valid. Reconnect GitHub to continue" |
 | 409 | User already has a repo | "You already have a starter repository" |
 | 409 | A repo with that name already exists in the user's GitHub account (FR-28) | "A repository named '<repoName>' already exists in your GitHub account. Choose another name or delete it, then try again" |
-| 502 | GitHub API error (FR-28) | "GitHub could not create the repository, please try again" |
+| 502 | GitHub API error creating the repo or registering the webhook (FR-28) | "GitHub could not create the repository, please try again" |
 
-**Implemented in:** TBD (doc 7)
+If the repo is created but webhook registration fails, the endpoint must not report overall success without a clear recovery path — prefer failing the whole operation with 502 after best-effort cleanup, or documenting a retry of webhook registration; do not leave the user with a repo that never reports CI.
+
+**Implemented in:** `github.routes.ts` / `github.controller.ts` / `github.service.ts` (doc 7)
 
 ---
 
@@ -907,13 +915,13 @@ The response is a single JSON reply, not a stream (A-29). Both messages are stor
 | 400 | Validation failure (empty or too long) | field-specific |
 | 402 | No paid access | "An active subscription is required" |
 | 404 | Not found, or not owned | "Ticket not found" |
-| 409 | Ticket is not `in_progress` (FR-37) | "The mentor is only available while the ticket is in progress" |
+| 409 | Ticket is not `in_progress` or `submitted_v1` (FR-37) | "The mentor is only available while the ticket is in progress or awaiting revision" |
 | 429 | Per-ticket mentor message limit reached (FR-41) | "Mentor message limit reached for this ticket" |
 | 502 | Mentor call failed | "The mentor is unavailable, please try again" |
 
-The 409 rule follows FR-37 literally, which also blocks the mentor during the revision phase (`submitted_v1`). See Q-10.
+The mentor stays available during the revision phase (`submitted_v1`) as well as `in_progress` (Q-10c resolved). It is not available for `assigned`, `resubmitted`, `done`, or `abandoned`.
 
-**Implemented in:** TBD (doc 7)
+**Implemented in:** `mentor.routes.ts` / `mentor.controller.ts` / `mentor.service.ts` (doc 7)
 
 #### EP-29 · GET /tickets/:ticketId/mentor/messages
 
@@ -1056,9 +1064,9 @@ What the client shows by `status`:
 |---|---|---|
 | 401 | Signature missing or invalid. Nothing is changed | "Invalid webhook signature" |
 
-How this webhook gets attached to each user's repo is not settled (Q-08).
+How this webhook gets attached to each user's repo: registered by the platform as part of EP-22 immediately after starter-repo creation (Q-08 resolved).
 
-**Implemented in:** TBD (doc 7)
+**Implemented in:** `webhook.routes.ts` / `github.controller.ts` (webhooks) / `github-webhook.service.ts` (doc 7)
 
 ---
 
@@ -1103,8 +1111,8 @@ Numbering continues from doc 4 (A-01 to A-18). Correct any that are wrong before
 |---|---|---|
 | A-19 | The template's conventions are the project's real ones: base path `/api/v1`, the `{ statusCode, success, message, data }` envelope, `ApiError`, `error.middleware.ts`, `validate.middleware`. Errors use the same envelope with `success: false` and `data: null`. There is no machine-readable error code, so the frontend uses status + message. Public token endpoints reuse `authLimiter`. The OAuth `state` is signed and short-lived (no table in doc 4) | 5.1 |
 | A-20 | Cookie auth is as built, not Bearer. The built endpoints are assumed to be `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, with the request/response shapes above. Their exact paths, messages and cookie details need checking against the router | EP-01 – EP-04 |
-| A-21 | Use case links use doc 2's placeholder names because doc 3 was not available. "Implemented in" is TBD until doc 7 | 5.2, all endpoints |
-| A-22 | The "+ Sub" gate applies to GitHub connect, repo creation, ticket assign/start/abandon, mentor, submit and retry. Read-only endpoints for the user's own data stay open after a lapse. FR-15 only says a subscription is needed "before being assigned their first ticket", so gating the rest is an extension | 5.1 |
+| A-21 | Use case links are the real `UC-##` IDs from doc 3. File ownership is in doc 7 | 5.2, all endpoints |
+| A-22 | The "+ Sub" gate applies to GitHub connect, repo creation, ticket assign/start/abandon, mentor, submit and retry. Read-only endpoints for the user's own data stay open after a lapse. FR-15 now states this full list explicitly | 5.1 |
 | A-23 | Status code meanings are fixed in 5.1: 402 = paid access needed, 403 = GitHub reconnect needed, 401 only for session problems, 410 = expired/used link | 5.1 |
 | A-24 | The repo name is optional in EP-22 and defaults to `work-simulator`. A name collision returns a 409 telling the user to choose another name (FR-28) | EP-22 |
 | A-25 | `assigned → in_progress` happens through an explicit start endpoint. Doc 2 does not say what triggers it | EP-26 |
@@ -1122,17 +1130,20 @@ Numbering continues from doc 4 (A-01 to A-18). Correct any that are wrong before
 
 ## 5.5 Open Questions
 
-Numbering continues from doc 4 (Q-01 to Q-06). Q-03 to Q-06 from doc 4 are still open. Q-01 and Q-02 are resolved (see 5.6).
+Numbering continues from doc 4 (Q-01 to Q-06). Resolved items stay listed with their resolution so history is honest.
 
-| ID | Question | Affects |
-|---|---|---|
-| Q-07 | **Failed renewals get no grace period as specced.** Access ends at `currentPeriodEnd`, but a renewal charge normally fails at or after that moment, so `past_due` effectively means no access, with only the failure email as the difference from a hard cut. Is that intended, or should FR-22 have a grace period (how many days)? | EP-14, EP-15, "+ Sub" |
-| Q-08 | **How does the `workflow_run` webhook get attached to each user's repo, and with which OAuth scope?** Registering a webhook on the user's repo needs a token permission that may go beyond the "repo create + push only" scope in FR-25. Which exact scope string does the team request? Check both against each other before building EP-18 and EP-33 | EP-18, EP-19, EP-33, FR-25 |
-| Q-09 | Which template does a user get next? Doc 2 says templates are team-authored but not how one is chosen (order, random, difficulty ladder) | EP-23 |
-| Q-10 | (a) How many mentor messages per ticket, and over what window (FR-41)? (b) Maximum length of a message? (c) Should the mentor stay available during the revision phase (`submitted_v1`)? FR-37 says `in_progress` only, which blocks it during revision | EP-28 |
-| Q-11 | Does a password reset or change revoke existing refresh tokens (log out other sessions)? | EP-09, EP-10 |
-| Q-12 | What are the built cookies' `SameSite` and related settings? The OAuth callback needs the cookie on a redirect from GitHub, and cookie-authenticated POSTs need a CSRF position. Neither is defined in the attached docs | EP-19, all cookie-authenticated POSTs |
-| Q-13 | What timeouts mark a submission `failed` while waiting for CI or the evaluator? Doc 2 gives ~30 s p95 for the evaluator only | EP-33, FR-49 |
+| ID | Question | Affects | Status |
+|---|---|---|---|
+| Q-07 | Failed renewals / grace period beyond `currentPeriodEnd`? | EP-14, EP-15, "+ Sub" | **Resolved:** no separate grace period. Access ends at `currentPeriodEnd` regardless of `status` (same rule as Q-01). `past_due` still gets the failure email (FR-22) |
+| Q-08 | How does the `workflow_run` webhook get attached, and with which OAuth scope? | EP-18, EP-19, EP-22, EP-33, FR-25 | **Resolved:** scope includes `write:repo_hook`; platform registers the webhook on the user's repo as part of EP-22 |
+| Q-09 | Which template does a user get next? | EP-23 | **Still open** |
+| Q-10 | (a) How many mentor messages per ticket, and over what window (FR-41)? (b) Maximum length of a message? (c) Should the mentor stay available during `submitted_v1`? | EP-28 | **(c) Resolved:** yes, mentor available in `in_progress` and `submitted_v1`. **(a) and (b) still open** — keep configurable |
+| Q-11 | Does a password reset or change revoke existing refresh tokens? | EP-09, EP-10 | **Resolved for reset:** EP-09 revokes all sessions (UC-05). Change-password (EP-10) session behavior is unchanged / not required to revoke others unless the team expands it later |
+| Q-12 | What are the built cookies' `SameSite` and related settings? | EP-19, all cookie-authenticated POSTs | **Still open** — verify against the existing auth implementation before deployment |
+| Q-13 | What timeouts mark a submission `failed` while waiting for CI or the evaluator? | EP-33, FR-49 | **Still open** — keep configurable |
+| Q-03 | Reconnect GitHub as a different account than the repo owner? | EP-20–EP-22 | **Still open** (from doc 4) |
+| Q-05 | Chapa subscription-level reference vs per-charge only? | EP-14, EP-16, `chapaSubscriptionRef` | **Half open:** platform triggers charges (§5.7). Whether Chapa issues a subscription-level ref remains open |
+| Q-06 | Diff size limit? | EP-31, `Submission.diff` | **Still open** |
 
 ---
 
@@ -1141,17 +1152,38 @@ Numbering continues from doc 4 (Q-01 to Q-06). Q-03 to Q-06 from doc 4 are still
 Numbering is not changed. These are amendments.
 
 **Doc 4:**
-- **Q-01 resolved.** Access rule A-15 becomes: a user has paid access when any `Subscription` has `currentPeriodEnd` in the future, whatever its status. This replaces the "active, or canceled with time left" wording, which left `past_due` undefined. See Q-07 for the consequence.
-- **Q-02 resolved.** The platform creates the branch at assignment, so `Ticket.branchName` is always set. It can change from nullable to required. There are no rows yet, so this costs nothing.
-- **A-10.** The shape of `Ticket.content` is now defined by the Ticket object in 5.3.0.
+- **Q-01 / Q-07 resolved.** Access when any `Subscription` has `currentPeriodEnd` in the future, whatever its status. No separate grace period.
+- **Q-02 resolved.** The platform creates the branch at assignment, so `Ticket.branchName` is always set.
+- **Q-04 gating resolved.** Email verification blocks checkout (EP-13).
+- **Q-08 resolved.** Webhook registered in EP-22; scope includes `write:repo_hook`.
+- **A-10.** The shape of `Ticket.content` is defined by the Ticket object in 5.3.0.
+- **`renewalReminderSentAt`** added (DR-11); backend-only, not on the API Subscription object.
 
 **Doc 2:**
-- **FR-25.** Its scope limit needs to be checked against how the webhook is attached (Q-08).
-- **FR-33 / A-26.** Clarification: the ticket becomes `submitted_v1` or `resubmitted` when the submission is created. "Feedback given" is tracked by `Submission.status`.
-- **FR-37.** Applied literally in EP-28 (mentor blocked in `submitted_v1`). See Q-10.
+- **FR-15, FR-25, FR-33, FR-37** updated to match this doc (full gate list, scope, state machine, mentor during revision).
+- **FR-06** already-used verification link is soft success.
+
+---
+
+## 5.7 Scheduled Jobs (not client-facing endpoints)
+
+Platform-triggered Chapa renewals (resolves the "who triggers" half of Q-05). These are not HTTP endpoints the frontend calls.
+
+**Job: upcoming-renewal reminders**
+- Finds `Subscription` rows where `status = active`, `currentPeriodEnd` is exactly 7 days away (calendar-day match against the job's clock), and `renewalReminderSentAt` is null (or not yet set for this period).
+- Sends a transactional "your subscription renews in 7 days" email.
+- Sets `renewalReminderSentAt` so a second run the same day cannot double-send (DR-11).
+
+**Job: period-end charges**
+- Finds `Subscription` rows where `status = active` and `currentPeriodEnd` has arrived (≤ now).
+- Triggers the Chapa charge via the Chapa API for that user/subscription.
+- On success: extend `currentPeriodEnd` by one month (same period rule as A-30) and clear or update reminder state as needed for the next cycle.
+- On failure: follow the existing FR-22 / EP-14 `past_due` path (mark payment failed, set subscription `past_due`, send failure email). No separate failure machine.
+
+Implementation ownership: `subscription-renewal.service.ts` (doc 7 / doc 8). Cancelled subscriptions (`status = canceled`) are never charged. A subscription cancelled between queue selection and run must be re-checked before charging.
 
 ---
 
 *Numbering convention: FR-01, FR-02... (doc 2), `UC-##` (doc 3), `DR-##`, `A-##` and `Q-##` (docs 4 and 5) and `EP-##` (this doc) each form one continuous sequence across the whole series. Never renumber once used. If an endpoint is dropped, mark it `~~EP-XX~~ (deprecated, see EP-YY)` instead.*
 
-Next: proceed to → [6. Frontend UI, Pages & Components]
+Next: proceed to → [6. Frontend UI, Pages & Components](./work-simulator-frontend-ui.md)

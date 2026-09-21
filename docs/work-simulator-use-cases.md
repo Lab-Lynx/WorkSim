@@ -4,7 +4,7 @@ Project: Work Simulator · Links back to: [2. Functional & Non-Functional Requir
 
 27 use cases below, grouped in the same order as the requirements doc. Every one links back to at least one FR; none introduce new scope that isn't already in that doc. Two of them (UC-11, UC-14) are system-triggered rather than user-triggered — Chapa's webhook is the "actor," not a person — worth keeping those two in mind when API endpoints get designed next, since they're server-to-server, not a browser request.
 
-`FR-29` (GitHub token revoked mid-session) and `FR-53` ("Voxide," still unresolved) aren't tied to one single use case — FR-29 is called out as an alternate flow wherever a use case touches the GitHub API, and FR-53 has no use case yet since its scope isn't defined.
+`FR-29` (GitHub token revoked mid-session) is called out as an alternate flow wherever a use case touches the GitHub API. ~~FR-53~~ ("Voxide") is deferred to V2 as a mandated external integration (see problem/solution doc §1.5) and has no V1 use case.
 
 ---
 
@@ -277,19 +277,20 @@ Postcondition (success): Actor sees accurate, current subscription status.
 | Field | Detail |
 |---|---|
 | Actor | Logged-in user with an active subscription |
-| Precondition | Subscription is active |
+| Precondition | Subscription is `active` or `past_due` |
 | Trigger | Actor clicks "cancel subscription" |
 | Linked FR | FR-21 |
 
 Main flow:
 1. Actor clicks cancel and confirms
-2. System marks the subscription "canceling" — access remains until the current paid period ends
-3. At period end, a scheduled check (or the next Chapa renewal webhook, which won't arrive since it's canceled) flips status to "canceled" and blocks new ticket assignment
+2. System sets the subscription status to `canceled` immediately and records `canceledAt`
+3. Access continues until `currentPeriodEnd`; after that date, paid access ends and new ticket assignment is blocked
+4. There is no un-cancel / resume-without-checkout. After the paid period ends, the actor re-enters through the normal Subscribe flow (UC-10 / EP-13)
 
 Alternate / error flows:
-- Actor cancels, then wants to resume before the period ends: system allows un-canceling back to "active" without a new checkout, since the current paid period hasn't lapsed
+- No subscription in `active` or `past_due`: system rejects with a clear conflict message
 
-Postcondition (success): Subscription set to cancel at period end; access continues until then.
+Postcondition (success): Subscription is `canceled`; access continues until `currentPeriodEnd`.
 
 ---
 
@@ -385,7 +386,7 @@ Postcondition (success): GitHub token removed; new ticket assignment blocked unt
 |---|---|
 | Actor | Logged-in, subscribed user with GitHub connected |
 | Precondition | No project/repo started yet for this user |
-| Trigger | Actor picks a starter template (React or Node/Express) and confirms |
+| Trigger | Actor picks a starter template (React, Node/Express, or Django) and confirms |
 | Linked FR | FR-27, FR-28 |
 
 Main flow:
@@ -394,11 +395,11 @@ Main flow:
 3. System records the repo as this user's active project
 
 Alternate / error flows:
-- Repo name collision: system appends a disambiguating suffix or asks the actor to pick a different name, does not fail silently
+- Repo name collision: system returns a specific conflict asking the actor to pick a different name (no auto-suffix); does not fail silently
 - GitHub API error (rate limit, outage): system shows a specific "GitHub is having trouble right now, try again" message, does not lose the actor's template selection
 - GitHub token invalid/revoked at this point (FR-29): system detects the failure, prompts a reconnect (back to UC-16) instead of a generic error
 
-Postcondition (success): A real GitHub repo exists under the actor's account, linked to their profile; they're ready for their first ticket (UC-19).
+Postcondition (success): A real GitHub repo exists under the actor's account, linked to their profile, with a `workflow_run` webhook registered; they're ready for their first ticket (UC-19).
 
 ---
 
@@ -413,13 +414,14 @@ Postcondition (success): A real GitHub repo exists under the actor's account, li
 
 Main flow:
 1. System selects a ticket structure/template appropriate to the actor's chosen stack
-2. System asks the AI (Gemini) to fill in the ticket's specific wording/scenario within that fixed structure
-3. System creates the ticket in `assigned` state and shows it to the actor, including acceptance criteria and test checklist
-4. Actor begins work; ticket moves to `in_progress`
+2. System asks Gemini to fill in the ticket's specific wording/scenario within that fixed structure
+3. System creates the ticket's branch in the actor's repo and creates the ticket in `assigned` state, showing acceptance criteria and test checklist
+4. Actor reviews the ticket, then clicks "Start working"; system calls EP-26 and the ticket moves to `in_progress`
+5. Actor begins work on the ticket
 
 Alternate / error flows:
 - Actor already has an active ticket: system blocks this and shows the existing one instead (FR-34)
-- AI content generation fails or times out: system retries once, then falls back to a plain (un-personalized) version of the same structure rather than blocking the actor entirely
+- AI content generation fails or times out: system returns a clear retryable failure (no ticket row created, no fallback "plain" content invented); the actor can retry
 
 Postcondition (success): Exactly one ticket is active for this user, in `assigned` or `in_progress` state.
 
@@ -490,8 +492,8 @@ Postcondition (success): Actor sees an accurate list of completed work.
 
 | Field | Detail |
 |---|---|
-| Actor | Logged-in user with an `in_progress` ticket |
-| Precondition | Ticket is `in_progress` |
+| Actor | Logged-in user with a ticket in `in_progress` or `submitted_v1` |
+| Precondition | Ticket is `in_progress` or `submitted_v1` (revision phase after first-submission feedback) |
 | Trigger | Actor sends a message in the mentor chat |
 | Linked FR | FR-37, FR-38, FR-41 |
 
@@ -504,7 +506,7 @@ Main flow:
 
 Alternate / error flows:
 - Actor has hit the per-ticket message rate limit (FR-41): system shows a clear "you've reached the question limit for this ticket" message rather than silently dropping the message
-- Ticket isn't `in_progress` (e.g. already submitted): mentor chat is read-only at this point, redirected to UC-24
+- Ticket is past `submitted_v1` (e.g. `resubmitted`, `done`, `abandoned`) or still only `assigned`: mentor chat is not available for new messages; history remains readable (UC-24)
 
 Postcondition (success): Actor receives a hint appropriate to how many times they've asked about this specific point; message stored in the transcript.
 
