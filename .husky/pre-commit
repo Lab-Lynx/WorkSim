@@ -1,10 +1,16 @@
 #!/bin/sh
-# Runs from the repo root regardless of where you staged files from.
-# Only lints/formats the folder(s) that actually have staged changes —
-# each folder's own lint-staged config (in its package.json) decides what
-# happens to its files.
+# Only runs the test suite for the folder(s) whose files actually changed
+# vs origin/main — no reason to wait on backend tests for a frontend-only
+# branch, or vice versa.
 
-CHANGED=$(git diff --cached --name-only --diff-filter=ACMR)
+git fetch origin main --quiet
+
+if git rev-parse --verify origin/main >/dev/null 2>&1; then
+	CHANGED=$(git diff --name-only origin/main...HEAD)
+else
+	echo "origin/main not found — treating this as a first push, running everything once."
+	CHANGED="backend/ frontend/"
+fi
 
 run_backend=false
 run_frontend=false
@@ -13,16 +19,16 @@ echo "$CHANGED" | grep -q '^backend/' && run_backend=true
 echo "$CHANGED" | grep -q '^frontend/' && run_frontend=true
 
 if [ "$run_backend" = false ] && [ "$run_frontend" = false ]; then
-  echo "No frontend/ or backend/ changes staged — skipping lint-staged."
-  exit 0
+	echo "No frontend/ or backend/ changes vs origin/main — skipping tests."
+	exit 0
 fi
 
 if [ "$run_backend" = true ]; then
-  echo "-> backend changed, running backend lint-staged"
-  (cd backend && npx lint-staged) || exit 1
+	echo "-> running backend tests"
+	(cd backend && npx vitest run --changed origin/main) || exit 1
 fi
 
 if [ "$run_frontend" = true ]; then
-  echo "-> frontend changed, running frontend lint-staged"
-  (cd frontend && npx lint-staged) || exit 1
+	echo "-> running frontend tests"
+	(cd frontend && npx vitest run --changed origin/main) || exit 1
 fi
