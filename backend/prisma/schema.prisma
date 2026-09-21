@@ -6,26 +6,73 @@ datasource db {
   provider = "postgresql"
 }
 
-/// Minimal placeholder — added only because RefreshToken needs a real FK
-/// target for the login/refresh demo to work end to end. This is NOT a
-/// decision about your actual user model; extend or replace it freely once
-/// the team locks in the real shape (roles, profile fields, etc.).
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  role         String   @default("user")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+// --- Enums (Doc 4 §4.2.1) ---
 
-  refreshTokens RefreshToken[]
+enum TicketStatus {
+  assigned
+  in_progress
+  submitted_v1
+  resubmitted
+  done
+  abandoned
 }
 
-/// One row per issued refresh token, so a token can be revoked (logout,
-/// reuse detection, "log out of all devices") instead of just trusting any
-/// signature-valid JWT until it expires. The raw token never touches the
-/// DB — only its SHA-256 hash — so a DB leak alone doesn't leak usable
-/// tokens.
+enum SubscriptionStatus {
+  active
+  past_due
+  canceled
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+}
+
+enum StarterTemplate {
+  react
+  node_express
+  django
+}
+
+enum SubmissionStatus {
+  awaiting_ci
+  evaluating
+  completed
+  failed
+}
+
+enum MentorMessageRole {
+  user
+  mentor
+}
+
+// --- Models ---
+
+/// Extends the built User placeholder with Doc 4 fields (name, emailVerifiedAt).
+/// `role` stays a String as built — converting to an enum would change an
+/// existing column and violate the additive-only migration rule (A-02, 4.5).
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String
+  role            String    @default("user")
+  name            String?
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  refreshTokens           RefreshToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  githubConnection        GitHubConnection?
+  starterRepo             StarterRepo?
+  subscriptions           Subscription[]
+  payments                Payment[]
+  tickets                 Ticket[]
+}
+
+/// One row per issued refresh token (as built — unchanged).
 model RefreshToken {
   id        String    @id @default(uuid())
   tokenHash String    @unique
@@ -36,4 +83,148 @@ model RefreshToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model GitHubConnection {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  githubUserId         String
+  githubLogin          String
+  accessTokenEncrypted String
+  scope                String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model StarterRepo {
+  id              String          @id @default(uuid())
+  userId          String          @unique
+  user            User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  starterTemplate StarterTemplate
+  githubRepoId    String          @unique
+  fullName        String
+  defaultBranch   String
+  createdAt       DateTime        @default(now())
+}
+
+model Subscription {
+  id                     String             @id @default(uuid())
+  userId                 String
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status                 SubscriptionStatus
+  chapaSubscriptionRef   String?            @unique
+  currentPeriodEnd       DateTime
+  canceledAt             DateTime?
+  renewalReminderSentAt  DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  payments Payment[]
+
+  @@index([userId, status])
+}
+
+model Payment {
+  id             String         @id @default(uuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  subscriptionId String?
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  chapaTxRef     String         @unique
+  amount         Decimal        @db.Decimal(12, 2)
+  currency       String
+  status         PaymentStatus  @default(pending)
+  paidAt         DateTime?
+  createdAt      DateTime       @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Ticket {
+  id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  templateKey String
+  status      TicketStatus @default(assigned)
+  content     Json
+  branchName  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  completedAt DateTime?
+  abandonedAt DateTime?
+
+  mentorMessages MentorMessage[]
+  submissions    Submission[]
+
+  @@unique([userId, branchName])
+  @@index([userId, status])
+}
+
+model MentorMessage {
+  id        String            @id @default(uuid())
+  ticketId  String
+  ticket    Ticket            @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  role      MentorMessageRole
+  content   String            @db.Text
+  createdAt DateTime          @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model Submission {
+  id            String           @id @default(uuid())
+  ticketId      String
+  ticket        Ticket           @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  attempt       Int
+  status        SubmissionStatus @default(awaiting_ci)
+  prNumber      Int
+  headSha       String
+  diff          String           @db.Text
+  ciPassed      Boolean?
+  ciRunUrl      String?
+  failureReason String?
+  submittedAt   DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  evaluation Evaluation?
+
+  @@unique([ticketId, attempt])
+}
+
+model Evaluation {
+  id                     String     @id @default(uuid())
+  submissionId           String     @unique
+  submission             Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  feedback               String     @db.Text
+  requirementsMetScore   Int?
+  correctnessTestsScore  Int?
+  codeQualityScore       Int?
+  problemSolvingScore    Int?
+  totalScore             Decimal?   @db.Decimal(5, 2)
+  createdAt              DateTime   @default(now())
 }
