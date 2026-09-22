@@ -1,10 +1,10 @@
 # 7. Folder & File Structure
 
-*Project: Work Simulator · Links back to: [6. Frontend --- UI, Pages &
+_Project: Work Simulator · Links back to: [6. Frontend --- UI, Pages &
 Components](./work-simulator-frontend-ui.md) · This is the literal
 project-added/changed file list that implementation and PR review should
 check against. Files inherited from the existing backend/frontend
-templates are not repeated here.*
+templates are not repeated here._
 
 This document defines the files Work Simulator adds or changes for V1.
 It is based on docs 2, 4, 5 and 6, and aligns backend file names with
@@ -27,11 +27,11 @@ files, no search/filter/bulk-operation files, no localization files, no
 self-service refund files, and no separate notification subsystem.
 Django **is** in V1 (starter template + ticket-templates).
 
-------------------------------------------------------------------------
+---
 
 ## 7.1 Repository-Level Changes
 
-``` text
+```text
 /
 ├── backend/
 ├── frontend/
@@ -42,7 +42,7 @@ Django **is** in V1 (starter template + ticket-templates).
 
 ### 7.1.1 Documentation
 
-``` text
+```text
 docs/
 ├── work-simulator-problem-solution-v2.md          # Doc 1
 ├── work-simulator-requirements.md                 # Doc 2
@@ -62,7 +62,7 @@ These are the real filenames in the series. Backend function-level spec is
 doc 8; backend test plan is doc 9; frontend function-level spec is doc 10;
 frontend test plan is doc 11.
 
-------------------------------------------------------------------------
+---
 
 ## 7.2 Backend --- New Files
 
@@ -76,7 +76,7 @@ established by Doc 5.
 
 ### 7.2.1 Backend Routes
 
-``` text
+```text
 backend/src/routes/
 ├── user.routes.ts
 ├── subscription.routes.ts
@@ -91,17 +91,19 @@ backend/src/routes/
 
 **Endpoint ownership**
 
-  File                       Endpoints
-  -------------------------- -----------------------------------
-  `user.routes.ts`           EP-11, EP-12
-  `subscription.routes.ts`   EP-13, EP-15, EP-16
-  `payment.routes.ts`        EP-17
-  `github.routes.ts`         EP-18, EP-19, EP-20, EP-21, EP-22
-  `ticket.routes.ts`         EP-23, EP-24, EP-25, EP-26, EP-27
-  `mentor.routes.ts`         EP-28, EP-29
-  `submission.routes.ts`     EP-30, EP-31, EP-32
-  `profile.routes.ts`        EP-34
-  `webhook.routes.ts`        EP-14, EP-33
+File Endpoints
+
+---
+
+`user.routes.ts` EP-11, EP-12
+`subscription.routes.ts` EP-13, EP-15, EP-16
+`payment.routes.ts` EP-17
+`github.routes.ts` EP-18, EP-19, EP-20, EP-21, EP-22
+`ticket.routes.ts` EP-23, EP-24, EP-25, EP-26, EP-27
+`mentor.routes.ts` EP-28, EP-29
+`submission.routes.ts` EP-30, EP-31, EP-32
+`profile.routes.ts` EP-34
+`webhook.routes.ts` EP-14, EP-33
 
 The already-built authentication routes remain in the existing auth
 route/controller structure and are not duplicated here. EP-01 through
@@ -109,7 +111,7 @@ EP-10 are therefore **existing/changed**, not a new route family.
 
 ### 7.2.2 Backend Controllers
 
-``` text
+```text
 backend/src/controllers/
 ├── user.controller.ts
 ├── subscription.controller.ts
@@ -133,7 +135,7 @@ GitHub).
 
 ### 7.2.3 Backend Services
 
-``` text
+```text
 backend/src/services/
 ├── user.service.ts
 ├── email-verification.service.ts
@@ -154,38 +156,38 @@ backend/src/services/
 
 Responsibilities:
 
--   `user.service.ts` --- current-user lookup and display-name update.
--   `email-verification.service.ts` --- verification-token
-    creation/consumption and resend behavior.
--   `password-reset.service.ts` --- reset-token creation/consumption and
-    password reset.
--   `email.service.ts` --- transactional email sending used by
-    verification, reset, and payment-failure flows.
--   `chapa.service.ts` --- hosted checkout and Chapa-side
-    subscription/payment operations.
--   `subscription.service.ts` --- subscription state, access-window
-    calculations, cancellation, renewal-period updates, and
-    `processChapaWebhook` (EP-14).
--   `subscription-renewal.service.ts` --- scheduled upcoming-renewal
-    reminders and period-end charges (doc 5 §5.7 / D-08).
--   `github.service.ts` --- OAuth exchange, scope checks, encrypted
-    token persistence, repository creation, branch/PR/diff access, and
-    GitHub error mapping.
--   `ticket.service.ts` --- assignment, state transitions, branch
-    creation coordination, abandonment, and active-ticket rules.
--   `ticket-generation.service.ts` --- loads team-authored template files
-    and asks Gemini to fill the specific scenario wording without
-    inventing the template structure.
--   `mentor.service.ts` --- progressive-hint mentor conversation and
-    per-ticket rate-limit enforcement.
--   `submission.service.ts` --- attempt selection, PR reuse/creation,
-    diff capture, submission persistence, and retry behavior.
--   `github-webhook.service.ts` --- GitHub webhook signature verification
-    and `workflow_run` processing (EP-33); hands off to evaluation.
--   `evaluation.service.ts` --- Groq evaluation, transcript inclusion,
-    first-pass feedback, final rubric scoring, and weighted total.
--   `profile.service.ts` --- completed-ticket practice-record
-    projection.
+- `user.service.ts` --- current-user lookup and display-name update.
+- `email-verification.service.ts` --- verification-token
+  creation/consumption and resend behavior.
+- `password-reset.service.ts` --- reset-token creation/consumption and
+  password reset.
+- `email.service.ts` --- transactional email sending used by
+  verification, reset, and payment-failure flows.
+- `chapa.service.ts` --- hosted checkout and Chapa-side
+  subscription/payment operations.
+- `subscription.service.ts` --- subscription state, access-window
+  calculations, cancellation, renewal-period updates, and
+  `processChapaWebhook` (EP-14).
+- `subscription-renewal.service.ts` --- scheduled upcoming-renewal
+  reminders and period-end charges (doc 5 §5.7 / D-08).
+- `github.service.ts` --- OAuth exchange, scope checks, encrypted
+  token persistence, repository creation, branch/PR/diff access, and
+  GitHub error mapping.
+- `ticket.service.ts` --- assignment, state transitions, branch
+  creation coordination, abandonment, and active-ticket rules.
+- `ticket-generation.service.ts` --- loads team-authored template files
+  and asks Gemini to fill the specific scenario wording without
+  inventing the template structure.
+- `mentor.service.ts` --- progressive-hint mentor conversation and
+  per-ticket rate-limit enforcement.
+- `submission.service.ts` --- attempt selection, PR reuse/creation,
+  diff capture, submission persistence, and retry behavior.
+- `github-webhook.service.ts` --- GitHub webhook signature verification
+  and `workflow_run` processing (EP-33); hands off to evaluation.
+- `evaluation.service.ts` --- Groq evaluation, transcript inclusion,
+  first-pass feedback, final rubric scoring, and weighted total.
+- `profile.service.ts` --- completed-ticket practice-record
+  projection.
 
 There is no combined `webhook.service.ts` and no `github-ci.service.ts`.
 Chapa webhook processing lives in `subscription.service.ts`; GitHub CI
@@ -193,7 +195,7 @@ webhook processing lives in `github-webhook.service.ts`.
 
 ### 7.2.4 Backend Validation Schemas
 
-``` text
+```text
 backend/src/validators/
 ├── user.validators.ts
 ├── github.validators.ts
@@ -208,21 +210,21 @@ use the existing `validate.middleware`.
 
 Required validations include:
 
--   registration/profile name: trimmed, minimum 2 characters;
--   password creation/reset/change: minimum 8 characters;
--   email fields: valid email format;
--   repository template: `react | node_express | django`;
--   repository name: optional/defaulted according to EP-22;
--   mentor content: non-empty and bounded by the implementation limit
-    from Q-10;
--   submission attempt: server-derived, never selected by the client;
--   submission polling attempt: only `1` or `2`;
--   webhook payload: required transaction reference/payment outcome
-    before processing.
+- registration/profile name: trimmed, minimum 2 characters;
+- password creation/reset/change: minimum 8 characters;
+- email fields: valid email format;
+- repository template: `react | node_express | django`;
+- repository name: optional/defaulted according to EP-22;
+- mentor content: non-empty and bounded by the implementation limit
+  from Q-10;
+- submission attempt: server-derived, never selected by the client;
+- submission polling attempt: only `1` or `2`;
+- webhook payload: required transaction reference/payment outcome
+  before processing.
 
 ### 7.2.5 Backend Integrations
 
-``` text
+```text
 backend/src/integrations/
 ├── chapa.ts
 ├── github.ts
@@ -238,7 +240,7 @@ integration (doc 1 §1.5); ~~FR-53~~ is deferred — no V1 files.
 
 ### 7.2.6 Backend Serializers
 
-``` text
+```text
 backend/src/serializers/
 ├── user.serializer.ts
 ├── subscription.serializer.ts
@@ -256,7 +258,7 @@ field renames from DB columns).
 
 ### 7.2.7 Backend Security/Crypto Helpers
 
-``` text
+```text
 backend/src/lib/
 ├── crypto/
 │   └── token-hash.ts
@@ -270,15 +272,15 @@ backend/src/lib/
 
 Responsibilities:
 
--   `token-hash.ts` --- hashing/comparison for verification/reset tokens
-    using the same security pattern required for stored refresh-token
-    hashes.
--   `github-token.ts` --- encryption/decryption of the GitHub OAuth
-    access token at rest.
--   `oauth-state.ts` --- signed, short-lived, user-bound GitHub OAuth
-    state.
--   `rubric.ts` --- the fixed `40 / 25 / 20 / 15` weights and
-    weighted-total calculation.
+- `token-hash.ts` --- hashing/comparison for verification/reset tokens
+  using the same security pattern required for stored refresh-token
+  hashes.
+- `github-token.ts` --- encryption/decryption of the GitHub OAuth
+  access token at rest.
+- `oauth-state.ts` --- signed, short-lived, user-bound GitHub OAuth
+  state.
+- `rubric.ts` --- the fixed `40 / 25 / 20 / 15` weights and
+  weighted-total calculation.
 
 The rubric weights are application constants, not database fields.
 
@@ -288,7 +290,7 @@ Team-authored ticket structure is stored in code. The database stores
 only `Ticket.templateKey` plus the generated ticket snapshot in
 `Ticket.content`.
 
-``` text
+```text
 backend/src/ticket-templates/
 ├── index.ts
 ├── react/
@@ -313,17 +315,17 @@ Webhook routes are explicitly separate from ordinary authenticated API
 routes. Controllers live under `controllers/webhooks/`; processing lives
 in domain services (not a combined `webhook.service.ts`).
 
-``` text
+```text
 backend/src/routes/webhook.routes.ts
 backend/src/controllers/webhooks/
 ├── chapa.controller.ts      # EP-14
 └── github.controller.ts     # EP-33
 ```
 
--   EP-14: `chapa.controller.ts` → signature verification +
-    `subscription.service.ts` (`processChapaWebhook`) / Chapa helpers.
--   EP-33: `github.controller.ts` → `github-webhook.service.ts` +
-    `evaluation.service.ts`.
+- EP-14: `chapa.controller.ts` → signature verification +
+  `subscription.service.ts` (`processChapaWebhook`) / Chapa helpers.
+- EP-33: `github.controller.ts` → `github-webhook.service.ts` +
+  `evaluation.service.ts`.
 
 The Chapa route must receive the raw body before the normal JSON parser
 so signature verification can operate on the raw request body.
@@ -334,7 +336,7 @@ Doc 5.
 
 ### 7.2.10 Backend Email Templates
 
-``` text
+```text
 backend/src/emails/
 ├── verification/
 │   └── verification-email.*
@@ -348,7 +350,7 @@ The exact email rendering library and file extension are not settled by
 the supplied docs, so the placeholder extension is intentional. The
 required email behaviors are settled by FR-05--FR-08 and FR-22.
 
-------------------------------------------------------------------------
+---
 
 ## 7.3 Frontend --- New Files
 
@@ -357,7 +359,7 @@ foundation. Only project-specific additions are listed here.
 
 ### 7.3.1 Pages
 
-``` text
+```text
 frontend/src/pages/
 ├── auth/
 │   ├── RegisterPage.tsx
@@ -383,27 +385,29 @@ frontend/src/pages/
 
 This exactly follows the page inventory in Doc 6:
 
-  ID      File
-  ------- --------------------------------------------------------
-  PG-01   `frontend/src/pages/auth/RegisterPage.tsx`
-  PG-02   `frontend/src/pages/auth/LoginPage.tsx`
-  PG-03   `frontend/src/pages/auth/ForgotPasswordPage.tsx`
-  PG-04   `frontend/src/pages/auth/ResetPasswordPage.tsx`
-  PG-05   `frontend/src/pages/auth/VerifyEmailPage.tsx`
-  PG-06   `frontend/src/pages/dashboard/DashboardPage.tsx`
-  PG-07   `frontend/src/pages/billing/BillingPage.tsx`
-  PG-08   `frontend/src/pages/billing/CheckoutReturnPage.tsx`
-  PG-09   `frontend/src/pages/github/GitHubSetupPage.tsx`
-  PG-10   `frontend/src/pages/tickets/TicketPage.tsx`
-  PG-11   `frontend/src/pages/profile/ExperienceProfilePage.tsx`
-  PG-12   `frontend/src/pages/settings/SettingsPage.tsx`
-  PG-13   `frontend/src/pages/NotFoundPage.tsx`
+ID File
+
+---
+
+PG-01 `frontend/src/pages/auth/RegisterPage.tsx`
+PG-02 `frontend/src/pages/auth/LoginPage.tsx`
+PG-03 `frontend/src/pages/auth/ForgotPasswordPage.tsx`
+PG-04 `frontend/src/pages/auth/ResetPasswordPage.tsx`
+PG-05 `frontend/src/pages/auth/VerifyEmailPage.tsx`
+PG-06 `frontend/src/pages/dashboard/DashboardPage.tsx`
+PG-07 `frontend/src/pages/billing/BillingPage.tsx`
+PG-08 `frontend/src/pages/billing/CheckoutReturnPage.tsx`
+PG-09 `frontend/src/pages/github/GitHubSetupPage.tsx`
+PG-10 `frontend/src/pages/tickets/TicketPage.tsx`
+PG-11 `frontend/src/pages/profile/ExperienceProfilePage.tsx`
+PG-12 `frontend/src/pages/settings/SettingsPage.tsx`
+PG-13 `frontend/src/pages/NotFoundPage.tsx`
 
 No V1 landing page is added. `/` redirects according to Doc 6.
 
 ### 7.3.2 Shared Layout and Routing Components
 
-``` text
+```text
 frontend/src/components/layout/
 ├── AuthLayout.tsx
 ├── AppLayout.tsx
@@ -419,7 +423,7 @@ frontend/src/routes/
 
 ### 7.3.3 Common Components
 
-``` text
+```text
 frontend/src/components/common/
 ├── PasswordInput.tsx
 ├── FormRootError.tsx
@@ -434,7 +438,7 @@ frontend/src/components/common/
 
 ### 7.3.4 Billing Components
 
-``` text
+```text
 frontend/src/components/billing/
 ├── SubscriptionCard.tsx
 └── PaymentHistory.tsx
@@ -442,7 +446,7 @@ frontend/src/components/billing/
 
 ### 7.3.5 GitHub Components
 
-``` text
+```text
 frontend/src/components/github/
 ├── GitHubConnectionCard.tsx
 ├── RepoCreateForm.tsx
@@ -451,7 +455,7 @@ frontend/src/components/github/
 
 ### 7.3.6 Dashboard Components
 
-``` text
+```text
 frontend/src/components/dashboard/
 ├── SetupChecklist.tsx
 └── CurrentTicketCard.tsx
@@ -459,7 +463,7 @@ frontend/src/components/dashboard/
 
 ### 7.3.7 Ticket Components
 
-``` text
+```text
 frontend/src/components/ticket/
 ├── TicketHeader.tsx
 ├── TicketActionBar.tsx
@@ -477,7 +481,7 @@ frontend/src/components/ticket/
 
 ### 7.3.8 Profile Components
 
-``` text
+```text
 frontend/src/components/profile/
 ├── PracticeRecordNotice.tsx
 └── ExperienceItem.tsx
@@ -485,7 +489,7 @@ frontend/src/components/profile/
 
 ### 7.3.9 Frontend Hooks
 
-``` text
+```text
 frontend/src/hooks/
 ├── useSetupProgress.ts
 ├── useUnsavedChangesWarning.ts
@@ -531,7 +535,7 @@ frontend/src/hooks/
 
 ### 7.3.10 Frontend API Client
 
-``` text
+```text
 frontend/src/lib/api/
 ├── client.ts
 ├── errors.ts
@@ -540,13 +544,13 @@ frontend/src/lib/api/
 
 `client.ts` is the one shared HTTP client. It:
 
--   sends credentials on every request;
--   unwraps `{ statusCode, success, message, data }`;
--   raises `ApiError` for `success: false`;
--   performs the shared 401 → EP-03 refresh behavior;
--   never stores access or refresh tokens;
--   never automatically retries mutations;
--   applies the timeout rules from Doc 6.
+- sends credentials on every request;
+- unwraps `{ statusCode, success, message, data }`;
+- raises `ApiError` for `success: false`;
+- performs the shared 401 → EP-03 refresh behavior;
+- never stores access or refresh tokens;
+- never automatically retries mutations;
+- applies the timeout rules from Doc 6.
 
 `errors.ts` owns the status/message-to-UI mapping described in Doc 6.
 
@@ -556,7 +560,7 @@ asserted as mandatory.
 
 ### 7.3.11 Frontend Configuration
 
-``` text
+```text
 frontend/src/config/
 ├── rubric.ts
 └── app.config.ts
@@ -564,10 +568,10 @@ frontend/src/config/
 
 `rubric.ts` exposes the fixed four-category weights used by the UI:
 
--   requirements met --- 40%;
--   correctness & tests --- 25%;
--   code quality --- 20%;
--   problem-solving & communication --- 15%.
+- requirements met --- 40%;
+- correctness & tests --- 25%;
+- code quality --- 20%;
+- problem-solving & communication --- 15%.
 
 The UI must not calculate a different rubric.
 
@@ -576,7 +580,7 @@ The UI must not calculate a different rubric.
 
 ### 7.3.12 Frontend Types, Lib Helpers and Schemas (Doc 10)
 
-``` text
+```text
 frontend/src/types/
 └── api.ts
 
@@ -598,44 +602,44 @@ query-key factories, ticket-phase and subscription view helpers,
 navigation/format/github utilities, and Zod schemas for auth and GitHub
 forms.
 
-------------------------------------------------------------------------
+---
 
 ## 7.4 Schema / Config Changes
 
 ### 7.4.1 Prisma Schema
 
-``` text
+```text
 backend/prisma/
 └── schema.prisma
 ```
 
 `schema.prisma` is changed to add:
 
--   `User.name`
--   `User.emailVerifiedAt`
--   `EmailVerificationToken`
--   `PasswordResetToken`
--   `GitHubConnection`
--   `StarterRepo`
--   `Subscription`
--   `Payment`
--   `Ticket`
--   `MentorMessage`
--   `Submission`
--   `Evaluation`
--   `TicketStatus`
--   `SubscriptionStatus`
--   `PaymentStatus`
--   `StarterTemplate`
--   `SubmissionStatus`
--   `MentorMessageRole`
+- `User.name`
+- `User.emailVerifiedAt`
+- `EmailVerificationToken`
+- `PasswordResetToken`
+- `GitHubConnection`
+- `StarterRepo`
+- `Subscription`
+- `Payment`
+- `Ticket`
+- `MentorMessage`
+- `Submission`
+- `Evaluation`
+- `TicketStatus`
+- `SubscriptionStatus`
+- `PaymentStatus`
+- `StarterTemplate`
+- `SubmissionStatus`
+- `MentorMessageRole`
 
 `User` and `RefreshToken` are not redesigned beyond the documented
 additions/verification of their existing types.
 
 ### 7.4.2 Prisma Migration
 
-``` text
+```text
 backend/prisma/migrations/
 └── <generated_timestamp>_work_simulator_v1/
     └── migration.sql
@@ -644,46 +648,64 @@ backend/prisma/migrations/
 The migration must contain the additive schema changes and the
 hand-written SQL required by Doc 4:
 
--   DR-01 partial unique active-ticket index;
--   DR-02 partial unique active/past-due subscription index;
--   DR-03 submission-attempt check;
--   DR-04 evaluation score checks.
+- DR-01 partial unique active-ticket index;
+- DR-02 partial unique active/past-due subscription index;
+- DR-03 submission-attempt check;
+- DR-04 evaluation score checks.
 
 The timestamp and migration directory name are generated by Prisma and
 therefore are intentionally not invented here.
 
 ### 7.4.3 Backend Environment Configuration
 
-The exact existing environment filename is not established by the
-supplied docs. The following **new required configuration keys** must
-exist in the backend's existing environment/config mechanism:
+The existing environment/config mechanism is
+`backend/src/config/env.ts`, loaded before the server listens. The
+following configuration keys are exposed there:
 
-``` text
+```text
 DATABASE_URL
-JWT_ACCESS_SECRET
-JWT_REFRESH_SECRET
+ACCESS_TOKEN_SECRET
+ACCESS_TOKEN_EXPIRES_IN
+REFRESH_TOKEN_SECRET
+REFRESH_TOKEN_EXPIRES_IN
 CHAPA_SECRET_KEY
 CHAPA_WEBHOOK_SECRET
 CHAPA_RETURN_URL
+CHAPA_PRICE
+CHAPA_CURRENCY
 GITHUB_CLIENT_ID
 GITHUB_CLIENT_SECRET
 GITHUB_CALLBACK_URL
 GITHUB_TOKEN_ENCRYPTION_KEY
+GITHUB_REQUESTED_SCOPE
+GITHUB_WEBHOOK_SECRET
 GEMINI_API_KEY
+GEMINI_MODEL
 GROQ_API_KEY
+GROQ_MODEL
+MENTOR_MESSAGE_MAX_CHARS
+MENTOR_MESSAGES_PER_TICKET
+MENTOR_MESSAGE_WINDOW_MS
+VERIFICATION_TOKEN_EXPIRES_IN
+PASSWORD_RESET_TOKEN_EXPIRES_IN
+SUBMISSION_CI_TIMEOUT_MS
+SUBMISSION_EVALUATOR_TIMEOUT_MS
+AI_REQUEST_TIMEOUT_MS
+BRANCH_NAME_PREFIX
 CLIENT_URL
 ```
 
-Only add names that match the project's existing configuration
-convention. The docs establish the integrations and secrets
-conceptually; the CORS/client origin key is `CLIENT_URL` (not
-`FRONTEND_URL`). `CHAPA_RETURN_URL` remains.
+`CHAPA_PRICE`, `CHAPA_CURRENCY`, `GITHUB_WEBHOOK_SECRET`, provider model
+names, mentor limits, token expiries, submission/AI timeouts, and
+`BRANCH_NAME_PREFIX` remain configurable pending team decisions. The
+CORS/client origin key is `CLIENT_URL` (not `FRONTEND_URL`).
+`CHAPA_RETURN_URL` remains.
 
 ### 7.4.4 Starter Template Configuration
 
 The codebase contains the three V1 starter templates:
 
-``` text
+```text
 React
 Node/Express
 Django
@@ -691,224 +713,256 @@ Django
 
 `StarterTemplate` enum values: `react`, `node_express`, `django`.
 
-------------------------------------------------------------------------
+---
 
 ## 7.5 API-to-File Ownership Map
 
 This table is the implementation cross-check for Doc 5.
 
-  -------------------------------------------------------------------------------------------------------------
-  Endpoint          Route file                 Controller                     Main service
-  ----------------- -------------------------- ------------------------------ ---------------------------------
-  EP-01             existing auth route        existing auth controller       existing auth service
+---
 
-  EP-02             existing auth route        existing auth controller       existing auth service
+Endpoint Route file Controller Main service
 
-  EP-03             existing auth route        existing auth controller       existing auth service
+---
 
-  EP-04             existing auth route        existing auth controller       existing auth service
+EP-01 existing auth route existing auth controller existing auth service
 
-  EP-05             existing auth route        existing auth controller       existing auth service
+EP-02 existing auth route existing auth controller existing auth service
 
-  EP-06             existing/new auth route    existing/new auth controller   `email-verification.service.ts`
+EP-03 existing auth route existing auth controller existing auth service
 
-  EP-07             existing/new auth route    existing/new auth controller   `email-verification.service.ts`
+EP-04 existing auth route existing auth controller existing auth service
 
-  EP-08             existing/new auth route    existing/new auth controller   `password-reset.service.ts`
+EP-05 existing auth route existing auth controller existing auth service
 
-  EP-09             existing/new auth route    existing/new auth controller   `password-reset.service.ts`
+EP-06 existing/new auth route existing/new auth controller `email-verification.service.ts`
 
-  EP-10             existing/new auth route    existing/new auth controller   existing auth/user service
+EP-07 existing/new auth route existing/new auth controller `email-verification.service.ts`
 
-  EP-11             `user.routes.ts`           `user.controller.ts`           `user.service.ts`
+EP-08 existing/new auth route existing/new auth controller `password-reset.service.ts`
 
-  EP-12             `user.routes.ts`           `user.controller.ts`           `user.service.ts`
+EP-09 existing/new auth route existing/new auth controller `password-reset.service.ts`
 
-  EP-13             `subscription.routes.ts`   `subscription.controller.ts`   `chapa.service.ts` +
-                                                                              `subscription.service.ts`
+EP-10 existing/new auth route existing/new auth controller existing auth/user service
 
-  EP-14             `webhook.routes.ts`        `webhooks/chapa.controller.ts` `subscription.service.ts`
-                                                                              (`processChapaWebhook`) +
-                                                                              `chapa.service.ts`
+EP-11 `user.routes.ts` `user.controller.ts` `user.service.ts`
 
-  EP-15             `subscription.routes.ts`   `subscription.controller.ts`   `subscription.service.ts`
+EP-12 `user.routes.ts` `user.controller.ts` `user.service.ts`
 
-  EP-16             `subscription.routes.ts`   `subscription.controller.ts`   `subscription.service.ts` +
-                                                                              `chapa.service.ts`
+EP-13 `subscription.routes.ts` `subscription.controller.ts` `chapa.service.ts` +
+`subscription.service.ts`
 
-  EP-17             `payment.routes.ts`        `payment.controller.ts`        `subscription.service.ts` /
-                                                                              payment query service logic
+EP-14 `webhook.routes.ts` `webhooks/chapa.controller.ts` `subscription.service.ts`
+(`processChapaWebhook`) +
+`chapa.service.ts`
 
-  EP-18             `github.routes.ts`         `github.controller.ts`         `github.service.ts`
+EP-15 `subscription.routes.ts` `subscription.controller.ts` `subscription.service.ts`
 
-  EP-19             `github.routes.ts`         `github.controller.ts`         `github.service.ts`
+EP-16 `subscription.routes.ts` `subscription.controller.ts` `subscription.service.ts` +
+`chapa.service.ts`
 
-  EP-20             `github.routes.ts`         `github.controller.ts`         `github.service.ts`
+EP-17 `payment.routes.ts` `payment.controller.ts` `subscription.service.ts` /
+payment query service logic
 
-  EP-21             `github.routes.ts`         `github.controller.ts`         `github.service.ts`
+EP-18 `github.routes.ts` `github.controller.ts` `github.service.ts`
 
-  EP-22             `github.routes.ts`         `github.controller.ts`         `github.service.ts`
+EP-19 `github.routes.ts` `github.controller.ts` `github.service.ts`
 
-  EP-23             `ticket.routes.ts`         `ticket.controller.ts`         `ticket.service.ts` +
-                                                                              `ticket-generation.service.ts` +
-                                                                              `github.service.ts`
+EP-20 `github.routes.ts` `github.controller.ts` `github.service.ts`
 
-  EP-24             `ticket.routes.ts`         `ticket.controller.ts`         `ticket.service.ts`
+EP-21 `github.routes.ts` `github.controller.ts` `github.service.ts`
 
-  EP-25             `ticket.routes.ts`         `ticket.controller.ts`         `ticket.service.ts`
+EP-22 `github.routes.ts` `github.controller.ts` `github.service.ts`
 
-  EP-26             `ticket.routes.ts`         `ticket.controller.ts`         `ticket.service.ts`
+EP-23 `ticket.routes.ts` `ticket.controller.ts` `ticket.service.ts` +
+`ticket-generation.service.ts` +
+`github.service.ts`
 
-  EP-27             `ticket.routes.ts`         `ticket.controller.ts`         `ticket.service.ts`
+EP-24 `ticket.routes.ts` `ticket.controller.ts` `ticket.service.ts`
 
-  EP-28             `mentor.routes.ts`         `mentor.controller.ts`         `mentor.service.ts`
+EP-25 `ticket.routes.ts` `ticket.controller.ts` `ticket.service.ts`
 
-  EP-29             `mentor.routes.ts`         `mentor.controller.ts`         `mentor.service.ts`
+EP-26 `ticket.routes.ts` `ticket.controller.ts` `ticket.service.ts`
 
-  EP-30             `submission.routes.ts`     `submission.controller.ts`     `submission.service.ts` +
-                                                                              `github.service.ts`
+EP-27 `ticket.routes.ts` `ticket.controller.ts` `ticket.service.ts`
 
-  EP-31             `submission.routes.ts`     `submission.controller.ts`     `submission.service.ts`
+EP-28 `mentor.routes.ts` `mentor.controller.ts` `mentor.service.ts`
 
-  EP-32             `submission.routes.ts`     `submission.controller.ts`     `submission.service.ts`
+EP-29 `mentor.routes.ts` `mentor.controller.ts` `mentor.service.ts`
 
-  EP-33             `webhook.routes.ts`        `webhooks/github.controller.ts` `github-webhook.service.ts` +
-                                                                              `evaluation.service.ts`
+EP-30 `submission.routes.ts` `submission.controller.ts` `submission.service.ts` +
+`github.service.ts`
 
-  EP-34             `profile.routes.ts`        `profile.controller.ts`        `profile.service.ts`
-  -------------------------------------------------------------------------------------------------------------
+EP-31 `submission.routes.ts` `submission.controller.ts` `submission.service.ts`
+
+EP-32 `submission.routes.ts` `submission.controller.ts` `submission.service.ts`
+
+EP-33 `webhook.routes.ts` `webhooks/github.controller.ts` `github-webhook.service.ts` +
+`evaluation.service.ts`
+
+EP-34 `profile.routes.ts` `profile.controller.ts` `profile.service.ts`
+
+---
 
 **Important:** EP-01--EP-05 are already-built authentication
 infrastructure. They must not be rewritten merely to make the structure
 symmetrical.
 
-------------------------------------------------------------------------
+---
 
 ## 7.6 File-to-Requirement Coverage
 
 ### Authentication
 
-  Files                                                          Requirements
-  -------------------------------------------------------------- ----------------------------
-  existing auth files + `email-verification.service.ts`          FR-05, FR-06
-  existing auth files + `password-reset.service.ts`              FR-07, FR-08
-  existing auth files                                            FR-04, FR-10, FR-11, FR-12
-  `user.service.ts`, `SettingsPage.tsx`, `useUpdateProfile.ts`   FR-13
+Files Requirements
+
+---
+
+existing auth files + `email-verification.service.ts` FR-05, FR-06
+existing auth files + `password-reset.service.ts` FR-07, FR-08
+existing auth files FR-04, FR-10, FR-11, FR-12
+`user.service.ts`, `SettingsPage.tsx`, `useUpdateProfile.ts` FR-13
 
 ### Subscription and payments
 
-  -----------------------------------------------------------------------
-  Files                               Requirements
-  ----------------------------------- -----------------------------------
-  `subscription.controller.ts`,       FR-15, FR-16, FR-18, FR-20, FR-21,
-  `subscription.service.ts`,          FR-22
-  `subscription-renewal.service.ts`,  
-  `chapa.service.ts`                  
+---
 
-  `payment.controller.ts`,            FR-23
-  `PaymentHistory.tsx`,               
-  `usePayments.ts`                    
+Files Requirements
 
-  `webhooks/chapa.controller.ts`,     FR-18, FR-19
-  `webhook.routes.ts`,                
-  `subscription.service.ts`           
-  (`processChapaWebhook`)             
+---
 
-  `SubscriptionCard.tsx`,             FR-15--FR-23
-  `BillingPage.tsx`,                  
-  `CheckoutReturnPage.tsx`            
-  -----------------------------------------------------------------------
+`subscription.controller.ts`, FR-15, FR-16, FR-18, FR-20, FR-21,
+`subscription.service.ts`, FR-22
+`subscription-renewal.service.ts`,  
+ `chapa.service.ts`
+
+`payment.controller.ts`, FR-23
+`PaymentHistory.tsx`,  
+ `usePayments.ts`
+
+`webhooks/chapa.controller.ts`, FR-18, FR-19
+`webhook.routes.ts`,  
+ `subscription.service.ts`  
+ (`processChapaWebhook`)
+
+`SubscriptionCard.tsx`, FR-15--FR-23
+`BillingPage.tsx`,  
+ `CheckoutReturnPage.tsx`
+
+---
 
 ### GitHub
 
-  -----------------------------------------------------------------------
-  Files                               Requirements
-  ----------------------------------- -----------------------------------
-  `github.service.ts`,                FR-25--FR-29
-  `github.ts`, GitHub                 
-  pages/components/hooks              
+---
 
-  `github-token.ts`                   encrypted-at-rest GitHub credential
-                                      requirement
+Files Requirements
 
-  `oauth-state.ts`                    signed, short-lived OAuth state
-  -----------------------------------------------------------------------
+---
+
+`github.service.ts`, FR-25--FR-29
+`github.ts`, GitHub  
+ pages/components/hooks
+
+`github-token.ts` encrypted-at-rest GitHub credential
+requirement
+
+`oauth-state.ts` signed, short-lived OAuth state
+
+---
 
 ### Tickets
 
-  -----------------------------------------------------------------------
-  Files                               Requirements
-  ----------------------------------- -----------------------------------
-  `ticket.service.ts`,                FR-30--FR-36
-  `ticket-generation.service.ts`,     
-  ticket routes/controllers           
+---
 
-  ticket templates (incl. django/)    FR-31
+Files Requirements
 
-  `TicketPage.tsx` and ticket         FR-32--FR-36
-  components                          
-  -----------------------------------------------------------------------
+---
+
+`ticket.service.ts`, FR-30--FR-36
+`ticket-generation.service.ts`,  
+ ticket routes/controllers
+
+ticket templates (incl. django/) FR-31
+
+`TicketPage.tsx` and ticket FR-32--FR-36
+components
+
+---
 
 ### Mentor
 
-  -----------------------------------------------------------------------
-  Files                               Requirements
-  ----------------------------------- -----------------------------------
-  `mentor.service.ts`, `gemini.ts`,   FR-37--FR-41
-  mentor routes/controller            
+---
 
-  `MentorPanel.tsx`, mentor hooks     FR-37--FR-41
-  -----------------------------------------------------------------------
+Files Requirements
+
+---
+
+`mentor.service.ts`, `gemini.ts`, FR-37--FR-41
+mentor routes/controller
+
+`MentorPanel.tsx`, mentor hooks FR-37--FR-41
+
+---
 
 ### Submission/evaluation
 
-  -----------------------------------------------------------------------
-  Files                               Requirements
-  ----------------------------------- -----------------------------------
-  `submission.service.ts`, GitHub     FR-42
-  client/service                      
+---
 
-  `github-webhook.service.ts`,        FR-43, FR-49
-  `webhooks/github.controller.ts`     
+Files Requirements
 
-  `evaluation.service.ts`, `groq.ts`  FR-44, FR-46, FR-47
+---
 
-  `SubmissionCard.tsx`,               FR-36, FR-44--FR-49
-  `EvaluationView.tsx`,               
-  `ScoreBreakdown.tsx`,               
-  `DiffViewer.tsx`                    
-  -----------------------------------------------------------------------
+`submission.service.ts`, GitHub FR-42
+client/service
+
+`github-webhook.service.ts`, FR-43, FR-49
+`webhooks/github.controller.ts`
+
+`evaluation.service.ts`, `groq.ts` FR-44, FR-46, FR-47
+
+`SubmissionCard.tsx`, FR-36, FR-44--FR-49
+`EvaluationView.tsx`,  
+ `ScoreBreakdown.tsx`,  
+ `DiffViewer.tsx`
+
+---
 
 ### Profile
 
-  -----------------------------------------------------------------------
-  Files                               Requirements
-  ----------------------------------- -----------------------------------
-  `profile.service.ts`, profile       FR-50
-  route/controller                    
+---
 
-  `ExperienceProfilePage.tsx`,        FR-50, FR-51
-  `PracticeRecordNotice.tsx`,         
-  `ExperienceItem.tsx`                
-  -----------------------------------------------------------------------
+Files Requirements
+
+---
+
+`profile.service.ts`, profile FR-50
+route/controller
+
+`ExperienceProfilePage.tsx`, FR-50, FR-51
+`PracticeRecordNotice.tsx`,  
+ `ExperienceItem.tsx`
+
+---
 
 ### Unresolved/deferred
 
-  Requirement   File decision
-  ------------- ---------------
-  FR-14         No V1 file
-  FR-24         No V1 file
-  FR-52         No V1 file
-  ~~FR-53~~     No V1 file (Voxide → V2; doc 1 §1.5)
+Requirement File decision
 
-------------------------------------------------------------------------
+---
+
+FR-14 No V1 file
+FR-24 No V1 file
+FR-52 No V1 file
+~~FR-53~~ No V1 file (Voxide → V2; doc 1 §1.5)
+
+---
 
 ## 7.7 Cross-Cutting Frontend Files
 
 The following files are not tied to one page but are required by Doc 6's
 cross-cutting behavior:
 
-``` text
+```text
 frontend/src/
 ├── components/layout/
 │   ├── AppLayout.tsx
@@ -956,18 +1010,18 @@ frontend/src/
 
 These files collectively implement:
 
--   session restoration and 401 refresh;
--   protected/public routing;
--   safe `from` redirect handling;
--   query/mutation error behavior;
--   loading/empty/error patterns;
--   accessibility and focus behavior;
--   destructive-action confirmation;
--   no-token-in-browser-storage rule;
--   polling rather than WebSockets;
--   no automatic mutation retries.
+- session restoration and 401 refresh;
+- protected/public routing;
+- safe `from` redirect handling;
+- query/mutation error behavior;
+- loading/empty/error patterns;
+- accessibility and focus behavior;
+- destructive-action confirmation;
+- no-token-in-browser-storage rule;
+- polling rather than WebSockets;
+- no automatic mutation retries.
 
-------------------------------------------------------------------------
+---
 
 ## 7.8 Backend Cross-Cutting Files
 
@@ -975,7 +1029,7 @@ The exact existing filenames for the already-built middleware stack are
 not supplied in the source docs. The following are therefore **required
 responsibilities**, not invented replacement filenames:
 
-``` text
+```text
 Existing backend middleware/config to preserve:
 - authentication middleware
 - authLimiter
@@ -990,7 +1044,7 @@ New cross-cutting code must integrate with those existing conventions
 rather than introduce a second error envelope, authentication mechanism,
 or logging system.
 
-------------------------------------------------------------------------
+---
 
 ## 7.9 File Creation Order
 
@@ -1116,75 +1170,79 @@ contract it depends on exists.
 
 Before implementation PRs are merged:
 
--   every EP-01--EP-34 is mapped to a route/controller/service or
-    explicitly marked existing;
--   every PG-01--PG-13 has a file;
--   every frontend hook listed in Doc 6 exists;
--   Doc 10's shared frontend modules (types, config, lib helpers, schemas)
-    exist;
--   every new DB entity in Doc 4 exists in Prisma;
--   no Voxide or deferred V1 files appear (Django starter/templates **are**
-    in V1);
--   no endpoint introduces a second auth/token mechanism;
--   no client-side payment confirmation bypasses the Chapa webhook;
--   no submission path creates a third attempt;
--   no ticket path introduces a `scored` state;
--   no frontend path offers diff-paste instead of the required GitHub
-    PR/diff;
--   no new file silently introduces a requirement not present in docs 2,
-    4, 5, 6 or 8/10.
+- every EP-01--EP-34 is mapped to a route/controller/service or
+  explicitly marked existing;
+- every PG-01--PG-13 has a file;
+- every frontend hook listed in Doc 6 exists;
+- Doc 10's shared frontend modules (types, config, lib helpers, schemas)
+  exist;
+- every new DB entity in Doc 4 exists in Prisma;
+- no Voxide or deferred V1 files appear (Django starter/templates **are**
+  in V1);
+- no endpoint introduces a second auth/token mechanism;
+- no client-side payment confirmation bypasses the Chapa webhook;
+- no submission path creates a third attempt;
+- no ticket path introduces a `scored` state;
+- no frontend path offers diff-paste instead of the required GitHub
+  PR/diff;
+- no new file silently introduces a requirement not present in docs 2,
+  4, 5, 6 or 8/10.
 
-------------------------------------------------------------------------
+---
 
 ## 7.10 Generated / Existing / New Classification
 
-  -----------------------------------------------------------------------
-  Area                                Classification
-  ----------------------------------- -----------------------------------
-  `User`, `RefreshToken`, existing    Existing; preserve
-  auth/session infrastructure         
+---
 
-  `prisma/schema.prisma`              Existing file; modified
+Area Classification
 
-  Prisma migration                    Generated new artifact
+---
 
-  EP-01--EP-05                        Existing auth foundation; verify
-                                      against Doc 5
+`User`, `RefreshToken`, existing Existing; preserve
+auth/session infrastructure
 
-  EP-06--EP-10                        Auth/account additions or changes
+`prisma/schema.prisma` Existing file; modified
 
-  EP-11--EP-34                        New V1 endpoint implementation
+Prisma migration Generated new artifact
 
-  `frontend/src/components/ui/*`      Existing template; preserve
-  confirmed primitives                
+EP-01--EP-05 Existing auth foundation; verify
+against Doc 5
 
-  Additional shadcn primitives        Added from shadcn CLI when first
-                                      needed; not custom-edited
+EP-06--EP-10 Auth/account additions or changes
 
-  PG-01--PG-13                        New project pages
+EP-11--EP-34 New V1 endpoint implementation
 
-  Hooks listed in 6.4                 New project hooks
+`frontend/src/components/ui/*` Existing template; preserve
+confirmed primitives
 
-  Domain components listed in 6.3     New project components
+Additional shadcn primitives Added from shadcn CLI when first
+needed; not custom-edited
 
-  Ticket templates                    New team-authored code artifacts
-                                      (react/, node-express/, django/);
-                                      exact filenames TBD by actual
-                                      template set
+PG-01--PG-13 New project pages
 
-  Serializers (7.2.6)                 New; one per doc 5 §5.3.0 shape
+Hooks listed in 6.4 New project hooks
 
-  Doc 10 frontend shared modules      New (`types/api.ts`, `app.config.ts`,
-                                      lib helpers, auth/github schemas)
+Domain components listed in 6.3 New project components
 
-  Voxide                              No V1 file (V2; doc 1 §1.5)
+Ticket templates New team-authored code artifacts
+(react/, node-express/, django/);
+exact filenames TBD by actual
+template set
 
-  Django starter/templates            In V1
+Serializers (7.2.6) New; one per doc 5 §5.3.0 shape
 
-  V2/V3 features                      No V1 files
-  -----------------------------------------------------------------------
+Doc 10 frontend shared modules New (`types/api.ts`, `app.config.ts`,
+lib helpers, auth/github schemas)
 
-------------------------------------------------------------------------
+Voxide No V1 file (V2; doc 1 §1.5)
+
+Django starter/templates In V1
+
+V2/V3 features No V1 files
+
+---
+
+---
 
 ## 7.11 Structural Rules for AI-Assisted Implementation
 
@@ -1218,13 +1276,13 @@ Before implementation PRs are merged:
     file is a map for implementation; the FR/API/DB/UI documents remain
     the detailed contracts.
 
-------------------------------------------------------------------------
+---
 
-*Numbering convention: FR-##, UC-##, DR-##, A-##, Q-##, EP-## and PG-##
+_Numbering convention: FR-##, UC-##, DR-##, A-##, Q-##, EP-## and PG-##
 each form a continuous sequence across the whole series. Never renumber
 once used. If an item is dropped, mark it `~~ID~~ (deprecated, see ID)`
-instead.*
+instead._
 
 Next: proceed to → [8. Function-Level Spec — Backend](./work-simulator-function-level-spec-backend.md)
 
-*(Frontend function-level spec is doc 10; frontend test plan is doc 11.)*
+_(Frontend function-level spec is doc 10; frontend test plan is doc 11.)_
