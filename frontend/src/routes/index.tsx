@@ -7,6 +7,7 @@ import AuthLayout from '@/components/layouts/AuthLayout';
 import { ROUTES } from '@/constants';
 
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
+const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
@@ -30,7 +31,10 @@ const router = createBrowserRouter([
     children: [
       {
         element: <AuthLayout />,
-        children: [{ path: ROUTES.LOGIN, element: withSuspense(<LoginPage />) }],
+        children: [
+          { path: ROUTES.LOGIN, element: withSuspense(<LoginPage />) },
+          { path: ROUTES.REGISTER, element: withSuspense(<RegisterPage />) },
+        ],
       },
     ],
   },
