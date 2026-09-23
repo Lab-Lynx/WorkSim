@@ -81,7 +81,7 @@ export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.status(HTTP_STATUS.OK).json(new SuccessResponse(HTTP_STATUS.OK, 'Logged out', null));
 });
 
-/** EP-05 */
+/** EP-05 — revoke every refresh token for the user and clear cookies. */
 export const logoutAll = asyncHandler(async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Not authenticated');
@@ -89,7 +89,6 @@ export const logoutAll = asyncHandler(async (req: AuthRequest, res: Response) =>
 
   await authService.revokeAllSessions(req.user.id);
   clearAuthCookies(res);
-
   res
     .status(HTTP_STATUS.OK)
     .json(new SuccessResponse(HTTP_STATUS.OK, 'Logged out of all devices', null));

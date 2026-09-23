@@ -297,3 +297,24 @@ export async function callTicketGenerationModel(
 
   return result;
 }
+
+/**
+ * Ticket-lifecycle stub (Doc 8 / D-06).
+ * Builds valid TicketContent from the template so local flows work without a live call.
+ * Prefer callTicketGenerationModel when a real Gemini fill is required.
+ */
+export const generateTicketWording = async (
+  template: TicketTemplate,
+): Promise<TicketContent> => ({
+  title: `${template.category}: ${template.key}`,
+  scenario: `Implement the ${template.key} ticket for the ${template.difficulty} track.`,
+  category: template.category,
+  difficulty: template.difficulty,
+  touchedFiles: [...template.touchedFiles],
+  acceptanceCriteria: template.acceptanceCriteriaStructure.map(
+    (item, i) => `${item} (criterion ${i + 1})`,
+  ),
+  testChecklist: template.testChecklistStructure.map(
+    (item, i) => `${item} (check ${i + 1})`,
+  ),
+});
