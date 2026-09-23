@@ -7,6 +7,7 @@ const issueTokens = vi.fn();
 const validateCredentials = vi.fn();
 const rotateRefreshToken = vi.fn();
 const revokeRefreshToken = vi.fn();
+const revokeAllSessions = vi.fn();
 const getUserById = vi.fn();
 const verifyEmail = vi.fn();
 const resendVerificationEmail = vi.fn();
@@ -21,6 +22,7 @@ vi.mock('../../src/services/auth.service.js', () => ({
   validateCredentials,
   rotateRefreshToken,
   revokeRefreshToken,
+  revokeAllSessions,
   getUserById,
   verifyEmail,
   resendVerificationEmail,
@@ -42,6 +44,10 @@ vi.mock('../../src/utils/cookies.js', () => ({
 
 const {
   register,
+  login,
+  refresh,
+  logout,
+  logoutAll,
   verifyEmail: verifyEmailController,
   resendVerification,
   forgotPassword,
@@ -250,6 +256,136 @@ describe('auth.controller (EP-06–EP-10 + register verification)', () => {
     await changePasswordController(req as never, res as never, next);
 
     expect(next).toHaveBeenCalledWith(err);
+    expect(clearAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('login validates credentials, sets cookies and returns 200 with user', async () => {
+    validateCredentials.mockResolvedValue({ ...safeUser, passwordHash: 'secret' });
+
+    const req = { body: { email: 'ada@example.com', password: 'password1' } };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await login(req as never, res as never, next);
+
+    expect(validateCredentials).toHaveBeenCalledWith('ada@example.com', 'password1');
+    expect(issueTokens).toHaveBeenCalled();
+    expect(setAuthCookies).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Logged in',
+        data: {
+          user: expect.objectContaining({
+            id: 'user-1',
+            email: 'ada@example.com',
+          }),
+        },
+      }),
+    );
+    expect(res.json.mock.calls[0][0].data.user).not.toHaveProperty('passwordHash');
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('refresh rotates token, sets cookies and returns Session refreshed', async () => {
+    rotateRefreshToken.mockResolvedValue({ accessToken: 'new-a', refreshToken: 'new-r' });
+
+    const req = { cookies: { refreshToken: 'valid-refresh-token' } };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await refresh(req as never, res as never, next);
+
+    expect(rotateRefreshToken).toHaveBeenCalledWith('valid-refresh-token');
+    expect(setAuthCookies).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 200,
+        success: true,
+        message: 'Session refreshed',
+        data: null,
+      }),
+    );
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('refresh forwards 401 when refresh cookie is missing', async () => {
+    const req = { cookies: {} };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await refresh(req as never, res as never, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HTTP_STATUS.UNAUTHORIZED,
+        message: 'Invalid or expired session',
+      }),
+    );
+    expect(setAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('logout revokes refresh token, clears auth cookies and returns Logged out', async () => {
+    revokeRefreshToken.mockResolvedValue(undefined);
+
+    const req = { cookies: { refreshToken: 'current-r' } };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await logout(req as never, res as never, next);
+
+    expect(revokeRefreshToken).toHaveBeenCalledWith('current-r');
+    expect(clearAuthCookies).toHaveBeenCalledWith(res);
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 200,
+        success: true,
+        message: 'Logged out',
+        data: null,
+      }),
+    );
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('logoutAll revokes all sessions for req.user.id and clears cookies', async () => {
+    revokeAllSessions.mockResolvedValue(undefined);
+
+    const req = { user: { id: 'user-1', role: 'user' } };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await logoutAll(req as never, res as never, next);
+
+    expect(revokeAllSessions).toHaveBeenCalledWith('user-1');
+    expect(clearAuthCookies).toHaveBeenCalledWith(res);
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 200,
+        success: true,
+        message: 'Logged out of all devices',
+        data: null,
+      }),
+    );
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('logoutAll forwards 401 when req.user is missing', async () => {
+    const req = {};
+    const res = mockRes();
+    const next = vi.fn();
+
+    await logoutAll(req as never, res as never, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HTTP_STATUS.UNAUTHORIZED,
+        message: 'Not authenticated',
+      }),
+    );
+    expect(revokeAllSessions).not.toHaveBeenCalled();
     expect(clearAuthCookies).not.toHaveBeenCalled();
   });
 });

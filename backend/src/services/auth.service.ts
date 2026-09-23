@@ -148,14 +148,14 @@ export const rotateRefreshToken = async (rawRefreshToken: string): Promise<AuthT
   try {
     payload = verifyRefreshToken(rawRefreshToken);
   } catch {
-    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired refresh token');
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired session');
   }
 
   const tokenHash = hashRefreshToken(rawRefreshToken);
   const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
 
   if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
-    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Refresh token is no longer valid');
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired session');
   }
 
   await prisma.refreshToken.update({
@@ -326,3 +326,8 @@ export const changePassword = async (
     data: { passwordHash },
   });
 };
+
+// Aliases matching Doc 8 §8.2 specifications
+export const authenticateUser = validateCredentials;
+export const revokeCurrentSession = revokeRefreshToken;
+export const refreshSession = rotateRefreshToken;
