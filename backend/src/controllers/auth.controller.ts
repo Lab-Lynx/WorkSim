@@ -61,7 +61,7 @@ export const refresh = asyncHandler(async (req: AuthRequest, res: Response) => {
   const rawRefreshToken = req.cookies?.refreshToken as string | undefined;
 
   if (!rawRefreshToken) {
-    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'No refresh token provided');
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired session');
   }
 
   const tokens = await authService.rotateRefreshToken(rawRefreshToken);

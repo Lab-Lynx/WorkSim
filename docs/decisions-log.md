@@ -37,3 +37,14 @@ Not part of the numbered doc series (1–11). One row per team decision applied 
 | D-31 | FR-33 needs no dedicated UC beyond UC-19 / UC-25 / UC-26 (via D-22) | 3 |
 | D-32 | Add `payment.controller.test.ts` (Doc 9) and individual auth-hook rows (Doc 11 §9.1) | 9, 11 |
 | D-33 | Doc 9 notes real Postgres required for integration tests; CI workflow gap flagged for team | 9 |
+| D-34 | Q-19/A-57 template audit: React Router data router is `frontend/src/routes/index.tsx`, App entry is `frontend/src/main.tsx` → `frontend/src/App.tsx`, QueryClient is `frontend/src/lib/queryClient.ts` provided by `App`, HTTP client is Axios in `frontend/src/lib/axios.ts`, API env is `VITE_API_URL` with `/api/v1` included, and only Button/Card shadcn primitives exist initially | 10, 11 |
+
+## Q-19 / A-57 Template Setup Findings
+
+Written findings for Q-19/A-57, verified against the current frontend template before phase 3:
+
+- **App and router:** `frontend/src/main.tsx` is the React entry and renders `frontend/src/App.tsx`. `frontend/src/routes/index.tsx` creates and exports a `createBrowserRouter` data-router object. It exposes imperative `router.navigate(...)`, so session-expiry handling can navigate through the router object without a module-level navigate setter.
+- **QueryClient:** `@tanstack/react-query` `5.101.2` is installed. The singleton is created in `frontend/src/lib/queryClient.ts` and provided by `QueryClientProvider` in `frontend/src/App.tsx`.
+- **HTTP client and API URL:** Axios `1.18.1` is the existing client in `frontend/src/lib/axios.ts`. The single public API-base variable is `VITE_API_URL`, validated in `frontend/src/config/env.ts` and used directly as Axios `baseURL`. The checked `.env` and `.env.example` values are `http://localhost:3000/api/v1`. `API_BASE_PATH` is therefore verified as the conceptual path `/api/v1`, not a second environment variable. Phase 3 `client.ts` should preserve this convention and must not introduce another public API URL variable.
+- **Existing shadcn primitives:** `frontend/src/components/ui/` currently contains only `button.tsx` and `card.tsx`.
+- **Primitives needed by the specs:** `alert`, `alert-dialog`, `badge`, `dropdown-menu`, `input`, `label`, `progress`, `radio-group`, `sheet`, `skeleton`, `sonner` (toast), `table`, `tabs`, and `textarea`. These should be added with the shadcn CLI as each feature needs them and kept unmodified.
