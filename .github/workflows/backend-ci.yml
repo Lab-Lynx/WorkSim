@@ -39,6 +39,16 @@ jobs:
       ACCESS_TOKEN_SECRET: ci-access-secret-not-for-production
       REFRESH_TOKEN_SECRET: ci-refresh-secret-not-for-production
       CLIENT_URL: http://localhost:5173
+      CHAPA_SECRET_KEY: ci-chapa-secret-not-for-production
+      CHAPA_WEBHOOK_SECRET: ci-chapa-webhook-secret-not-for-production
+      CHAPA_RETURN_URL: http://localhost:5173/payment/return
+      GITHUB_CLIENT_ID: ci-github-client-id-not-for-production
+      GITHUB_CLIENT_SECRET: ci-github-client-secret-not-for-production
+      GITHUB_CALLBACK_URL: http://localhost:3000/api/v1/github/callback
+      GITHUB_TOKEN_ENCRYPTION_KEY: ci-github-token-encryption-key-not-for-production
+      GEMINI_API_KEY: ci-gemini-key-not-for-production
+      GROQ_API_KEY: ci-groq-key-not-for-production
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

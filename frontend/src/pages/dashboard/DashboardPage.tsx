@@ -1,23 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
-import UserCard from '@/components/common/UserCard';
-import api from '@/lib/axios';
-import { QUERY_KEYS } from '@/constants';
-import type { User } from '@/types';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function DashboardPage() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: [QUERY_KEYS.USERS],
-    queryFn: () => api.get<User[]>('/users').then((r) => r.data),
-  });
-
-  if (isLoading) return <p className="text-muted-foreground">Loading...</p>;
-  if (isError) return <p className="text-destructive">Failed to load users.</p>;
+  const user = useAuthStore((state) => state.user);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {data?.map((user) => (
-        <UserCard key={user.id} name={user.email} email={user.email} />
-      ))}
+    <div>
+      <h1 className="text-2xl font-semibold text-foreground">Welcome back</h1>
+      <p className="mt-2 text-muted-foreground">You are signed in as {user?.email}.</p>
     </div>
   );
 }
