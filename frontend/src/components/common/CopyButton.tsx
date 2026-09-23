@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Copy, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
 
 export const COPY_FEEDBACK_MS = 2000;
 
@@ -14,7 +13,7 @@ type CopyStatus = 'idle' | 'success' | 'error';
 
 export function CopyButton({ text, label }: CopyButtonProps) {
     const [status, setStatus] = useState<CopyStatus>('idle');
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         return () => {
