@@ -37,6 +37,28 @@ npm run dev
 
 Full details: [`backend/README.md`](../backend/README.md).
 
+### EthioDeploy environment list
+
+Set these backend variables in EthioDeploy. Never print secret values in deployment logs.
+
+```text
+NODE_ENV, PORT, DATABASE_URL
+ACCESS_TOKEN_SECRET, ACCESS_TOKEN_EXPIRES_IN
+REFRESH_TOKEN_SECRET, REFRESH_TOKEN_EXPIRES_IN
+BCRYPT_SALT_ROUNDS, CLIENT_URL, COOKIE_DOMAIN
+CHAPA_SECRET_KEY, CHAPA_WEBHOOK_SECRET, CHAPA_RETURN_URL
+CHAPA_PRICE, CHAPA_CURRENCY
+GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL
+GITHUB_TOKEN_ENCRYPTION_KEY, GITHUB_REQUESTED_SCOPE, GITHUB_WEBHOOK_SECRET
+GEMINI_API_KEY, GEMINI_MODEL, GROQ_API_KEY, GROQ_MODEL
+MENTOR_MESSAGE_MAX_CHARS, MENTOR_MESSAGES_PER_TICKET, MENTOR_MESSAGE_WINDOW_MS
+VERIFICATION_TOKEN_EXPIRES_IN, PASSWORD_RESET_TOKEN_EXPIRES_IN
+SUBMISSION_CI_TIMEOUT_MS, SUBMISSION_EVALUATOR_TIMEOUT_MS, AI_REQUEST_TIMEOUT_MS
+BRANCH_NAME_PREFIX
+```
+
+Values still marked pending in `backend/.env.example` must be decided before enabling their features.
+
 ## 4. Frontend setup
 
 ```bash
@@ -72,6 +94,7 @@ The Prisma schema only has a **minimal placeholder `User` model** (id, email, pa
 ## 9. Helpful references
 
 **Backend**
+
 - [Express 5 migration guide](https://expressjs.com/en/guide/migrating-5.html) — a few behaviors changed from Express 4 (notably: `req.query` is now read-only — see the comment in `backend/src/middlewares/validate.middleware.ts` for the workaround already in place)
 - [Prisma docs](https://www.prisma.io/docs)
 - [Prisma + Decimal fields](https://www.prisma.io/docs/orm/prisma-client/type-safety/operating-against-partial-structures-of-model-types) — if you add a `Decimal` field later (money, precise measurements), note that Prisma returns a `Decimal.js` object in JS, not a plain `number`. `JSON.stringify` and direct arithmetic on it will surprise you — convert explicitly with `.toNumber()` (fine for display) or keep it as a `Decimal` for anything that needs to stay precise (money math). We don't have any `Decimal` fields yet, but this will come up the moment someone adds a price or amount field.
@@ -79,11 +102,13 @@ The Prisma schema only has a **minimal placeholder `User` model** (id, email, pa
 - [MDN: Set-Cookie — SameSite](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value) — worth reading once if you're touching anything in `backend/src/utils/cookies.ts`, since we're on `SameSite=None` in production (frontend and backend are on different domains)
 
 **Frontend**
+
 - [TanStack Query docs](https://tanstack.com/query/latest) — for anything that comes from the backend; don't reach for `useEffect` + `fetch`
 - [Zustand docs](https://zustand.docs.pmnd.rs/) — for UI-only state (auth's `user` field, theme, modals — not server data)
 - [React Router v7 docs](https://reactrouter.com/)
 - [shadcn/ui](https://ui.shadcn.com/docs/components) — component source is copied into the project (`npx shadcn@latest add <component>`), not installed as a package, so you can freely edit what gets added
 
 **Both**
+
 - [Conventional Commits](https://www.conventionalcommits.org/) — the format our commit messages follow
 - [Vitest docs](https://vitest.dev/)

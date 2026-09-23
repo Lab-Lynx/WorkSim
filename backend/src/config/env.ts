@@ -22,7 +22,41 @@ const envSchema = z.object({
   // The frontend's origin. Required for CORS + cookies to work at all:
   // credentials:true CORS cannot pair with a wildcard "*" origin, and the
   // browser needs an exact origin to trust for cross-site cookies.
-  CLIENT_URL: z.string().url().default('http://localhost:5173'),
+  CLIENT_URL: z.string().url(),
+
+  CHAPA_SECRET_KEY: z.string().min(1),
+  CHAPA_WEBHOOK_SECRET: z.string().min(1),
+  CHAPA_RETURN_URL: z.string().url(),
+  // Pending team decision: price and currency are intentionally configurable.
+  CHAPA_PRICE: z.coerce.number().positive().optional(),
+  CHAPA_CURRENCY: z.string().min(3).optional(),
+
+  GITHUB_CLIENT_ID: z.string().min(1),
+  GITHUB_CLIENT_SECRET: z.string().min(1),
+  GITHUB_CALLBACK_URL: z.string().url(),
+  GITHUB_TOKEN_ENCRYPTION_KEY: z.string().min(1),
+  GITHUB_REQUESTED_SCOPE: z.string().default('repo,write:repo_hook'),
+  // Pending team decision: this is required when GitHub webhook handling is enabled.
+  GITHUB_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+  GEMINI_API_KEY: z.string().min(1),
+  GROQ_API_KEY: z.string().min(1),
+  // Pending team decision: provider model names remain deployment-configurable.
+  GEMINI_MODEL: z.string().min(1).optional(),
+  GROQ_MODEL: z.string().min(1).optional(),
+
+  // Pending team decision (Q-10): mentor limits remain unset until product decides them.
+  MENTOR_MESSAGE_MAX_CHARS: z.coerce.number().int().positive().optional(),
+  MENTOR_MESSAGES_PER_TICKET: z.coerce.number().int().positive().optional(),
+  MENTOR_MESSAGE_WINDOW_MS: z.coerce.number().int().positive().optional(),
+  VERIFICATION_TOKEN_EXPIRES_IN: z.string().min(1).optional(),
+  PASSWORD_RESET_TOKEN_EXPIRES_IN: z.string().min(1).optional(),
+  // Pending team decision (Q-13): submission timeout values remain configurable.
+  SUBMISSION_CI_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+  SUBMISSION_EVALUATOR_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+  AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+  // Pending team decision: branch naming convention remains configurable.
+  BRANCH_NAME_PREFIX: z.string().min(1).optional(),
 
   // Only needed if frontend and backend share a parent domain in production
   // (e.g. api.example.com / app.example.com) and you want the cookie valid
@@ -30,11 +64,18 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.string().optional(),
 });
 
-const parsed = envSchema.safeParse(process.env);
+export type Environment = z.infer<typeof envSchema>;
 
-if (!parsed.success) {
-  console.error('Invalid environment variables:', parsed.error.flatten().fieldErrors);
-  process.exit(1);
+export function loadEnv(source: Record<string, unknown>): Environment {
+  const parsed = envSchema.safeParse(source);
+
+  if (!parsed.success) {
+    const fields = Object.keys(parsed.error.flatten().fieldErrors).join(', ');
+    throw new Error(`Invalid environment variables: ${fields}`);
+  }
+
+  return parsed.data;
 }
 
-export const env = parsed.data;
+// Throwing here makes the server fail before it starts listening, without exposing values.
+export const env = loadEnv(process.env);

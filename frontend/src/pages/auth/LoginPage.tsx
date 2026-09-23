@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '@/constants';
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -68,6 +70,12 @@ export default function LoginPage() {
             {isSubmitting ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
+        <p className="text-center text-sm text-muted-foreground mt-4">
+          New here?{' '}
+          <Link to={ROUTES.REGISTER} className="text-primary underline underline-offset-4">
+            Create an account
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );
