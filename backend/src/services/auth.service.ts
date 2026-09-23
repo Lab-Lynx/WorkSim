@@ -171,17 +171,22 @@ export const rotateRefreshToken = async (rawRefreshToken: string): Promise<AuthT
     throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired session');
   }
 
+  const now = new Date();
   const tokenHash = hashRefreshToken(rawRefreshToken);
   const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
 
-  if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+  if (!stored || stored.revokedAt || stored.expiresAt < now) {
     throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired session');
   }
 
-  await prisma.refreshToken.update({
-    where: { id: stored.id },
-    data: { revokedAt: new Date() },
+  const updated = await prisma.refreshToken.updateMany({
+    where: { id: stored.id, revokedAt: null },
+    data: { revokedAt: now },
   });
+
+  if (updated.count === 0) {
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired session');
+  }
 
   const user = await getUserById(payload.id);
   return issueTokens(user);
