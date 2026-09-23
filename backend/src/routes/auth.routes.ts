@@ -19,6 +19,7 @@ router.post('/register', authLimiter, validate(registerSchema), authController.r
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
+router.post('/logout-all', authMiddleware, authController.logoutAll);
 router.get('/me', authMiddleware, authController.me);
 
 // EP-06 – EP-10

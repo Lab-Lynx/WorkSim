@@ -7,6 +7,7 @@ const issueTokens = vi.fn();
 const validateCredentials = vi.fn();
 const rotateRefreshToken = vi.fn();
 const revokeRefreshToken = vi.fn();
+const revokeAllSessions = vi.fn();
 const getUserById = vi.fn();
 const verifyEmail = vi.fn();
 const resendVerificationEmail = vi.fn();
@@ -21,6 +22,7 @@ vi.mock('../../src/services/auth.service.js', () => ({
   validateCredentials,
   rotateRefreshToken,
   revokeRefreshToken,
+  revokeAllSessions,
   getUserById,
   verifyEmail,
   resendVerificationEmail,
@@ -42,6 +44,7 @@ vi.mock('../../src/utils/cookies.js', () => ({
 
 const {
   register,
+  logoutAll,
   verifyEmail: verifyEmailController,
   resendVerification,
   forgotPassword,
@@ -117,6 +120,27 @@ describe('auth.controller (EP-06–EP-10 + register verification)', () => {
     await register(req as never, res as never, next);
 
     expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.CREATED);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('logoutAll revokes all sessions and clears cookies', async () => {
+    revokeAllSessions.mockResolvedValue(undefined);
+
+    const req = { user: { id: 'user-1', role: 'user' } };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await logoutAll(req as never, res as never, next);
+
+    expect(revokeAllSessions).toHaveBeenCalledWith('user-1');
+    expect(clearAuthCookies).toHaveBeenCalledWith(res);
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Logged out of all devices',
+        data: null,
+      }),
+    );
     expect(next).not.toHaveBeenCalled();
   });
 
