@@ -8,34 +8,14 @@ import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import * as gemini from '../integrations/gemini.js';
 
-const TEMPLATES: TicketTemplate[] = [
-  {
-    key: 'react-add-button',
-    category: 'frontend',
-    difficulty: 'beginner',
-    touchedFiles: ['src/App.tsx', 'src/components/Button.tsx'],
-    acceptanceCriteriaStructure: ['Add a reusable button', 'Wire it into the page'],
-    testChecklistStructure: ['Unit test the button', 'Smoke-test the page'],
-  },
-  {
-    key: 'node-add-route',
-    category: 'backend',
-    difficulty: 'beginner',
-    touchedFiles: ['src/routes/index.ts', 'src/controllers/health.controller.ts'],
-    acceptanceCriteriaStructure: ['Expose a health route', 'Return a JSON envelope'],
-    testChecklistStructure: ['Route returns 200', 'Body matches the envelope'],
-  },
-];
-
-const byKey = new Map(TEMPLATES.map((t) => [t.key, t]));
+import {
+  loadTicketTemplate as lookupTemplate,
+  getAllTicketTemplates,
+} from '../ticket-templates/index.js';
 
 /** Load a team-authored template; unknown keys fail loudly (Doc 8). */
 export const loadTicketTemplate = (templateKey: string): TicketTemplate => {
-  const template = byKey.get(templateKey);
-  if (!template) {
-    throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, `Unknown ticket template: ${templateKey}`);
-  }
-  return template;
+  return lookupTemplate(templateKey);
 };
 
 /**
@@ -46,7 +26,8 @@ export const selectNextTicketTemplate = async (
   userId: string,
 ): Promise<TicketTemplateSelection> => {
   void userId;
-  const first = TEMPLATES[0];
+  const templates = getAllTicketTemplates();
+  const first = templates[0];
   if (!first) {
     throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'No ticket templates configured');
   }
