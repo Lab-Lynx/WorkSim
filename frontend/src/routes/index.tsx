@@ -43,7 +43,10 @@ const router = createBrowserRouter([
     children: [
       {
         element: <DashboardLayout />,
-        children: [{ path: ROUTES.HOME, element: withSuspense(<DashboardPage />) }],
+        children: [
+          { path: ROUTES.HOME, element: withSuspense(<DashboardPage />) },
+          { path: ROUTES.DASHBOARD, element: withSuspense(<DashboardPage />) },
+        ],
       },
     ],
   },
