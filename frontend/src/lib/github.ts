@@ -31,7 +31,12 @@ export function buildRepoUrl(fullName: string): string | null {
 
 export function buildBranchUrl(fullName: string, branch: string): string | null {
   const repoUrl = buildRepoUrl(fullName);
-  if (!repoUrl || !branch || /[\u0000-\u001f\u007f]/u.test(branch) || branch.includes(':')) {
+  const hasControlCharacter = Array.from(branch).some((char) => {
+    const code = char.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f;
+  });
+
+  if (!repoUrl || !branch || hasControlCharacter || branch.includes(':')) {
     return null;
   }
 
