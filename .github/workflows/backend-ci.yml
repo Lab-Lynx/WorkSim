@@ -1,11 +1,16 @@
 name: Backend CI
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches: [main, Dev]
     paths:
-      - 'backend/**'
-      - '.github/workflows/backend-ci.yml'
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    branches: [main, Dev]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
 
 defaults:
   run:
@@ -14,11 +19,36 @@ defaults:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d test_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
+      # CI-only sentinel values; never use these credentials outside tests.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       ACCESS_TOKEN_SECRET: ci-access-secret-not-for-production
       REFRESH_TOKEN_SECRET: ci-refresh-secret-not-for-production
       CLIENT_URL: http://localhost:5173
+      CHAPA_SECRET_KEY: ci-chapa-secret-not-for-production
+      CHAPA_WEBHOOK_SECRET: ci-chapa-webhook-secret-not-for-production
+      CHAPA_RETURN_URL: http://localhost:5173/payment/return
+      GITHUB_CLIENT_ID: ci-github-client-id-not-for-production
+      GITHUB_CLIENT_SECRET: ci-github-client-secret-not-for-production
+      GITHUB_CALLBACK_URL: http://localhost:3000/api/v1/github/callback
+      GITHUB_TOKEN_ENCRYPTION_KEY: ci-github-token-encryption-key-not-for-production
+      GEMINI_API_KEY: ci-gemini-key-not-for-production
+      GROQ_API_KEY: ci-groq-key-not-for-production
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,6 +58,7 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm run prisma:generate
+      - run: npx prisma migrate deploy
       - run: npm run lint
       - run: npm run build
-      - run: npm test
+      - run: npm test -- --run tests tests/integration
