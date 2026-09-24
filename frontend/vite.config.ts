@@ -11,5 +11,10 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
-  server: { port: 5173 },
+
+  server: {
+    port: 5173,
+    strictPort: true, // Forces Vite to error out instead of switching ports automatically
+  },
+
 });
