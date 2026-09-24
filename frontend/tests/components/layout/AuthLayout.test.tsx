@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { AuthLayout } from "@/components/layouts/AuthLayout";
+import { AuthLayout } from "@/components/layout/AuthLayout";
 
 // Mock useFocusPageHeading hook
 const mockUseFocusPageHeading = vi.fn();
