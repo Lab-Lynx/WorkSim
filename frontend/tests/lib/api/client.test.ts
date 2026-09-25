@@ -7,10 +7,7 @@ import {
   ApiError,
   type ApiClientConfig,
 } from '@/lib/api/client';
-import {
-  REQUEST_TIMEOUT_DEFAULT_MS,
-  REQUEST_TIMEOUT_LONG_MS,
-} from '@/config/app.config';
+import { REQUEST_TIMEOUT_DEFAULT_MS, REQUEST_TIMEOUT_LONG_MS } from '@/config/app.config';
 
 const TEST_BASE_URL = 'http://localhost:3000/api/v1';
 
@@ -68,9 +65,9 @@ describe('API client — frontend/src/lib/api/client.ts', () => {
       const mockData = { id: 'user-1', name: 'Test User' };
       const envelope = createEnvelope(mockData, 200, 'Success');
 
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-        createMockResponse(envelope, 200)
-      );
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(createMockResponse(envelope, 200));
 
       const result = await apiRequest<typeof mockData>('GET', '/users/me');
 
@@ -88,9 +85,9 @@ describe('API client — frontend/src/lib/api/client.ts', () => {
     });
 
     it('sets Content-Type: application/json only when a body is provided', async () => {
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
-        createMockResponse(createEnvelope({ ok: true }))
-      );
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(async () => createMockResponse(createEnvelope({ ok: true })));
 
       // Without body
       await apiRequest('GET', '/no-body');
@@ -100,14 +97,16 @@ describe('API client — frontend/src/lib/api/client.ts', () => {
       // With body
       await apiRequest('POST', '/with-body', { body: { key: 'value' } });
       const [, initWithBody] = fetchSpy.mock.calls[1];
-      expect((initWithBody?.headers as Record<string, string>)?.['Content-Type']).toBe('application/json');
+      expect((initWithBody?.headers as Record<string, string>)?.['Content-Type']).toBe(
+        'application/json'
+      );
       expect(initWithBody?.body).toBe(JSON.stringify({ key: 'value' }));
     });
 
     it('serializes defined query parameters and omits undefined values', async () => {
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-        createMockResponse(createEnvelope([]))
-      );
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(createMockResponse(createEnvelope([])));
 
       await apiRequest('GET', '/tickets', {
         query: {
@@ -130,9 +129,7 @@ describe('API client — frontend/src/lib/api/client.ts', () => {
   describe('apiRequest — error handling and envelopes', () => {
     it('throws ApiError with kind: api on non-2xx status or success: false', async () => {
       const errorEnvelope = createEnvelope(null, 400, 'Invalid parameters', false);
-      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-        createMockResponse(errorEnvelope, 400)
-      );
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(createMockResponse(errorEnvelope, 400));
 
       await expect(apiRequest('POST', '/test')).rejects.toSatisfy((err: unknown) => {
         expect(err).toBeInstanceOf(ApiError);
@@ -190,9 +187,7 @@ describe('API client — frontend/src/lib/api/client.ts', () => {
     });
 
     it('throws ApiError with kind: network on fetch network failure', async () => {
-      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(
-        new TypeError('Failed to fetch')
-      );
+      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new TypeError('Failed to fetch'));
 
       await expect(apiRequest('GET', '/network-failure')).rejects.toSatisfy((err: unknown) => {
         expect(err).toBeInstanceOf(ApiError);
@@ -504,9 +499,9 @@ describe('API client — frontend/src/lib/api/client.ts', () => {
 
   describe('refreshSessionOnce directly', () => {
     it('calls POST /auth/refresh with skipAuthRefresh: true and resets guard on success', async () => {
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-        createMockResponse(createEnvelope({ ok: true }))
-      );
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(createMockResponse(createEnvelope({ ok: true })));
 
       await refreshSessionOnce();
 

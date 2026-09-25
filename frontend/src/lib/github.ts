@@ -1,6 +1,5 @@
 export type GitHubOAuthResult =
-  | { status: 'connected' }
-  | { status: 'error'; reason: string | null };
+  { status: 'connected' } | { status: 'error'; reason: string | null };
 
 const GITHUB_ORIGIN = 'https://github.com';
 const REPO_SEGMENT_PATTERN = /^[A-Za-z0-9_.-]+$/;

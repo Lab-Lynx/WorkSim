@@ -1,17 +1,19 @@
 // src/hooks/useLogout.ts
 
 interface UseLogoutOptions {
-    onError?: (error: any) => void;
-    onSuccess?: () => void;
+  onError?: (error: unknown) => void;
+  onSuccess?: () => void;
 }
 
 export function useLogout() {
-    const mutate = (_variables?: void, _options?: UseLogoutOptions) => {
-        // Placeholder logout implementation
-    };
+  const mutate = (variables?: void, options?: UseLogoutOptions) => {
+    void variables;
+    void options;
+    // Placeholder logout implementation
+  };
 
-    return {
-        mutate,
-        isPending: false,
-    };
+  return {
+    mutate,
+    isPending: false,
+  };
 }

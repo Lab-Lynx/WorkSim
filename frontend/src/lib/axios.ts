@@ -30,7 +30,10 @@ export function isSessionExpiredGuardActive(): boolean {
   return sessionExpiredGuard;
 }
 
-export function configureApiClient(config: { baseUrl?: string; onSessionExpired?: () => void }): void {
+export function configureApiClient(config: {
+  baseUrl?: string;
+  onSessionExpired?: () => void;
+}): void {
   if (config.baseUrl) {
     api.defaults.baseURL = config.baseUrl;
   }
@@ -59,8 +62,7 @@ export function defaultOnSessionExpired(): void {
 }
 
 function handleSessionExpired(): void {
-  const hasCachedUser =
-    !!queryClient.getQueryData(queryKeys.me) || !!useAuthStore.getState().user;
+  const hasCachedUser = !!queryClient.getQueryData(queryKeys.me) || !!useAuthStore.getState().user;
 
   if (!hasCachedUser) {
     return;
@@ -94,7 +96,8 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    const originalRequest = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
+    const originalRequest = error.config as
+      (typeof error.config & { _retry?: boolean }) | undefined;
     const isRefreshPath = originalRequest?.url?.includes('/auth/refresh');
     const isAuthRoute =
       originalRequest?.url?.includes('/auth/register') ||
@@ -151,4 +154,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-

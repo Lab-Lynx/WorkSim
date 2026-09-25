@@ -1,7 +1,7 @@
-import React from "react";
-import { Outlet } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { useFocusPageHeading } from "@/hooks/useFocusPageHeading";
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+import { Card, CardContent } from '@/components/ui/card';
+import { useFocusPageHeading } from '@/hooks/useFocusPageHeading';
 
 interface AuthLayoutProps {
   children?: React.ReactNode;

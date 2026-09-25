@@ -1,3 +1,3 @@
 export const useSubscription = () => {
-    return { data: null };
+  return { data: null };
 };
