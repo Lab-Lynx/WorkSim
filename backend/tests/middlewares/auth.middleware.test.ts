@@ -78,4 +78,62 @@ describe('auth.middleware (requireAuth — Doc 8 §8.14, Doc 9 §9.3.5)', () => 
       }),
     );
   });
+
+  it('rejects a Bearer-only token without calling verifyAccessToken (PR steward §9.4 honesty check)', () => {
+    const verifySpy = vi.spyOn(jwtUtils, 'verifyAccessToken');
+    verifySpy.mockClear();
+
+    const req = {
+      headers: {
+        authorization: 'Bearer valid.jwt.token',
+      },
+      cookies: {},
+    } as unknown as AuthRequest;
+    const res = {} as unknown as Response;
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+
+    expect(verifySpy).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HTTP_STATUS.UNAUTHORIZED,
+        message: 'Invalid or expired access token',
+      }),
+    );
+  });
+
+  it('rejects with 401 when req.cookies is undefined (missing cookie parser)', () => {
+    const req = {} as unknown as AuthRequest;
+    const res = {} as unknown as Response;
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HTTP_STATUS.UNAUTHORIZED,
+        message: 'Invalid or expired access token',
+      }),
+    );
+  });
+
+  it('uses cookie and ignores Bearer header when both are present', () => {
+    const payload = { id: 'user-cookie-priority', role: 'user' };
+    vi.spyOn(jwtUtils, 'verifyAccessToken').mockReturnValue(payload as never);
+
+    const req = {
+      headers: { authorization: 'Bearer bearer-token-ignored' },
+      cookies: { accessToken: 'valid-cookie-token' },
+    } as unknown as AuthRequest;
+    const res = {} as unknown as Response;
+    const next = vi.fn();
+
+    authMiddleware(req, res, next);
+
+    expect(jwtUtils.verifyAccessToken).toHaveBeenCalledWith('valid-cookie-token');
+    expect(jwtUtils.verifyAccessToken).not.toHaveBeenCalledWith('bearer-token-ignored');
+    expect(req.user).toEqual(payload);
+    expect(next).toHaveBeenCalledWith();
+  });
 });
