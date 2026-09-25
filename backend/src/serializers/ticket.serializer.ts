@@ -1,5 +1,12 @@
-import type { Prisma, TicketStatus, SubmissionStatus } from '@prisma/client';
+import type { TicketStatus, SubmissionStatus } from '@prisma/client';
 import type { TicketContent } from '../types/domain.js';
+import {
+  serializeEvaluation,
+  type SerializeEvaluationInput,
+  type SerializedEvaluation,
+} from './evaluation.serializer.js';
+
+export type { SerializeEvaluationInput, SerializedEvaluation };
 
 export type SerializedTicket = {
   id: string;
@@ -59,57 +66,6 @@ export const serializeTicket = (
   abandonedAt: ticket.abandonedAt ? ticket.abandonedAt.toISOString() : null,
 });
 
-export type SerializeEvaluationInput = {
-  feedback: string;
-  requirementsMetScore: number | null;
-  correctnessTestsScore: number | null;
-  codeQualityScore: number | null;
-  problemSolvingScore: number | null;
-  totalScore: Prisma.Decimal | number | null;
-  createdAt: Date;
-} | null;
-
-export type SerializedEvaluation = {
-  feedback: string;
-  scores: {
-    requirementsMet: number;
-    correctnessTests: number;
-    codeQuality: number;
-    problemSolving: number;
-    total: number;
-  } | null;
-  createdAt: string;
-} | null;
-
-const serializeEvaluation = (
-  evaluation: SerializeEvaluationInput,
-  attempt: number,
-): SerializedEvaluation => {
-  if (!evaluation) return null;
-
-  const scoresAreNull =
-    attempt === 1 ||
-    evaluation.requirementsMetScore === null ||
-    evaluation.correctnessTestsScore === null ||
-    evaluation.codeQualityScore === null ||
-    evaluation.problemSolvingScore === null ||
-    evaluation.totalScore === null;
-
-  return {
-    feedback: evaluation.feedback,
-    scores: scoresAreNull
-      ? null
-      : {
-          requirementsMet: evaluation.requirementsMetScore as number,
-          correctnessTests: evaluation.correctnessTestsScore as number,
-          codeQuality: evaluation.codeQualityScore as number,
-          problemSolving: evaluation.problemSolvingScore as number,
-          total: Number(evaluation.totalScore),
-        },
-    createdAt: evaluation.createdAt.toISOString(),
-  };
-};
-
 export type SerializeSubmissionSummaryInput = {
   id: string;
   attempt: number;
@@ -154,6 +110,6 @@ export const serializeSubmissionSummary = (
     ciRunUrl: submission.ciRunUrl,
     failureReason: submission.failureReason,
     submittedAt: submission.submittedAt.toISOString(),
-    evaluation: serializeEvaluation(submission.evaluation, submission.attempt),
+    evaluation: serializeEvaluation(submission.evaluation),
   };
 };
