@@ -39,6 +39,10 @@ export function configureApiClient(config: { baseUrl?: string; onSessionExpired?
   }
 }
 
+export function getSessionExpiredCallback(): (() => void) | null {
+  return onSessionExpiredCallback;
+}
+
 export function defaultOnSessionExpired(): void {
   const location = router.state?.location;
   const currentPath = location

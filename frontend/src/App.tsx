@@ -4,6 +4,35 @@ import { queryClient } from '@/lib/queryClient';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import { useSessionBootstrap } from '@/hooks/useSessionBootstrap';
 import router from '@/routes';
+import { configureApiClient } from '@/lib/axios';
+import { env } from '@/config/env';
+import { queryKeys } from '@/lib/query-keys';
+import { buildLoginRedirect } from '@/lib/navigation';
+import { useAuthStore } from '@/store/auth.store';
+
+function onSessionExpired(): void {
+  if (!queryClient.getQueryData(queryKeys.me)) {
+    return;
+  }
+
+  const location = router.state?.location;
+  const currentPath = location
+    ? location.pathname + location.search + location.hash
+    : window.location.pathname + window.location.search + window.location.hash;
+
+  router.navigate(buildLoginRedirect(currentPath), {
+    replace: true,
+    state: { notice: 'session_expired' },
+  });
+
+  queryClient.clear();
+  useAuthStore.getState().clearAuth();
+}
+
+configureApiClient({
+  baseUrl: env.VITE_API_URL,
+  onSessionExpired,
+});
 
 function App() {
   // The auth token lives in an httpOnly cookie now (not readable by JS),
