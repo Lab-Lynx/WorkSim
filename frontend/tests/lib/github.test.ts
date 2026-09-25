@@ -35,9 +35,12 @@ describe('GitHub helpers', () => {
       );
     });
 
-    it.each(['', 'javascript:alert(1)', 'feature\nfix'])('returns null for unsafe branch %j', (branch) => {
-      expect(buildBranchUrl('octo-org/work-sim', branch)).toBeNull();
-    });
+    it.each(['', 'javascript:alert(1)', 'feature\nfix'])(
+      'returns null for unsafe branch %j',
+      (branch) => {
+        expect(buildBranchUrl('octo-org/work-sim', branch)).toBeNull();
+      }
+    );
   });
 
   describe('OAuth callback parsing', () => {
@@ -47,15 +50,22 @@ describe('GitHub helpers', () => {
       ).toEqual({ status: 'connected' });
     });
 
-    it.each(['state_invalid', 'scope_invalid', 'exchange_failed'])('parses known failure %s', (reason) => {
-      expect(parseGitHubOAuthResult(new URLSearchParams(`github=error&reason=${reason}`))).toEqual({
-        status: 'error',
-        reason,
-      });
-    });
+    it.each(['state_invalid', 'scope_invalid', 'exchange_failed'])(
+      'parses known failure %s',
+      (reason) => {
+        expect(
+          parseGitHubOAuthResult(new URLSearchParams(`github=error&reason=${reason}`))
+        ).toEqual({
+          status: 'error',
+          reason,
+        });
+      }
+    );
 
     it('parses an unknown failure reason without making it a user-facing message', () => {
-      const result = parseGitHubOAuthResult(new URLSearchParams('github=error&reason=token_leaked'));
+      const result = parseGitHubOAuthResult(
+        new URLSearchParams('github=error&reason=token_leaked')
+      );
 
       expect(result).toEqual({ status: 'error', reason: 'token_leaked' });
       expect(getGitHubOAuthErrorMessage(result?.status === 'error' ? result.reason : null)).toBe(
@@ -73,7 +83,10 @@ describe('GitHub helpers', () => {
   describe('getGitHubOAuthErrorMessage', () => {
     it.each([
       ['state_invalid', 'Authentication session expired. Try connecting again.'],
-      ['scope_invalid', 'Work Simulator needs repository permission to work on tickets. Try connecting again.'],
+      [
+        'scope_invalid',
+        'Work Simulator needs repository permission to work on tickets. Try connecting again.',
+      ],
       ['exchange_failed', "Couldn't connect to GitHub. Try again."],
       ['unexpected_backend_detail', "Couldn't connect to GitHub. Try again."],
       [null, "Couldn't connect to GitHub. Try again."],

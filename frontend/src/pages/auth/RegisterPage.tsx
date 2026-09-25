@@ -48,7 +48,9 @@ export default function RegisterPage() {
               className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
               {...register('email')}
             />
-            {errors.email && <p className="text-destructive text-xs mt-1">{errors.email.message}</p>}
+            {errors.email && (
+              <p className="text-destructive text-xs mt-1">{errors.email.message}</p>
+            )}
           </div>
           <div>
             <input

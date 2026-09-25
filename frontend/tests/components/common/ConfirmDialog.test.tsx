@@ -29,13 +29,7 @@ describe('ConfirmDialog', () => {
     const onConfirm = vi.fn();
     const onOpenChange = vi.fn();
 
-    render(
-      <ConfirmDialog
-        {...defaultProps}
-        onConfirm={onConfirm}
-        onOpenChange={onOpenChange}
-      />
-    );
+    render(<ConfirmDialog {...defaultProps} onConfirm={onConfirm} onOpenChange={onOpenChange} />);
 
     const confirmButton = screen.getByRole('button', { name: 'Confirm Action' });
 
@@ -78,13 +72,7 @@ describe('ConfirmDialog', () => {
   it('blocks outside click interaction when isPending is true', () => {
     const onOpenChange = vi.fn();
 
-    render(
-      <ConfirmDialog
-        {...defaultProps}
-        isPending={true}
-        onOpenChange={onOpenChange}
-      />
-    );
+    render(<ConfirmDialog {...defaultProps} isPending={true} onOpenChange={onOpenChange} />);
 
     // Simulate pointer down outside dialog overlay
     fireEvent.pointerDown(document.body);
@@ -108,12 +96,7 @@ describe('ConfirmDialog', () => {
   it('handles cancel button click through onOpenChange when not pending', () => {
     const onOpenChange = vi.fn();
 
-    render(
-      <ConfirmDialog
-        {...defaultProps}
-        onOpenChange={onOpenChange}
-      />
-    );
+    render(<ConfirmDialog {...defaultProps} onOpenChange={onOpenChange} />);
 
     const cancelButton = screen.getByRole('button', { name: 'Cancel Action' });
     fireEvent.click(cancelButton);

@@ -1,9 +1,10 @@
+/* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import AuthLayout from '@/components/layouts/AuthLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import AuthLayout from '@/components/layout/AuthLayout';
 import { ROUTES } from '@/constants';
 
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
@@ -43,7 +44,10 @@ const router = createBrowserRouter([
     children: [
       {
         element: <DashboardLayout />,
-        children: [{ path: ROUTES.HOME, element: withSuspense(<DashboardPage />) }],
+        children: [
+          { path: ROUTES.HOME, element: withSuspense(<DashboardPage />) },
+          { path: ROUTES.DASHBOARD, element: withSuspense(<DashboardPage />) },
+        ],
       },
     ],
   },

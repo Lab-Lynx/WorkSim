@@ -65,12 +65,7 @@ export interface GitHubConnectionSummary {
 }
 
 export type TicketStatus =
-  | 'assigned'
-  | 'in_progress'
-  | 'submitted_v1'
-  | 'resubmitted'
-  | 'done'
-  | 'abandoned';
+  'assigned' | 'in_progress' | 'submitted_v1' | 'resubmitted' | 'done' | 'abandoned';
 
 export interface Ticket {
   id: UUID;
