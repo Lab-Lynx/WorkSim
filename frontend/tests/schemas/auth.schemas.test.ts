@@ -26,15 +26,24 @@ describe('auth schemas', () => {
   });
 
   it('accepts valid inputs for every auth form', () => {
-    expect(registerSchema.parse({ name: 'Ada Lovelace', email: validEmail, password: validPassword })).toEqual({
+    expect(
+      registerSchema.parse({ name: 'Ada Lovelace', email: validEmail, password: validPassword })
+    ).toEqual({
       name: 'Ada Lovelace',
       email: validEmail,
       password: validPassword,
     });
-    expect(loginSchema.parse({ email: validEmail, password: 'x' })).toEqual({ email: validEmail, password: 'x' });
+    expect(loginSchema.parse({ email: validEmail, password: 'x' })).toEqual({
+      email: validEmail,
+      password: 'x',
+    });
     expect(forgotPasswordSchema.parse({ email: validEmail })).toEqual({ email: validEmail });
-    expect(resetPasswordSchema.parse({ newPassword: validPassword })).toEqual({ newPassword: validPassword });
-    expect(changePasswordSchema.parse({ currentPassword: 'old', newPassword: validPassword })).toEqual({
+    expect(resetPasswordSchema.parse({ newPassword: validPassword })).toEqual({
+      newPassword: validPassword,
+    });
+    expect(
+      changePasswordSchema.parse({ currentPassword: 'old', newPassword: validPassword })
+    ).toEqual({
       currentPassword: 'old',
       newPassword: validPassword,
     });
@@ -43,7 +52,13 @@ describe('auth schemas', () => {
   });
 
   it('trims register and profile names and email addresses', () => {
-    expect(registerSchema.parse({ name: ' Ada ', email: ' person@example.com ', password: validPassword })).toEqual({
+    expect(
+      registerSchema.parse({
+        name: ' Ada ',
+        email: ' person@example.com ',
+        password: validPassword,
+      })
+    ).toEqual({
       name: 'Ada',
       email: validEmail,
       password: validPassword,
@@ -58,7 +73,10 @@ describe('auth schemas', () => {
       expect.arrayContaining([
         expect.objectContaining({ path: ['name'], message: 'Name must be at least 2 characters' }),
         expect.objectContaining({ path: ['email'], message: 'Email is required' }),
-        expect.objectContaining({ path: ['password'], message: 'Password must be at least 8 characters' }),
+        expect.objectContaining({
+          path: ['password'],
+          message: 'Password must be at least 8 characters',
+        }),
       ])
     );
   });
@@ -82,16 +100,28 @@ describe('auth schemas', () => {
     expect(loginSchema.parse({ email: validEmail, password: 'x' }).password).toBe('x');
   });
 
-  it.each([resetPasswordSchema, updateProfileSchema])('rejects values below the required constraint', (schema) => {
-    expect(schema.safeParse(schema === updateProfileSchema ? { name: ' ' } : { newPassword: 'short' }).success).toBe(false);
-  });
+  it.each([resetPasswordSchema, updateProfileSchema])(
+    'rejects values below the required constraint',
+    (schema) => {
+      expect(
+        schema.safeParse(schema === updateProfileSchema ? { name: ' ' } : { newPassword: 'short' })
+          .success
+      ).toBe(false);
+    }
+  );
 
   it('requires a non-empty current password and an eight-character new password', () => {
     const issues = issuesFor(changePasswordSchema, { currentPassword: '', newPassword: 'short' });
     expect(issues).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ path: ['currentPassword'], message: 'Current password is required' }),
-        expect.objectContaining({ path: ['newPassword'], message: 'Password must be at least 8 characters' }),
+        expect.objectContaining({
+          path: ['currentPassword'],
+          message: 'Current password is required',
+        }),
+        expect.objectContaining({
+          path: ['newPassword'],
+          message: 'Password must be at least 8 characters',
+        }),
       ])
     );
   });

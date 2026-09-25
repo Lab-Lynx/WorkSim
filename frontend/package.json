@@ -12,7 +12,10 @@
     "test": "vitest"
   },
   "lint-staged": {
-    "*.{ts,tsx}": ["eslint --fix", "prettier --write"]
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",

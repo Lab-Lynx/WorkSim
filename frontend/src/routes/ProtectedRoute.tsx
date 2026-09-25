@@ -14,4 +14,3 @@ export default function ProtectedRoute() {
 
   return user ? <Outlet /> : <Navigate to={buildLoginRedirect(currentPath)} replace />;
 }
-

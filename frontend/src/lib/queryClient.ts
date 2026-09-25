@@ -106,4 +106,3 @@ export const queryClient: QueryClient = new QueryClient({
     },
   },
 });
-

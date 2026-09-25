@@ -199,7 +199,11 @@ export async function apiRequest<T>(
     if (err instanceof ApiError) {
       throw err;
     }
-    throw new ApiError(0, "Can't reach the server. Check your connection and try again.", 'network');
+    throw new ApiError(
+      0,
+      "Can't reach the server. Check your connection and try again.",
+      'network'
+    );
   } finally {
     clearTimeout(timeoutId);
     if (options?.signal) {

@@ -16,5 +16,4 @@ export default defineConfig({
     port: 5173,
     strictPort: true, // Forces Vite to error out instead of switching ports automatically
   },
-
 });
