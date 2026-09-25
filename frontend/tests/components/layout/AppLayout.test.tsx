@@ -2,11 +2,12 @@
 
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
 import AppLayout from '@/components/layout/AppLayout';
 
+
 // Mutable state containers for dynamic mock returns
-let logoutState: { mutate: vi.Mock; isPending: boolean };
+let logoutState: { mutate: Mock; isPending: boolean };
 let currentTicketState: { data: any; isLoading: boolean; isError: boolean; error: any };
 
 const mockLogoutMutate = vi.fn();
