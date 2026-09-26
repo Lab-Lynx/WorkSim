@@ -62,12 +62,8 @@ export function ConfirmDialog({
           }}
         >
           <div className="flex flex-col space-y-2 text-center sm:text-left">
-            <Title className="text-lg font-semibold text-text-heading">
-              {title}
-            </Title>
-            <Description className="text-sm text-text-muted">
-              {description}
-            </Description>
+            <Title className="text-lg font-semibold text-text-heading">{title}</Title>
+            <Description className="text-sm text-text-muted">{description}</Description>
           </div>
 
           {errorMessage && (
@@ -92,9 +88,7 @@ export function ConfirmDialog({
                 disabled={isPending}
                 onClick={handleConfirm}
               >
-                {isPending && (
-                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
-                )}
+                {isPending && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />}
                 {confirmLabel}
               </Button>
             </Action>

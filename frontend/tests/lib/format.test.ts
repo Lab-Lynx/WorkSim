@@ -7,9 +7,12 @@ describe('format helpers', () => {
       expect(formatDate('2026-09-19T14:05:00.000Z')).toMatch(/19 Sep 2026|18 Sep 2026/);
     });
 
-    it.each(['', 'not-a-date', null, undefined])('returns an em dash for invalid date %j', (value) => {
-      expect(formatDate(value)).toBe('—');
-    });
+    it.each(['', 'not-a-date', null, undefined])(
+      'returns an em dash for invalid date %j',
+      (value) => {
+        expect(formatDate(value)).toBe('—');
+      }
+    );
   });
 
   describe('formatDateTime', () => {
@@ -19,9 +22,12 @@ describe('format helpers', () => {
       );
     });
 
-    it.each(['', 'not-a-date', null, undefined])('returns an em dash for invalid date %j', (value) => {
-      expect(formatDateTime(value)).toBe('—');
-    });
+    it.each(['', 'not-a-date', null, undefined])(
+      'returns an em dash for invalid date %j',
+      (value) => {
+        expect(formatDateTime(value)).toBe('—');
+      }
+    );
   });
 
   describe('formatAmount', () => {

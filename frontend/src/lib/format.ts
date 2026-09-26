@@ -4,6 +4,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
   month: 'short',
   year: 'numeric',
+  timeZone: 'UTC',
 });
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -13,6 +14,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
   hour: '2-digit',
   minute: '2-digit',
   hourCycle: 'h23',
+  timeZone: 'UTC',
 });
 
 function getDateParts(date: Date): Record<string, string> {

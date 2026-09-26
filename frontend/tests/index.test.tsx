@@ -160,4 +160,3 @@ describe('QueryClient defaults and App wiring', () => {
     });
   });
 });
-

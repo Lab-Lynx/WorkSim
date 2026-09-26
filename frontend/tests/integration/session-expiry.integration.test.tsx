@@ -20,7 +20,11 @@ const mockUser: User = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-function createAxiosResponse<T>(data: T, config: InternalAxiosRequestConfig, status = 200): AxiosResponse {
+function createAxiosResponse<T>(
+  data: T,
+  config: InternalAxiosRequestConfig,
+  status = 200
+): AxiosResponse {
   return {
     data: {
       statusCode: status,
@@ -35,7 +39,10 @@ function createAxiosResponse<T>(data: T, config: InternalAxiosRequestConfig, sta
   };
 }
 
-function createAxios401(config: InternalAxiosRequestConfig, message = 'Session expired or invalid'): AxiosError {
+function createAxios401(
+  config: InternalAxiosRequestConfig,
+  message = 'Session expired or invalid'
+): AxiosError {
   return new AxiosError('Request failed with status code 401', 'ERR_BAD_REQUEST', config, null, {
     data: {
       statusCode: 401,
@@ -576,4 +583,3 @@ describe('Session expiry integration', () => {
     expect(useAuthStore.getState().user).toEqual(mockUser);
   });
 });
-

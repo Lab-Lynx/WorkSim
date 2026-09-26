@@ -4,9 +4,7 @@ export interface FormRootErrorProps {
   message?: string | null;
 }
 
-export default function FormRootError({
-  message,
-}: FormRootErrorProps): React.JSX.Element | null {
+export default function FormRootError({ message }: FormRootErrorProps): React.JSX.Element | null {
   if (!message || !message.trim()) {
     return null;
   }

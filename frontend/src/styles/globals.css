@@ -1,7 +1,7 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
 
 @custom-variant dark (&:is([data-theme="dark"] *, .dark *));
 
@@ -82,7 +82,7 @@
 }
 
 :root,
-:root[data-theme="light"] {
+:root[data-theme='light'] {
   --bg-app: #f4f8f6;
   --bg-surface: #ffffff;
   --bg-surface-elevated: #e6f0ec;
@@ -139,7 +139,7 @@
 }
 
 .dark,
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   --bg-app: #031410;
   --bg-surface: #0a1e19;
   --bg-surface-elevated: #112923;

@@ -15,10 +15,7 @@ export type TicketPhaseKey =
 export type TicketPrimaryAction = 'start' | 'submit' | 'resubmit' | 'retry' | 'get_next';
 
 export type MentorAvailability =
-  | 'not_started'
-  | 'enabled'
-  | 'unavailable_after_submit'
-  | 'read_only';
+  'not_started' | 'enabled' | 'unavailable_after_submit' | 'read_only';
 
 export type TicketTab = 'ticket' | 'mentor' | 'submissions';
 
@@ -76,10 +73,7 @@ export function getTicketStatusLabel(status: TicketStatus | string): string {
  * - Never throws: missing expected submission returns matching *_processing phase;
  *   unknown status returns in_progress-safe defaults with mentor read-only.
  */
-export function getTicketPhase(
-  ticket: Ticket,
-  submissions: Submission[]
-): TicketPhaseInfo {
+export function getTicketPhase(ticket: Ticket, submissions: Submission[]): TicketPhaseInfo {
   if (!ticket || !ticket.status) {
     return {
       key: 'in_progress',

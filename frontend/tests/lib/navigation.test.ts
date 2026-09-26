@@ -35,25 +35,19 @@ describe('navigation helpers', () => {
     });
 
     describe('unsafe, external, and protocol-relative destinations', () => {
-      it.each([
-        '//evil.com',
-        '//evil.com/path',
-        '//localhost',
-        '///evil.com',
-        '////evil.com',
-      ])('rejects protocol-relative URL %j', (url) => {
-        expect(getSafeRedirectPath(url)).toBe('/dashboard');
-      });
+      it.each(['//evil.com', '//evil.com/path', '//localhost', '///evil.com', '////evil.com'])(
+        'rejects protocol-relative URL %j',
+        (url) => {
+          expect(getSafeRedirectPath(url)).toBe('/dashboard');
+        }
+      );
 
-      it.each([
-        '/\\evil.com',
-        '\\evil.com',
-        '/\\',
-        '/\\\\evil.com',
-        '\\/evil.com',
-      ])('rejects backslash-prefixed destinations %j', (url) => {
-        expect(getSafeRedirectPath(url)).toBe('/dashboard');
-      });
+      it.each(['/\\evil.com', '\\evil.com', '/\\', '/\\\\evil.com', '\\/evil.com'])(
+        'rejects backslash-prefixed destinations %j',
+        (url) => {
+          expect(getSafeRedirectPath(url)).toBe('/dashboard');
+        }
+      );
 
       it.each([
         'https://evil.com',
@@ -75,16 +69,12 @@ describe('navigation helpers', () => {
         expect(getSafeRedirectPath(url)).toBe('/dashboard');
       });
 
-      it.each([
-        'dashboard',
-        'tickets/42',
-        '..',
-        '../dashboard',
-        './dashboard',
-        'http://[::1',
-      ])('rejects non-leading-slash and invalid URLs %j', (url) => {
-        expect(getSafeRedirectPath(url)).toBe('/dashboard');
-      });
+      it.each(['dashboard', 'tickets/42', '..', '../dashboard', './dashboard', 'http://[::1'])(
+        'rejects non-leading-slash and invalid URLs %j',
+        (url) => {
+          expect(getSafeRedirectPath(url)).toBe('/dashboard');
+        }
+      );
     });
 
     describe('control characters and encoded control characters', () => {
@@ -113,13 +103,12 @@ describe('navigation helpers', () => {
         expect(getSafeRedirectPath(path)).toBe('/dashboard');
       });
 
-      it.each([
-        '/%5cevil.com',
-        '/%2fevil.com',
-        '/%2f%2fevil.com',
-      ])('rejects encoded slashes/backslashes that form external targets %j', (path) => {
-        expect(getSafeRedirectPath(path)).toBe('/dashboard');
-      });
+      it.each(['/%5cevil.com', '/%2fevil.com', '/%2f%2fevil.com'])(
+        'rejects encoded slashes/backslashes that form external targets %j',
+        (path) => {
+          expect(getSafeRedirectPath(path)).toBe('/dashboard');
+        }
+      );
 
       it('rejects malformed percent encoding', () => {
         expect(getSafeRedirectPath('/dashboard%')).toBe('/dashboard');
