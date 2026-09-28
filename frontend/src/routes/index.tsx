@@ -9,6 +9,7 @@ import { ROUTES } from '@/constants';
 
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
@@ -35,6 +36,7 @@ const router = createBrowserRouter([
         children: [
           { path: ROUTES.LOGIN, element: withSuspense(<LoginPage />) },
           { path: ROUTES.REGISTER, element: withSuspense(<RegisterPage />) },
+          { path: ROUTES.FORGOT_PASSWORD, element: withSuspense(<ForgotPasswordPage />) },
         ],
       },
     ],

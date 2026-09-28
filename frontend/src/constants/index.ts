@@ -3,6 +3,7 @@ export const ROUTES = {
   LOGIN: '/login',
   REGISTER: '/register',
   DASHBOARD: '/dashboard',
+  FORGOT_PASSWORD: '/forgot-password',
 } as const;
 
 export const QUERY_KEYS = {

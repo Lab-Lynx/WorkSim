@@ -130,7 +130,7 @@ export default function LoginPage(): React.JSX.Element {
 
       <div className="text-center mt-4">
         <Link
-          to="/forgot-password"
+          to={ROUTES.FORGOT_PASSWORD}
           className="text-sm text-primary underline underline-offset-4 hover:text-primary/90"
         >
           Forgot your password?
