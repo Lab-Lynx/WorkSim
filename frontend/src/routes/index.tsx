@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -17,8 +18,9 @@ const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage'));
 
 function PageLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <p className="text-muted-foreground text-sm">Loading...</p>
+    <div className="flex flex-col items-center justify-center py-12 space-y-3 text-center" role="status">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
     </div>
   );
 }
