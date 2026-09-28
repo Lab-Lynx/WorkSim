@@ -77,7 +77,7 @@ describe('ResetPasswordPage', () => {
     });
 
     it('displays invalid link view when submission returns a 410 error', async () => {
-        const error410 = new ApiError(410, 'token_expired', 'Token has expired' as any);
+        const error410 = new ApiError(410, 'Token has expired', 'api');
         mockMutateAsync.mockRejectedValueOnce(error410);
 
         renderComponent();

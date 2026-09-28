@@ -33,7 +33,7 @@ describe('VerifyEmailPage (FE-071)', () => {
             isSuccess: false,
             error: null,
             data: undefined,
-        } as any);
+        } as unknown as ReturnType<typeof useVerifyEmailModule.useVerifyEmail>);
 
         vi.spyOn(useResendVerificationModule, 'useResendVerification').mockReturnValue({
             resend: mockResend,
@@ -49,7 +49,7 @@ describe('VerifyEmailPage (FE-071)', () => {
             data: undefined,
             isLoading: false,
             isError: false,
-        } as any);
+        } as unknown as ReturnType<typeof useMeModule.useMe>);
     });
 
     afterEach(() => {
@@ -113,7 +113,7 @@ describe('VerifyEmailPage (FE-071)', () => {
         vi.spyOn(useMeModule, 'useMe').mockReturnValue({
             data: { id: '1', email: 'user@domain.com', name: 'User' },
             isLoading: false,
-        } as any);
+        } as unknown as ReturnType<typeof useMeModule.useMe>);
 
         renderComponent(['/verify-email']);
 

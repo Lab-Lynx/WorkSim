@@ -25,18 +25,12 @@ export function VerifyEmailPage() {
         error: resendError,
     } = useResendVerification();
 
-    const [emailInput, setEmailInput] = useState('');
+    const [emailInput, setEmailInput] = useState<string | null>(null);
+    const displayedEmail = emailInput ?? (paramEmail || meUser?.email || '');
     const [verificationSuccess, setVerificationSuccess] = useState(false);
     const [verificationError, setVerificationError] = useState<string | null>(null);
 
     const verifiedTokenRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        const defaultEmail = paramEmail || meUser?.email || '';
-        if (defaultEmail && !emailInput) {
-            setEmailInput(defaultEmail);
-        }
-    }, [paramEmail, meUser?.email, emailInput]);
 
     useEffect(() => {
         if (!token || verifiedTokenRef.current === token) {
@@ -64,8 +58,8 @@ export function VerifyEmailPage() {
 
     const handleResend = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!emailInput.trim()) return;
-        await resend(emailInput.trim());
+        if (!displayedEmail.trim()) return;
+        await resend(displayedEmail.trim());
     };
 
     return (
@@ -140,7 +134,7 @@ export function VerifyEmailPage() {
                                 id="resend-email"
                                 type="email"
                                 placeholder="name@example.com"
-                                value={emailInput}
+                                value={displayedEmail}
                                 onChange={(e) => setEmailInput(e.target.value)}
                                 required
                                 disabled={isResending}
@@ -150,7 +144,7 @@ export function VerifyEmailPage() {
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={isResending || isCoolingDown || !emailInput.trim()}
+                            disabled={isResending || isCoolingDown || !displayedEmail.trim()}
                         >
                             {isResending ? (
                                 <>
