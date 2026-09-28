@@ -1,80 +1,201 @@
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/auth.store';
-import api from '@/lib/axios';
+import { Link } from 'react-router-dom';
+import { registerSchema, type RegisterInput } from '@/schemas/auth.schemas';
+import { useRegister } from '@/hooks/auth/useRegister';
+import { useResendVerification } from '@/hooks/auth/useResendVerification';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { applyServerErrorToForm } from '@/lib/api/errors';
 import { ROUTES } from '@/constants';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import type { User } from '@/types';
+import PasswordInput from '@/components/common/PasswordInput';
+import FormRootError from '@/components/common/FormRootError';
+import SubmitButton from '@/components/common/SubmitButton';
 
-const registerSchema = z.object({
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-});
+export default function RegisterPage(): React.JSX.Element {
+  useDocumentTitle('Create account');
 
-type RegisterFormValues = z.infer<typeof registerSchema>;
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const successHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
-export default function RegisterPage() {
-  const setUser = useAuthStore((state) => state.setUser);
-  const navigate = useNavigate();
+  const register = useRegister();
+  const resend = useResendVerification();
+
   const {
-    register,
+    register: registerField,
     handleSubmit,
-    formState: { errors, isSubmitting },
     setError,
-  } = useForm<RegisterFormValues>({ resolver: zodResolver(registerSchema) });
+    setFocus,
+    formState: { errors },
+  } = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+  });
 
-  const onSubmit = async (data: RegisterFormValues) => {
+  useEffect(() => {
+    if (registeredEmail && successHeadingRef.current) {
+      successHeadingRef.current.focus();
+    }
+  }, [registeredEmail]);
+
+  const onSubmit = async (values: RegisterInput) => {
     try {
-      const response = await api.post<{ user: User }>('/auth/register', data);
-      setUser(response.data.user);
-      navigate(ROUTES.HOME);
-    } catch {
-      setError('root', { message: 'Unable to create account. Try another email.' });
+      await register.mutateAsync(values);
+      setRegisteredEmail(values.email);
+    } catch (err: unknown) {
+      const ui = applyServerErrorToForm(err, { setError }, 'register');
+      if (ui.status === 409) {
+        setFocus('email');
+      }
     }
   };
 
-  return (
-    <Card>
-      <CardContent className="p-6">
-        <h1 className="text-lg font-semibold mb-4 text-foreground">Create account</h1>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div>
-            <input
-              type="email"
-              placeholder="Email"
-              className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
-              {...register('email')}
-            />
-            {errors.email && (
-              <p className="text-destructive text-xs mt-1">{errors.email.message}</p>
-            )}
-          </div>
-          <div>
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
-              {...register('password')}
-            />
-            {errors.password && (
-              <p className="text-destructive text-xs mt-1">{errors.password.message}</p>
-            )}
-          </div>
-          {errors.root && <p className="text-destructive text-xs">{errors.root.message}</p>}
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Creating account...' : 'Create account'}
-          </Button>
-        </form>
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          Already have an account?{' '}
-          <Link to={ROUTES.LOGIN} className="text-primary underline underline-offset-4">
-            Sign in
-          </Link>
+  const handleResend = () => {
+    if (registeredEmail) {
+      resend.resend(registeredEmail);
+    }
+  };
+
+  if (registeredEmail) {
+    return (
+      <div className="flex flex-col">
+        <h1
+          ref={successHeadingRef}
+          tabIndex={-1}
+          className="text-xl font-semibold tracking-tight text-foreground outline-none mb-2"
+        >
+          Check your email
+        </h1>
+        <p className="text-sm text-muted-foreground mb-6">
+          We&apos;ve sent a verification link to{' '}
+          <strong className="font-medium text-foreground">{registeredEmail}</strong>. If it
+          doesn&apos;t arrive, you can send it again.
         </p>
-      </CardContent>
-    </Card>
+
+        {resend.message && (
+          <div className="mb-4 rounded-md border border-primary/20 bg-primary/10 p-3 text-sm text-primary font-medium">
+            {resend.message}
+          </div>
+        )}
+
+        {resend.error && (
+          <div className="mb-4 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive font-medium">
+            {resend.error.message}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleResend}
+            disabled={resend.isPending || resend.isCoolingDown}
+            className="w-full"
+          >
+            {resend.isPending
+              ? 'Sending...'
+              : resend.isCoolingDown
+                ? `Resend in ${resend.cooldownSeconds}s`
+                : 'Resend verification email'}
+          </Button>
+          <Button asChild className="w-full">
+            <Link to={ROUTES.DASHBOARD}>Go to dashboard</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      <h1
+        tabIndex={-1}
+        className="text-xl font-semibold tracking-tight text-foreground outline-none mb-6"
+      >
+        Create your account
+      </h1>
+
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="name">Name</Label>
+          <Input
+            id="name"
+            type="text"
+            autoComplete="name"
+            placeholder="Jane Doe"
+            disabled={register.isPending}
+            aria-describedby={errors.name ? 'name-error' : undefined}
+            aria-invalid={errors.name ? 'true' : 'false'}
+            {...registerField('name')}
+          />
+          {errors.name && (
+            <p id="name-error" className="text-xs text-destructive">
+              {errors.name.message}
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="jane@example.com"
+            disabled={register.isPending}
+            aria-describedby={errors.email ? 'email-error' : undefined}
+            aria-invalid={errors.email ? 'true' : 'false'}
+            {...registerField('email')}
+          />
+          {errors.email && (
+            <p id="email-error" className="text-xs text-destructive">
+              {errors.email.message}
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password">Password</Label>
+          <PasswordInput
+            id="password"
+            autoComplete="new-password"
+            placeholder="••••••••"
+            disabled={register.isPending}
+            aria-describedby={errors.password ? 'password-error' : 'password-hint'}
+            aria-invalid={errors.password ? 'true' : 'false'}
+            {...registerField('password')}
+          />
+          <p id="password-hint" className="text-xs text-muted-foreground">
+            At least 8 characters
+          </p>
+          {errors.password && (
+            <p id="password-error" className="text-xs text-destructive">
+              {errors.password.message}
+            </p>
+          )}
+        </div>
+
+        <FormRootError message={errors.root?.message} />
+
+        <SubmitButton
+          isPending={register.isPending}
+          pendingLabel="Creating account…"
+          className="w-full mt-2"
+        >
+          Create account
+        </SubmitButton>
+      </form>
+
+      <p className="text-center text-sm text-muted-foreground mt-6">
+        Already have an account?{' '}
+        <Link to={ROUTES.LOGIN} className="text-primary underline underline-offset-4 hover:text-primary/90">
+          Log in
+        </Link>
+      </p>
+    </div>
   );
 }
