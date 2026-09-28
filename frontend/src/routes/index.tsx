@@ -10,6 +10,7 @@ import { ROUTES } from '@/constants';
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
           { path: ROUTES.LOGIN, element: withSuspense(<LoginPage />) },
           { path: ROUTES.REGISTER, element: withSuspense(<RegisterPage />) },
           { path: ROUTES.FORGOT_PASSWORD, element: withSuspense(<ForgotPasswordPage />) },
+          { path: '/reset-password', element: withSuspense(<ResetPasswordPage />) },
         ],
       },
     ],
