@@ -288,7 +288,7 @@ describeDb('Doc 9 §9.3.14 & Doc 8 §8.19 Security Integration Tests', () => {
     });
     let json: Record<string, unknown> | null = null;
     try {
-      json = await res.json();
+      json = (await res.json()) as Record<string, unknown>;
     } catch {
       // Non-JSON
     }
@@ -587,7 +587,7 @@ describeDb('Doc 9 §9.3.14 & Doc 8 §8.19 Security Integration Tests', () => {
 
       // Documented 502 response
       expect(res.status).toBe(502);
-      expect(res.json.message).toBe('Could not generate a ticket, please try again');
+      expect(res.json?.message).toBe('Could not generate a ticket, please try again');
 
       // Sentinel key must NOT appear in response body
       expect(JSON.stringify(res.json)).not.toContain(SENTINEL_API_KEY);
@@ -628,7 +628,7 @@ describeDb('Doc 9 §9.3.14 & Doc 8 §8.19 Security Integration Tests', () => {
       });
 
       expect(res.status).toBe(502);
-      expect(res.json.message).toBe('The mentor is unavailable, please try again');
+      expect(res.json?.message).toBe('The mentor is unavailable, please try again');
       expect(JSON.stringify(res.json)).not.toContain(SENTINEL_API_KEY);
       expect(capturedLogStrings.join('\n')).not.toContain(SENTINEL_API_KEY);
     });
@@ -696,7 +696,7 @@ describeDb('Doc 9 §9.3.14 & Doc 8 §8.19 Security Integration Tests', () => {
         const res = await api('GET', '/users/me', { userId: user.id });
 
         expect(res.status).toBe(500);
-        expect(res.json.message).toBe('Internal server error');
+        expect(res.json?.message).toBe('Internal server error');
 
         const bodyStr = JSON.stringify(res.json);
         expect(bodyStr).not.toContain('SELECT');
