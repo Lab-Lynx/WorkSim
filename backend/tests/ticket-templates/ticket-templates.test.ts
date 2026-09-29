@@ -33,7 +33,11 @@ describe('ticket-templates registry (Doc 7 §7.2.8; Doc 8 §8.7; Doc 9 §9.2.7)'
 
   it('ships templates covering React, Node/Express, and Django (D-05)', () => {
     expect(hasTicketTemplate('react-add-button')).toBe(true);
+    expect(hasTicketTemplate('react-add-navigation-page')).toBe(true);
+    expect(hasTicketTemplate('react-dashboard-card')).toBe(true);
     expect(hasTicketTemplate('node-add-route')).toBe(true);
+    expect(hasTicketTemplate('node-add-validation')).toBe(true);
+    expect(hasTicketTemplate('node-service-feature')).toBe(true);
     expect(hasTicketTemplate('django-add-model')).toBe(true);
     expect(hasTicketTemplate('django-task-filtering')).toBe(true);
     expect(hasTicketTemplate('django-custom-action')).toBe(true);
@@ -54,7 +58,18 @@ describe('ticket-templates registry (Doc 7 §7.2.8; Doc 8 §8.7; Doc 9 §9.2.7)'
 
     const nodeTemplate = getTicketTemplate('node-add-route');
     expect(nodeTemplate.category).toBe('backend');
+    expect(nodeTemplate.difficulty).toBe('beginner');
     expect(nodeTemplate.touchedFiles).toContain('src/routes/index.ts');
+
+    const nodeValidation = getTicketTemplate('node-add-validation');
+    expect(nodeValidation.category).toBe('backend');
+    expect(nodeValidation.difficulty).toBe('intermediate');
+    expect(nodeValidation.touchedFiles).toContain('src/validators/notes.validator.ts');
+
+    const nodeService = getTicketTemplate('node-service-feature');
+    expect(nodeService.category).toBe('backend');
+    expect(nodeService.difficulty).toBe('advanced');
+    expect(nodeService.touchedFiles).toContain('src/services/notes.service.ts');
 
     const djangoModel = getTicketTemplate('django-add-model');
     expect(djangoModel.category).toBe('backend');
@@ -207,6 +222,125 @@ describe('ticket-templates registry (Doc 7 §7.2.8; Doc 8 §8.7; Doc 9 §9.2.7)'
         testChecklistStructure: [
           'Integration test verifies card component renders required headings and sections',
           'Test verifies state changes update the card content appropriately',
+        ],
+      });
+    });
+  });
+
+  describe('Node/Express ticket templates (BE-073, BE-037; Doc 7 §7.2.8; FR-31)', () => {
+    // Exact file paths known to exist in Lab-Lynx/express-starter-template
+    const EXPRESS_STARTER_FILES = new Set([
+      'src/app.ts',
+      'src/config.ts',
+      'src/controllers/notes.controller.ts',
+      'src/middleware/error-handler.ts',
+      'src/middleware/validate.ts',
+      'src/routes/index.ts',
+      'src/routes/notes.routes.ts',
+      'src/server.ts',
+      'src/services/notes.service.ts',
+      'src/utils/async-handler.ts',
+      'src/utils/http-error.ts',
+      'src/validators/notes.validator.ts',
+      'tests/health.test.ts',
+      'tests/notes.test.ts',
+    ]);
+
+    const NODE_TEMPLATE_KEYS = [
+      'node-add-route',
+      'node-add-validation',
+      'node-service-feature',
+    ] as const;
+
+    it('ships at least 3 templates for Node/Express with distinct difficulties', () => {
+      const nodeTemplates = getAllTicketTemplates().filter(
+        (t) => t.category === 'backend' && t.key.startsWith('node-'),
+      );
+      expect(nodeTemplates.length).toBeGreaterThanOrEqual(3);
+
+      const difficulties = new Set(nodeTemplates.map((t) => t.difficulty));
+      expect(difficulties.has('beginner')).toBe(true);
+      expect(difficulties.has('intermediate')).toBe(true);
+      expect(difficulties.has('advanced')).toBe(true);
+    });
+
+    it('ensures all touched files across all Node/Express templates exist in the Node starter template', () => {
+      for (const key of NODE_TEMPLATE_KEYS) {
+        const template = getTicketTemplate(key);
+        expect(template.touchedFiles.length).toBeGreaterThan(0);
+        for (const file of template.touchedFiles) {
+          expect(EXPRESS_STARTER_FILES.has(file)).toBe(true);
+          // Never use nonexistent placeholder paths
+          expect(file).not.toBe('src/controllers/health.controller.ts');
+          expect(file.startsWith('src/') || file.startsWith('tests/')).toBe(true);
+          expect(file.endsWith('.ts')).toBe(true);
+        }
+      }
+    });
+
+    it('verifies node-add-route structure and fields', () => {
+      const template = loadTicketTemplate('node-add-route');
+      expect(template).toEqual({
+        key: 'node-add-route',
+        category: 'backend',
+        difficulty: 'beginner',
+        touchedFiles: [
+          'src/routes/index.ts',
+          'src/routes/notes.routes.ts',
+          'src/controllers/notes.controller.ts',
+        ],
+        acceptanceCriteriaStructure: [
+          'Define the endpoint path in the Express router',
+          'Implement the controller handler returning a structured JSON response',
+        ],
+        testChecklistStructure: [
+          'Route returns 200 with expected response payload',
+          'Route handles missing parameters with appropriate HTTP status',
+        ],
+      });
+    });
+
+    it('verifies node-add-validation structure and fields', () => {
+      const template = loadTicketTemplate('node-add-validation');
+      expect(template).toEqual({
+        key: 'node-add-validation',
+        category: 'backend',
+        difficulty: 'intermediate',
+        touchedFiles: [
+          'src/validators/notes.validator.ts',
+          'src/routes/notes.routes.ts',
+          'tests/notes.test.ts',
+        ],
+        acceptanceCriteriaStructure: [
+          'Define schema validation rules using Zod in notes validator',
+          'Attach validate middleware to reject invalid request payloads with 400 Bad Request',
+        ],
+        testChecklistStructure: [
+          'Integration test verifies invalid payloads return 400 with descriptive error message',
+          'Integration test verifies valid request payloads pass validation successfully',
+        ],
+      });
+    });
+
+    it('verifies node-service-feature structure and fields', () => {
+      const template = loadTicketTemplate('node-service-feature');
+      expect(template).toEqual({
+        key: 'node-service-feature',
+        category: 'backend',
+        difficulty: 'advanced',
+        touchedFiles: [
+          'src/services/notes.service.ts',
+          'src/controllers/notes.controller.ts',
+          'src/routes/notes.routes.ts',
+          'tests/notes.test.ts',
+        ],
+        acceptanceCriteriaStructure: [
+          'Implement business logic and data querying methods in notes service',
+          'Connect service logic to controller and expose via REST endpoint',
+        ],
+        testChecklistStructure: [
+          'Unit and integration tests verify service logic produces correct output',
+          'Edge cases such as empty records and errors are handled and tested',
         ],
       });
     });
@@ -459,6 +593,8 @@ describe('ticket-templates registry (Doc 7 §7.2.8; Doc 8 §8.7; Doc 9 §9.2.7)'
       expect(registry.get('react-add-navigation-page')).toBeDefined();
       expect(registry.get('react-dashboard-card')).toBeDefined();
       expect(registry.get('node-add-route')).toBeDefined();
+      expect(registry.get('node-add-validation')).toBeDefined();
+      expect(registry.get('node-service-feature')).toBeDefined();
       expect(registry.get('django-add-model')).toBeDefined();
       expect(registry.get('django-task-filtering')).toBeDefined();
       expect(registry.get('django-custom-action')).toBeDefined();

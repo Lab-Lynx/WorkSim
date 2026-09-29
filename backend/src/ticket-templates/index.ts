@@ -7,7 +7,11 @@ import {
   reactAddNavigationPageTemplate,
   reactDashboardCardTemplate,
 } from './react/index.js';
-import { nodeAddRouteTemplate } from './node-express/node-add-route.template.js';
+import {
+  nodeAddRouteTemplate,
+  nodeAddValidationTemplate,
+  nodeServiceFeatureTemplate,
+} from './node-express/index.js';
 import {
   djangoAddModelTemplate,
   djangoTaskFilteringTemplate,
@@ -19,6 +23,9 @@ export {
   reactAddButtonTemplate,
   reactAddNavigationPageTemplate,
   reactDashboardCardTemplate,
+  nodeAddRouteTemplate,
+  nodeAddValidationTemplate,
+  nodeServiceFeatureTemplate,
   djangoAddModelTemplate,
   djangoTaskFilteringTemplate,
   djangoCustomActionTemplate,
@@ -62,6 +69,8 @@ export const SHIPPED_TICKET_TEMPLATES: readonly TicketTemplate[] = Object.freeze
   reactAddNavigationPageTemplate,
   reactDashboardCardTemplate,
   nodeAddRouteTemplate,
+  nodeAddValidationTemplate,
+  nodeServiceFeatureTemplate,
   djangoAddModelTemplate,
   djangoTaskFilteringTemplate,
   djangoCustomActionTemplate,
