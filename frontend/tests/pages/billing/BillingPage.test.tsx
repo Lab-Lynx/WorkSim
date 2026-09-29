@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BillingPage } from '@/pages/BillingPage';
+import { BillingPage } from '@/pages/billing/BillingPage';
 import { useSubscription } from '@/hooks/billing/useSubscription';
 import { usePayments } from '@/hooks/billing/usePayments';
 import { useStartCheckout } from '@/hooks/billing/useStartCheckout';
