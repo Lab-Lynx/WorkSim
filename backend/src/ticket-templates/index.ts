@@ -4,9 +4,18 @@ import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import { reactAddButtonTemplate } from './react/react-add-button.template.js';
 import { nodeAddRouteTemplate } from './node-express/node-add-route.template.js';
-import { djangoAddModelTemplate } from './django/django-add-model.template.js';
+import {
+  djangoAddModelTemplate,
+  djangoTaskFilteringTemplate,
+  djangoCustomActionTemplate,
+} from './django/index.js';
 
 export type { TicketTemplate };
+export {
+  djangoAddModelTemplate,
+  djangoTaskFilteringTemplate,
+  djangoCustomActionTemplate,
+};
 
 /**
  * Zod schema defining the team-authored ticket template shape (Doc 7 §7.2.8; Doc 8 §8.7).
@@ -45,6 +54,8 @@ export const SHIPPED_TICKET_TEMPLATES: readonly TicketTemplate[] = Object.freeze
   reactAddButtonTemplate,
   nodeAddRouteTemplate,
   djangoAddModelTemplate,
+  djangoTaskFilteringTemplate,
+  djangoCustomActionTemplate,
 ]);
 
 /**
