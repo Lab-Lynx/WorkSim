@@ -2,7 +2,11 @@ import { z } from 'zod';
 import type { TicketTemplate } from '../types/domain.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
-import { reactAddButtonTemplate } from './react/react-add-button.template.js';
+import {
+  reactAddButtonTemplate,
+  reactAddNavigationPageTemplate,
+  reactDashboardCardTemplate,
+} from './react/index.js';
 import { nodeAddRouteTemplate } from './node-express/node-add-route.template.js';
 import {
   djangoAddModelTemplate,
@@ -12,6 +16,9 @@ import {
 
 export type { TicketTemplate };
 export {
+  reactAddButtonTemplate,
+  reactAddNavigationPageTemplate,
+  reactDashboardCardTemplate,
   djangoAddModelTemplate,
   djangoTaskFilteringTemplate,
   djangoCustomActionTemplate,
@@ -52,6 +59,8 @@ export const ticketTemplateSchema = z.object({
  */
 export const SHIPPED_TICKET_TEMPLATES: readonly TicketTemplate[] = Object.freeze([
   reactAddButtonTemplate,
+  reactAddNavigationPageTemplate,
+  reactDashboardCardTemplate,
   nodeAddRouteTemplate,
   djangoAddModelTemplate,
   djangoTaskFilteringTemplate,

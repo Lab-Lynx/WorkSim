@@ -40,7 +40,17 @@ describe('ticket-templates registry (Doc 7 §7.2.8; Doc 8 §8.7; Doc 9 §9.2.7)'
 
     const reactTemplate = getTicketTemplate('react-add-button');
     expect(reactTemplate.category).toBe('frontend');
-    expect(reactTemplate.touchedFiles).toContain('src/App.tsx');
+    expect(reactTemplate.touchedFiles).toContain('src/components/ui/button.tsx');
+
+    const reactNavTemplate = getTicketTemplate('react-add-navigation-page');
+    expect(reactNavTemplate.category).toBe('frontend');
+    expect(reactNavTemplate.difficulty).toBe('intermediate');
+    expect(reactNavTemplate.touchedFiles).toContain('src/components/layout/app-layout.tsx');
+
+    const reactCardTemplate = getTicketTemplate('react-dashboard-card');
+    expect(reactCardTemplate.category).toBe('frontend');
+    expect(reactCardTemplate.difficulty).toBe('advanced');
+    expect(reactCardTemplate.touchedFiles).toContain('src/components/ui/card.tsx');
 
     const nodeTemplate = getTicketTemplate('node-add-route');
     expect(nodeTemplate.category).toBe('backend');
@@ -68,13 +78,138 @@ describe('ticket-templates registry (Doc 7 §7.2.8; Doc 8 §8.7; Doc 9 §9.2.7)'
       key: 'react-add-button',
       category: 'frontend',
       difficulty: 'beginner',
-      touchedFiles: ['src/App.tsx', 'src/components/Button.tsx'],
-      acceptanceCriteriaStructure: ['Add a reusable button', 'Wire it into the page'],
-      testChecklistStructure: ['Unit test the button', 'Smoke-test the page'],
+      touchedFiles: [
+        'src/components/ui/button.tsx',
+        'src/pages/home-page.tsx',
+      ],
+      acceptanceCriteriaStructure: [
+        'Add a new button variant or action with accessible styling',
+        'Integrate the action into the HomePage component',
+      ],
+      testChecklistStructure: [
+        'Smoke test verifies the button renders with appropriate variant classes on HomePage',
+        'Accessible focus and disabled state interactions work correctly',
+      ],
     });
 
     // Verify alias works identically
     expect(getTicketTemplate('react-add-button')).toBe(template);
+  });
+
+  describe('React ticket templates (BE-072, BE-036; Doc 7 §7.2.8; Doc 1 §1.4.1; FR-31)', () => {
+    // Exact file paths known to exist in Lab-Lynx/react_starter_template
+    const REACT_STARTER_FILES = new Set([
+      'src/components/ui/button.tsx',
+      'src/components/ui/card.tsx',
+      'src/components/layout/app-layout.tsx',
+      'src/pages/home-page.tsx',
+      'src/pages/not-found-page.tsx',
+      'src/pages/error-page.tsx',
+      'src/app/routes.tsx',
+      'src/app/routes.test.tsx',
+      'src/app/app.tsx',
+      'src/app/query-client.ts',
+      'src/lib/utils.ts',
+      'src/main.tsx',
+    ]);
+
+    const REACT_TEMPLATE_KEYS = [
+      'react-add-button',
+      'react-add-navigation-page',
+      'react-dashboard-card',
+    ] as const;
+
+    it('ships at least 3 templates for React with distinct difficulties', () => {
+      const reactTemplates = getAllTicketTemplates().filter(
+        (t) => t.category === 'frontend' && t.key.startsWith('react-'),
+      );
+      expect(reactTemplates.length).toBeGreaterThanOrEqual(3);
+
+      const difficulties = new Set(reactTemplates.map((t) => t.difficulty));
+      expect(difficulties.has('beginner')).toBe(true);
+      expect(difficulties.has('intermediate')).toBe(true);
+      expect(difficulties.has('advanced')).toBe(true);
+    });
+
+    it('ensures all touched files across all React templates exist in the React starter template', () => {
+      for (const key of REACT_TEMPLATE_KEYS) {
+        const template = getTicketTemplate(key);
+        expect(template.touchedFiles.length).toBeGreaterThan(0);
+        for (const file of template.touchedFiles) {
+          expect(REACT_STARTER_FILES.has(file)).toBe(true);
+          // Never use nonexistent legacy placeholder paths
+          expect(file).not.toBe('src/App.tsx');
+          expect(file).not.toBe('src/components/Button.tsx');
+          expect(file.startsWith('src/')).toBe(true);
+          expect(file.endsWith('.tsx') || file.endsWith('.ts')).toBe(true);
+        }
+      }
+    });
+
+    it('verifies react-add-button structure and fields', () => {
+      const template = loadTicketTemplate('react-add-button');
+      expect(template).toEqual({
+        key: 'react-add-button',
+        category: 'frontend',
+        difficulty: 'beginner',
+        touchedFiles: [
+          'src/components/ui/button.tsx',
+          'src/pages/home-page.tsx',
+        ],
+        acceptanceCriteriaStructure: [
+          'Add a new button variant or action with accessible styling',
+          'Integrate the action into the HomePage component',
+        ],
+        testChecklistStructure: [
+          'Smoke test verifies the button renders with appropriate variant classes on HomePage',
+          'Accessible focus and disabled state interactions work correctly',
+        ],
+      });
+    });
+
+    it('verifies react-add-navigation-page structure and fields', () => {
+      const template = loadTicketTemplate('react-add-navigation-page');
+      expect(template).toEqual({
+        key: 'react-add-navigation-page',
+        category: 'frontend',
+        difficulty: 'intermediate',
+        touchedFiles: [
+          'src/components/layout/app-layout.tsx',
+          'src/app/routes.tsx',
+          'src/app/routes.test.tsx',
+        ],
+        acceptanceCriteriaStructure: [
+          'Define a new route in the router children array',
+          'Add corresponding navigation link in AppLayout with active state indicator',
+        ],
+        testChecklistStructure: [
+          'Test verifies navigation link renders with active aria-current state when at the route',
+          'Test verifies navigating to the route renders the page without throwing 404',
+        ],
+      });
+    });
+
+    it('verifies react-dashboard-card structure and fields', () => {
+      const template = loadTicketTemplate('react-dashboard-card');
+      expect(template).toEqual({
+        key: 'react-dashboard-card',
+        category: 'frontend',
+        difficulty: 'advanced',
+        touchedFiles: [
+          'src/components/ui/card.tsx',
+          'src/pages/home-page.tsx',
+          'src/app/routes.test.tsx',
+        ],
+        acceptanceCriteriaStructure: [
+          'Compose a structured dashboard widget utilizing CardHeader, CardTitle, and CardContent',
+          'Implement responsive layout and error/empty state fallbacks within the view',
+        ],
+        testChecklistStructure: [
+          'Integration test verifies card component renders required headings and sections',
+          'Test verifies state changes update the card content appropriately',
+        ],
+      });
+    });
   });
 
   describe('Django ticket templates (BE-074, BE-038; Doc 7 §7.2.8; FR-31; D-05)', () => {
@@ -321,6 +456,8 @@ describe('ticket-templates registry (Doc 7 §7.2.8; Doc 8 §8.7; Doc 9 §9.2.7)'
       const registry = buildTicketTemplateRegistry(SHIPPED_TICKET_TEMPLATES);
       expect(registry).toBeInstanceOf(Map);
       expect(registry.get('react-add-button')).toBeDefined();
+      expect(registry.get('react-add-navigation-page')).toBeDefined();
+      expect(registry.get('react-dashboard-card')).toBeDefined();
       expect(registry.get('node-add-route')).toBeDefined();
       expect(registry.get('django-add-model')).toBeDefined();
       expect(registry.get('django-task-filtering')).toBeDefined();
