@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import * as React from 'react';
 import {
   CheckCircle2,
@@ -100,7 +101,8 @@ function getDetails(props: StatusBadgeProps): StatusDetails {
           return {
             label: 'Renewal pending',
             Icon: Clock,
-            variantClass: 'bg-status-in-progress-bg text-status-in-progress-text border-transparent',
+            variantClass:
+              'bg-status-in-progress-bg text-status-in-progress-text border-transparent',
           };
         case 'past_due_access':
         case 'past_due_ended':
@@ -136,7 +138,8 @@ function getDetails(props: StatusBadgeProps): StatusDetails {
           return {
             label: 'Pending',
             Icon: Clock,
-            variantClass: 'bg-status-in-progress-bg text-status-in-progress-text border-transparent',
+            variantClass:
+              'bg-status-in-progress-bg text-status-in-progress-text border-transparent',
           };
         case 'succeeded':
           return {
@@ -163,7 +166,8 @@ function getDetails(props: StatusBadgeProps): StatusDetails {
       const knownLabel = TICKET_PHASE_LABELS[props.phase as TicketPhaseKey];
       if (knownLabel) {
         let Icon = Clock;
-        let variantClass = 'bg-status-in-progress-bg text-status-in-progress-text border-transparent';
+        let variantClass =
+          'bg-status-in-progress-bg text-status-in-progress-text border-transparent';
 
         if (props.phase === 'ready_to_start') {
           Icon = Circle;
@@ -219,13 +223,15 @@ function getDetails(props: StatusBadgeProps): StatusDetails {
           return {
             label: 'Waiting for tests',
             Icon: Clock,
-            variantClass: 'bg-status-in-progress-bg text-status-in-progress-text border-transparent',
+            variantClass:
+              'bg-status-in-progress-bg text-status-in-progress-text border-transparent',
           };
         case 'evaluating':
           return {
             label: 'Evaluating',
             Icon: Clock,
-            variantClass: 'bg-status-in-progress-bg text-status-in-progress-text border-transparent',
+            variantClass:
+              'bg-status-in-progress-bg text-status-in-progress-text border-transparent',
           };
         case 'completed':
           return {

@@ -166,7 +166,12 @@ describe('StatusBadge', () => {
     });
 
     it('renders raw text for unknown string verification state', () => {
-      render(<StatusBadge domain="verification" verified={'PENDING_VERIFICATION' as unknown as boolean} />);
+      render(
+        <StatusBadge
+          domain="verification"
+          verified={'PENDING_VERIFICATION' as unknown as boolean}
+        />
+      );
       expect(screen.getByText('PENDING_VERIFICATION')).toBeInTheDocument();
     });
   });

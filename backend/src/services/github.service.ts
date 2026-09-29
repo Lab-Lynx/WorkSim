@@ -1,11 +1,14 @@
 import { prisma } from '../config/db.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
+import type { GitHubSubmissionState } from '../types/domain.js';
 import * as githubApi from '../integrations/github.js';
 
 const GITHUB_NOT_CONNECTED = 'GitHub is not connected. Connect GitHub to continue';
 const BRANCH_CREATE_FAILED =
   'Could not create the ticket branch on GitHub, please try again';
+const PR_READ_FAILED =
+  'Could not read your pull request from GitHub, please try again';
 
 export const assertGitHubConnected = async (userId: string): Promise<void> => {
   const connection = await prisma.gitHubConnection.findUnique({ where: { userId } });
@@ -74,4 +77,17 @@ export const createTicketBranch = async (
     if (err instanceof ApiError) throw err;
     throw new ApiError(HTTP_STATUS.BAD_GATEWAY, BRANCH_CREATE_FAILED);
   }
+};
+
+/**
+ * Read branch/PR/diff for submitWork (Doc 8 getBranchSubmissionState).
+ * Real Octokit wiring lands with the GitHub epic — callers mock this in tests.
+ */
+export const getBranchSubmissionState = async (
+  userId: string,
+  branchName: string,
+): Promise<GitHubSubmissionState> => {
+  void userId;
+  void branchName;
+  throw new ApiError(HTTP_STATUS.BAD_GATEWAY, PR_READ_FAILED);
 };
