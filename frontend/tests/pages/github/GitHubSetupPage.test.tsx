@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import GitHubSetupPage from '@/pages/github/GitHubSetupPage';
 import * as useGitHubConnectionModule from '@/hooks/github/useGitHubConnection';
@@ -34,6 +34,10 @@ describe('GitHubSetupPage', () => {
         status: 'active',
     };
 
+    function SearchDisplay() {
+        return <span data-testid="current-search">{useLocation().search}</span>;
+    }
+
     beforeEach(() => {
         vi.clearAllMocks();
 
@@ -42,37 +46,40 @@ describe('GitHubSetupPage', () => {
             isLoading: false,
             error: null,
             refetch: mockRefetchConnection,
-        } as any);
+        } as never);
 
         vi.spyOn(useGitHubConnectModule, 'useGitHubConnect').mockReturnValue({
             mutateAsync: mockConnectMutateAsync,
             isPending: false,
             error: null,
-        } as any);
+        } as never);
 
         vi.spyOn(useDisconnectGitHubModule, 'useDisconnectGitHub').mockReturnValue({
             mutateAsync: mockDisconnectMutateAsync,
             isPending: false,
             error: null,
-        } as any);
+        } as never);
 
         vi.spyOn(useCreateRepoModule, 'useCreateRepo').mockReturnValue({
             mutateAsync: mockCreateRepoMutateAsync,
             isPending: false,
             error: null,
-        } as any);
+        } as never);
 
         vi.spyOn(useSubscriptionModule, 'useSubscription').mockReturnValue({
             data: defaultSubscriptionData,
             isLoading: false,
-        } as any);
+        } as never);
     });
 
     const renderPage = (initialEntries = ['/github/setup']) => {
         return render(
             <MemoryRouter initialEntries={initialEntries}>
                 <Routes>
-                    <Route path="/github/setup" element={<GitHubSetupPage />} />
+                    <Route
+                        path="/github/setup"
+                        element={<><GitHubSetupPage /><SearchDisplay /></>}
+                    />
                 </Routes>
             </MemoryRouter>
         );
@@ -85,6 +92,14 @@ describe('GitHubSetupPage', () => {
         expect(
             screen.getByText("Couldn't connect to GitHub. Try again.")
         ).toBeInTheDocument();
+    });
+
+    it('removes only OAuth callback parameters while preserving unrelated query values', async () => {
+        renderPage(['/github/setup?github=error&reason=exchange_failed&tab=repository']);
+
+        await waitFor(() => {
+            expect(screen.getByTestId('current-search')).toHaveTextContent('?tab=repository');
+        });
     });
 
     it('shows blocked notice "Connect GitHub to create your repository." when GitHub is not connected', () => {
@@ -102,12 +117,12 @@ describe('GitHubSetupPage', () => {
         vi.spyOn(useSubscriptionModule, 'useSubscription').mockReturnValue({
             data: { hasAccess: false, status: 'canceled' },
             isLoading: false,
-        } as any);
+        } as never);
         vi.spyOn(useGitHubConnectionModule, 'useGitHubConnection').mockReturnValue({
             data: { connected: true, githubUsername: 'octocat', repo: null },
             isLoading: false,
             refetch: mockRefetchConnection,
-        } as any);
+        } as never);
 
         renderPage();
         expect(
@@ -121,7 +136,7 @@ describe('GitHubSetupPage', () => {
             data: { connected: true, githubUsername: 'octocat', repo: null },
             isLoading: false,
             refetch: mockRefetchConnection,
-        } as any);
+        } as never);
         mockDisconnectMutateAsync.mockResolvedValueOnce(undefined);
 
         renderPage();
@@ -135,7 +150,7 @@ describe('GitHubSetupPage', () => {
         // Confirm dialog opens
         expect(screen.getByRole('alertdialog')).toBeInTheDocument();
 
-        const confirmBtn = screen.getByRole('button', { name: /confirm disconnect/i });
+        const confirmBtn = screen.getByRole('button', { name: /^disconnect$/i });
 
         await act(async () => {
             fireEvent.click(confirmBtn);
@@ -149,9 +164,9 @@ describe('GitHubSetupPage', () => {
             data: { connected: true, githubUsername: 'octocat', repo: null },
             isLoading: false,
             refetch: mockRefetchConnection,
-        } as any);
+        } as never);
 
-        const error403 = { status: 403, message: 'Forbidden action' };
+        const error403 = { status: 403, kind: 'api', message: 'Forbidden action' };
         mockDisconnectMutateAsync.mockRejectedValueOnce(error403);
 
         renderPage();
@@ -161,7 +176,7 @@ describe('GitHubSetupPage', () => {
         });
 
         await act(async () => {
-            fireEvent.click(screen.getByRole('button', { name: /confirm disconnect/i }));
+            fireEvent.click(screen.getByRole('button', { name: /^disconnect$/i }));
         });
 
         await waitFor(() => {
@@ -174,7 +189,7 @@ describe('GitHubSetupPage', () => {
             data: { connected: true, githubUsername: 'octocat', repo: null },
             isLoading: false,
             refetch: mockRefetchConnection,
-        } as any);
+        } as never);
         mockCreateRepoMutateAsync.mockResolvedValueOnce({
             id: 1,
             fullName: 'octocat/my-starter-repo',
@@ -184,6 +199,7 @@ describe('GitHubSetupPage', () => {
         renderPage();
 
         const repoInput = screen.getByLabelText(/repository name/i);
+        fireEvent.click(screen.getByLabelText(/react/i));
 
         await act(async () => {
             fireEvent.change(repoInput, { target: { value: 'my-starter-repo' } });

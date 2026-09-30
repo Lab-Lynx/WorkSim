@@ -1,21 +1,20 @@
 import * as React from 'react';
+import { useEffect } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createRepoSchema } from '@/schemas/github.schemas';
-import { useCreateRepo } from '@/hooks/github/useCreateRepo';
-import { applyServerErrorToForm } from '@/lib/api/errors';
+import { Link } from 'react-router-dom';
+import { createRepoSchema, type CreateRepoInput } from '@/schemas/github.schemas';
+import type { UiError } from '@/lib/api/errors';
 import FormRootError from '@/components/common/FormRootError';
 import SubmitButton from '@/components/common/SubmitButton';
 
 export interface RepoCreateFormProps {
-    onSuccess?: () => void;
-    className?: string;
+    onSubmit: (values: CreateRepoInput) => Promise<void>;
+    isPending: boolean;
+    error: UiError | null;
+    blocked: { message: string; linkTo: string; linkLabel: string } | null;
 }
-
-// Extract Zod input type (before preprocess) and output type (after preprocess)
-type FormInput = z.input<typeof createRepoSchema>;
-type FormOutput = z.output<typeof createRepoSchema>;
 
 const TEMPLATE_OPTIONS = [
     { id: 'react', label: 'React (Vite + TypeScript)' },
@@ -24,43 +23,58 @@ const TEMPLATE_OPTIONS = [
 ] as const;
 
 export default function RepoCreateForm({
-    onSuccess,
-    className = '',
+    onSubmit,
+    isPending,
+    error,
+    blocked,
 }: RepoCreateFormProps): React.JSX.Element {
-    const { mutate, isPending } = useCreateRepo();
-
-    // Pass FormInput as input type, context, and FormOutput as output type
-    const form = useForm<FormInput, unknown, FormOutput>({
+    const form = useForm<z.input<typeof createRepoSchema>, unknown, CreateRepoInput>({
         resolver: zodResolver(createRepoSchema),
         defaultValues: {
             starterTemplate: undefined,
-            repoName: '',
+            repoName: 'work-simulator',
         },
     });
 
     const {
         register,
         handleSubmit,
+        setFocus,
         formState: { errors },
     } = form;
 
-    // handleSubmit passes parsed/validated FormOutput to onSubmit
-    const onSubmit: SubmitHandler<FormOutput> = (data) => {
-        mutate(data, {
-            onSuccess: () => {
-                onSuccess?.();
-            },
-            onError: (error) => {
-                applyServerErrorToForm(error, form);
-            },
-        });
+    useEffect(() => {
+        if (error?.status === 409) {
+            setFocus('repoName');
+        }
+    }, [error?.status, setFocus]);
+
+    const submit: SubmitHandler<CreateRepoInput> = async (values) => {
+        await onSubmit(values);
     };
 
-    return (
-        <form onSubmit={handleSubmit(onSubmit)} className={`space-y-6 ${className}`} noValidate>
-            <FormRootError message={errors.root?.message} />
+    if (blocked) {
+        return (
+            <div role="status" className="rounded-md border border-border bg-muted/40 p-4 text-sm">
+                <span>{blocked.message}</span>{' '}
+                {blocked.linkTo.startsWith('#') ? (
+                    <a href={blocked.linkTo} className="font-medium text-primary underline">
+                        {blocked.linkLabel}
+                    </a>
+                ) : (
+                    <Link to={blocked.linkTo} className="font-medium text-primary underline">
+                        {blocked.linkLabel}
+                    </Link>
+                )}
+            </div>
+        );
+    }
 
-            <fieldset className="space-y-3">
+    return (
+        <form onSubmit={handleSubmit(submit)} className="space-y-6" noValidate>
+            <FormRootError message={error?.message || errors.root?.message} />
+
+            <fieldset disabled={isPending} className="space-y-3">
                 <legend className="text-sm font-semibold text-foreground">
                     Starter Template <span className="text-destructive">*</span>
                 </legend>
@@ -75,7 +89,6 @@ export default function RepoCreateForm({
                                 type="radio"
                                 id={`template-${option.id}`}
                                 value={option.id}
-                                disabled={isPending}
                                 {...register('starterTemplate')}
                                 className="h-4 w-4 text-primary border-input focus:ring-primary"
                             />
@@ -107,8 +120,8 @@ export default function RepoCreateForm({
                 )}
             </div>
 
-            <SubmitButton isPending={isPending} pendingLabel="Creating..." className="w-full">
-                Create Repository
+            <SubmitButton isPending={isPending} pendingLabel="Creating repository…" className="w-full">
+                Create repository
             </SubmitButton>
         </form>
     );

@@ -1,147 +1,113 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import GitHubConnectionCard, {
-    GITHUB_PERMISSIONS_TEXT,
-} from '@/components/github/GitHubConnectionCard';
-import * as useGitHubConnectionModule from '@/hooks/github/useGitHubConnection';
-import * as useGitHubConnectModule from '@/hooks/github/useGitHubConnect';
-import * as useDisconnectGitHubModule from '@/hooks/github/useDisconnectGitHub';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import GitHubConnectionCard, { GITHUB_PERMISSIONS_TEXT } from '@/components/github/GitHubConnectionCard';
+import type { UiError } from '@/lib/api/errors';
+import type { GitHubConnectionSummary } from '@/types';
 
-vi.mock('@/hooks/github/useGitHubConnection');
-vi.mock('@/hooks/github/useGitHubConnect');
-vi.mock('@/hooks/github/useDisconnectGitHub');
+describe('GitHubConnectionCard (FE-078)', () => {
+  const connection: GitHubConnectionSummary = {
+    connected: false,
+    githubLogin: null,
+    repo: null,
+  };
+  const baseProps = {
+    connection,
+    hasAccess: true,
+    oauthResult: null,
+    onDismissResult: vi.fn(),
+    isConnecting: false,
+    connectError: null as UiError | null,
+    onConnect: vi.fn(),
+    onDisconnectClick: vi.fn(),
+  };
 
-describe('GitHubConnectionCard', () => {
-    const mockConnectMutateAsync = vi.fn();
-    const mockDisconnectMutateAsync = vi.fn();
-    const mockAssign = vi.fn();
+  beforeEach(() => vi.clearAllMocks());
 
-    beforeEach(() => {
-        vi.clearAllMocks();
+  it('renders the permission wording from its constant', () => {
+    render(<MemoryRouter><GitHubConnectionCard {...baseProps} /></MemoryRouter>);
+    expect(screen.getByText(GITHUB_PERMISSIONS_TEXT)).toBeInTheDocument();
+  });
 
-        vi.spyOn(useGitHubConnectionModule, 'useGitHubConnection').mockReturnValue({
-            data: { connected: false, githubLogin: null, repo: null },
-            isLoading: false,
-            isError: false,
-            error: null,
-        } as ReturnType<typeof useGitHubConnectionModule.useGitHubConnection>);
+  it('disables connect without access and links to billing', () => {
+    render(<MemoryRouter><GitHubConnectionCard {...baseProps} hasAccess={false} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: /connect github/i })).toBeDisabled();
+    expect(screen.getByText(/an active subscription is required/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Billing' })).toHaveAttribute('href', '/billing');
+  });
 
-        vi.spyOn(useGitHubConnectModule, 'useGitHubConnect').mockReturnValue({
-            mutateAsync: mockConnectMutateAsync,
-            isPending: false,
-            isError: false,
-            error: null,
-        } as unknown as ReturnType<typeof useGitHubConnectModule.useGitHubConnect>);
+  it('delegates connect and shows the redirecting state', () => {
+    const onConnect = vi.fn();
+    render(<MemoryRouter><GitHubConnectionCard {...baseProps} onConnect={onConnect} /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Connect GitHub' }));
+    expect(onConnect).toHaveBeenCalledOnce();
 
-        vi.spyOn(useDisconnectGitHubModule, 'useDisconnectGitHub').mockReturnValue({
-            mutateAsync: mockDisconnectMutateAsync,
-            isPending: false,
-            isError: false,
-            error: null,
-        } as unknown as ReturnType<typeof useDisconnectGitHubModule.useDisconnectGitHub>);
+    render(<MemoryRouter><GitHubConnectionCard {...baseProps} isConnecting /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: /redirecting to github/i })).toBeDisabled();
+  });
 
-        Object.defineProperty(window, 'location', {
-            writable: true,
-            value: { assign: mockAssign, href: '' },
-        });
-    });
+  it('renders connected state and delegates disconnection to the page', () => {
+    const onDisconnectClick = vi.fn();
+    render(
+      <MemoryRouter>
+        <GitHubConnectionCard
+          {...baseProps}
+          connection={{ connected: true, githubLogin: 'octocat', repo: null }}
+          onDisconnectClick={onDisconnectClick}
+        />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(/connected as @octocat/i);
+    fireEvent.click(screen.getByRole('button', { name: /disconnect github/i }));
+    expect(onDisconnectClick).toHaveBeenCalledOnce();
+  });
 
-    it('renders permission text from constant', () => {
-        render(
-            <MemoryRouter>
-                <GitHubConnectionCard hasAccess={true} />
-            </MemoryRouter>
-        );
+  it('shows OAuth success with status semantics and supports dismissal', () => {
+    const onDismissResult = vi.fn();
+    render(
+      <MemoryRouter>
+        <GitHubConnectionCard
+          {...baseProps}
+          oauthResult={{ status: 'connected' }}
+          onDismissResult={onDismissResult}
+        />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('GitHub connected.');
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(onDismissResult).toHaveBeenCalledOnce();
+  });
 
-        expect(screen.getByText(GITHUB_PERMISSIONS_TEXT)).toBeInTheDocument();
-    });
+  it('maps unknown OAuth reasons to generic text', () => {
+    render(
+      <MemoryRouter>
+        <GitHubConnectionCard
+          {...baseProps}
+          oauthResult={{ status: 'error', reason: 'raw_untrusted_reason_string' }}
+        />
+      </MemoryRouter>
+    );
+    const alert = screen.getByRole('alert');
+    expect(alert).not.toHaveTextContent('raw_untrusted_reason_string');
+    expect(alert).toHaveTextContent("Couldn't connect to GitHub. Try again.");
+  });
 
-    it('disables connect button when hasAccess is false and shows subscription reason with billing link', () => {
-        render(
-            <MemoryRouter>
-                <GitHubConnectionCard hasAccess={false} />
-            </MemoryRouter>
-        );
-
-        const button = screen.getByRole('button', { name: /connect github/i });
-        expect(button).toBeDisabled();
-
-        expect(screen.getByText(/an active subscription is required\./i)).toBeInTheDocument();
-        const billingLink = screen.getByRole('link', { name: /billing/i });
-        expect(billingLink).toHaveAttribute('href', '/billing');
-    });
-
-    it('redirects to OAuth URL on successful connection attempt', async () => {
-        mockConnectMutateAsync.mockResolvedValueOnce(
-            'https://github.com/login/oauth/authorize?state=xyz'
-        );
-
-        render(
-            <MemoryRouter>
-                <GitHubConnectionCard hasAccess={true} />
-            </MemoryRouter>
-        );
-
-        const button = screen.getByRole('button', { name: /connect github/i });
-        fireEvent.click(button);
-
-        expect(mockConnectMutateAsync).toHaveBeenCalled();
-    });
-
-    it('shows pending label while connecting', () => {
-        vi.spyOn(useGitHubConnectModule, 'useGitHubConnect').mockReturnValue({
-            mutateAsync: mockConnectMutateAsync,
-            isPending: true,
-            isError: false,
-            error: null,
-        } as unknown as ReturnType<typeof useGitHubConnectModule.useGitHubConnect>);
-
-        render(
-            <MemoryRouter>
-                <GitHubConnectionCard hasAccess={true} />
-            </MemoryRouter>
-        );
-
-        expect(screen.getByText(/redirecting to github…/i)).toBeInTheDocument();
-    });
-
-    it('renders success alert with role="status" when connected', () => {
-        vi.spyOn(useGitHubConnectionModule, 'useGitHubConnection').mockReturnValue({
-            data: { connected: true, githubLogin: 'octocat', repo: null },
-            isLoading: false,
-            isError: false,
-            error: null,
-        } as ReturnType<typeof useGitHubConnectionModule.useGitHubConnection>);
-
-        render(
-            <MemoryRouter>
-                <GitHubConnectionCard hasAccess={true} />
-            </MemoryRouter>
-        );
-
-        const alert = screen.getByRole('status');
-        expect(alert).toBeInTheDocument();
-        expect(alert).toHaveTextContent(/connected as @octocat/i);
-    });
-
-    it('renders error alert with role="alert" without echoing unknown reason strings', () => {
-        vi.spyOn(useGitHubConnectModule, 'useGitHubConnect').mockReturnValue({
-            mutateAsync: mockConnectMutateAsync,
-            isPending: false,
-            isError: true,
-            error: new Error('raw_untrusted_reason_string'),
-        } as unknown as ReturnType<typeof useGitHubConnectModule.useGitHubConnect>);
-
-        render(
-            <MemoryRouter>
-                <GitHubConnectionCard hasAccess={true} />
-            </MemoryRouter>
-        );
-
-        const alert = screen.getByRole('alert');
-        expect(alert).toBeInTheDocument();
-        expect(alert).not.toHaveTextContent('raw_untrusted_reason_string');
-        expect(alert).toHaveTextContent(/failed to connect to github/i);
-    });
+  it('renders the page-provided connect error', () => {
+    render(
+      <MemoryRouter>
+        <GitHubConnectionCard
+          {...baseProps}
+          connectError={{
+            status: 403,
+            kind: 'api',
+            message: 'Reconnect GitHub.',
+            action: 'reconnect_github',
+            isNotFound: false,
+            isTimeout: false,
+          }}
+        />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Reconnect GitHub.');
+  });
 });

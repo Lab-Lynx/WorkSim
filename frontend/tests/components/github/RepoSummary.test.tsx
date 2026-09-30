@@ -1,7 +1,7 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { createRef } from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RepoSummary } from '@/components/github/RepoSummary';
-import { COPY_FEEDBACK_MS } from '@/components/common/CopyButton';
 
 // Mock lib/github module functions
 vi.mock('@/lib/github', () => ({
@@ -14,89 +14,42 @@ vi.mock('@/lib/github', () => ({
 }));
 
 describe('RepoSummary Component', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        vi.useFakeTimers();
+    beforeEach(() => vi.clearAllMocks());
+
+    const repo = {
+        fullName: 'owner/repository-name',
+        starterTemplate: 'react' as const,
+        defaultBranch: 'main',
+    };
+
+    it('renders the repository object in a focusable heading', () => {
+        render(<RepoSummary repo={repo} />);
+
+        const heading = screen.getByRole('heading', { name: /owner\/repository-name/ });
+        expect(heading).toHaveAttribute('tabindex', '-1');
+        expect(screen.getByText('react')).toBeInTheDocument();
+        expect(screen.getByText('main')).toBeInTheDocument();
     });
 
-    afterEach(() => {
-        vi.useRealTimers();
-    });
-
-    it('renders repository name as plain text when buildRepoUrl returns null', () => {
-        render(<RepoSummary repositoryName="invalid-repo-format" />);
-
-        const textElement = screen.getByText('invalid-repo-format');
-        expect(textElement.tagName).not.toBe('A');
-        expect(screen.queryByRole('link')).toBeNull();
-    });
-
-    it('renders external link when buildRepoUrl returns a valid URL', () => {
-        render(<RepoSummary repositoryName="owner/repository-name" />);
+    it('renders a safe external repository link', () => {
+        render(<RepoSummary repo={repo} />);
 
         const link = screen.getByRole('link', { name: /owner\/repository-name/i });
-        expect(link).toBeInTheDocument();
         expect(link).toHaveAttribute('href', 'https://github.com/owner/repository-name');
         expect(link).toHaveAttribute('target', '_blank');
     });
 
-    it('renders starter template name when provided', () => {
-        render(
-            <RepoSummary
-                repositoryName="owner/repository-name"
-                templateName="nextjs-starter-template"
-            />
-        );
+    it('renders untrusted repository names as plain text', () => {
+        render(<RepoSummary repo={{ ...repo, fullName: 'invalid-repo-format' }} />);
 
-        expect(screen.getByText(/created from template:/i)).toBeInTheDocument();
-        expect(screen.getByText('nextjs-starter-template')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'invalid-repo-format' })).toBeInTheDocument();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
 
-    it('renders default branch link and command copy button', () => {
-        render(
-            <RepoSummary
-                repositoryName="owner/repository-name"
-                defaultBranch="develop"
-            />
-        );
+    it('forwards the heading ref so the page can focus it after creation', () => {
+        const ref = createRef<HTMLHeadingElement>();
+        render(<RepoSummary ref={ref} repo={repo} />);
 
-        const branchLink = screen.getByRole('link', { name: /develop/i });
-        expect(branchLink).toBeInTheDocument();
-        expect(branchLink).toHaveAttribute('href', 'https://github.com/owner/repository-name/tree/develop');
-
-        const copyBtn = screen.getByRole('button', { name: /copy branch command/i });
-        expect(copyBtn).toBeInTheDocument();
-    });
-
-    it('handles clipboard copy interaction and status reset timer', async () => {
-        const writeTextMock = vi.fn().mockResolvedValue(undefined);
-        Object.assign(navigator, {
-            clipboard: {
-                writeText: writeTextMock,
-            },
-        });
-
-        render(
-            <RepoSummary
-                repositoryName="owner/repository-name"
-                defaultBranch="main"
-            />
-        );
-
-        const copyBtn = screen.getByRole('button', { name: /copy branch command/i });
-
-        await act(async () => {
-            fireEvent.click(copyBtn);
-        });
-
-        expect(writeTextMock).toHaveBeenCalledWith('git checkout main');
-        expect(screen.getByRole('status')).toHaveTextContent('Copied');
-
-        // Advance timers past COPY_FEEDBACK_MS to verify reset
-        act(() => {
-            vi.advanceTimersByTime(COPY_FEEDBACK_MS);
-        });
-
-        expect(screen.getByRole('status')).toHaveTextContent('');
+        expect(ref.current).toBe(screen.getByRole('heading', { name: /owner\/repository-name/ }));
     });
 });
