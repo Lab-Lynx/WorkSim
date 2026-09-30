@@ -1,0 +1,5 @@
+import { UserRound } from 'lucide-react';
+import { useExperienceProfile } from '@/hooks/profile/useExperienceProfile';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+export default function ProfilePage() { const profile = useExperienceProfile(); return <div className="flex flex-col gap-8"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Your story</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Experience profile</h1><p className="mt-2 text-muted-foreground">Keep your background and goals ready for every work session.</p></div><Card className="max-w-2xl rounded-2xl"><CardHeader><div className="flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><UserRound className="size-5" /></div><CardTitle>Profile details</CardTitle></div></CardHeader><CardContent><p className="text-sm text-muted-foreground">{profile.isLoading ? 'Loading your profile…' : profile.data ? 'Your experience profile is ready.' : 'Add your first profile item to make your workspace more personal.'}</p></CardContent></Card></div>; }
