@@ -1,7 +1,10 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import SubmissionCard from '@/components/ticket/SubmissionCard';
 import type { Submission } from '@/types';
+import { useSubmission } from '@/hooks/submissions/useSubmission';
+
+vi.mock('@/hooks/submissions/useSubmission', () => ({ useSubmission: vi.fn() }));
 
 const mockSubmission: Submission = {
     id: 'sub-123',
@@ -29,28 +32,48 @@ const mockSubmission: Submission = {
 };
 
 describe('SubmissionCard Component', () => {
-    it('renders the evaluation view by default', () => {
-        render(<SubmissionCard submission={mockSubmission} />);
-
-        // Checks default active tab button
-        const evalTab = screen.getByRole('tab', { name: /evaluation/i });
-        expect(evalTab).toHaveAttribute('aria-selected', 'true');
-
-        // Checks Evaluation content rendering
-        expect(screen.getByText('Attempt 1 Evaluation')).toBeInTheDocument();
-        expect(screen.getByText('Great job on the implementation!')).toBeInTheDocument();
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(useSubmission).mockImplementation((_ticketId, _attempt, options) => ({
+            query: {
+                data: options?.includeDiff ? mockSubmission : undefined,
+                isLoading: false,
+                isError: false,
+                error: null,
+                refetch: vi.fn(),
+            },
+            showSlowHint: false,
+            pollingStopped: false,
+            restartPolling: vi.fn(),
+        } as unknown as ReturnType<typeof useSubmission>));
     });
 
-    it('switches to diff view when the diff tab is clicked', () => {
-        render(<SubmissionCard submission={mockSubmission} />);
+    const renderSubmission = (props: Partial<React.ComponentProps<typeof SubmissionCard>> = {}) =>
+        render(
+            <SubmissionCard
+                ticketId="ticket-1"
+                submission={mockSubmission}
+                canRetry={false}
+                isRetrying={false}
+                onRetry={vi.fn()}
+                onSettled={vi.fn()}
+                {...props}
+            />
+        );
 
-        const diffTab = screen.getByRole('tab', { name: /diff changes/i });
-        fireEvent.click(diffTab);
+    it('renders the evaluation view by default', () => {
+        renderSubmission();
 
-        // Checks active state transfer
-        expect(diffTab).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByText('Attempt 1 — First review: feedback only, not scored')).toBeInTheDocument();
+        expect(screen.getByText('Great job on the implementation!')).toBeInTheDocument();
+        expect(screen.getByText('Not scored')).toBeInTheDocument();
+    });
 
-        // Checks DiffViewer content rendering
-        expect(screen.getByText('changes.patch')).toBeInTheDocument();
+    it('loads and renders the diff when requested', () => {
+        renderSubmission();
+
+        fireEvent.click(screen.getByRole('button', { name: 'View diff' }));
+        expect(screen.getByRole('region', { name: 'Diff' })).toBeInTheDocument();
+        expect(screen.getByText('+console.log("Hello World");')).toBeInTheDocument();
     });
 });
