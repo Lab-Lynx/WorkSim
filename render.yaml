@@ -1,0 +1,69 @@
+services:
+  - type: web
+    name: worksim-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci && npm run prisma:generate && npx prisma migrate deploy && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+        - .github/workflows/backend-ci.yml
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 10000
+      - key: ACCESS_TOKEN_EXPIRES_IN
+        value: 15m
+      - key: REFRESH_TOKEN_EXPIRES_IN
+        value: 30d
+      - key: BCRYPT_SALT_ROUNDS
+        value: 10
+      - key: GITHUB_REQUESTED_SCOPE
+        value: repo,write:repo_hook
+      # Sensitive secrets (marked sync: false — set via Render Dashboard)
+      - key: DATABASE_URL
+        sync: false
+      - key: ACCESS_TOKEN_SECRET
+        sync: false
+      - key: REFRESH_TOKEN_SECRET
+        sync: false
+      - key: CLIENT_URL
+        sync: false
+      - key: CHAPA_SECRET_KEY
+        sync: false
+      - key: CHAPA_WEBHOOK_SECRET
+        sync: false
+      - key: CHAPA_RETURN_URL
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CALLBACK_URL
+        sync: false
+      - key: GITHUB_TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      # Optional configurations (uncomment/add in dashboard if needed)
+      # - key: CHAPA_PRICE
+      #   sync: false
+      # - key: CHAPA_CURRENCY
+      #   sync: false
+      # - key: GITHUB_WEBHOOK_SECRET
+      #   sync: false
+      # - key: GEMINI_MODEL
+      #   sync: false
+      # - key: GROQ_MODEL
+      #   sync: false
+      # - key: COOKIE_DOMAIN
+      #   sync: false
