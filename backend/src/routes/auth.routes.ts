@@ -14,11 +14,12 @@ import * as authController from '../controllers/auth.controller.js';
 
 const router = Router();
 
-// EP-01 – EP-04 (already built — extended in place, not redesigned)
+// EP-01 – EP-05 (already built — extended in place, not redesigned)
 router.post('/register', authLimiter, validate(registerSchema), authController.register);
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
 router.post('/refresh', authController.refresh);
-router.post('/logout', authController.logout);
+router.post('/logout', authMiddleware, authController.logout);
+router.post('/logout-all', authMiddleware, authController.logoutAll);
 router.get('/me', authMiddleware, authController.me);
 
 // EP-06 – EP-10

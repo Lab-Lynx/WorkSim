@@ -33,6 +33,7 @@ export class ErrorResponse<E = any> implements IApiResponse {
   success: boolean = false; // Always false
   message: string;
   errors: E; // Clean semantic naming for client parsing!
+  data: null = null; // Standardized envelope contract (Doc 5 §5.1)
 
   constructor(statusCode: number, message: string, errors: E) {
     this.statusCode = statusCode;

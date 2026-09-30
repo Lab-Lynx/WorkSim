@@ -148,7 +148,7 @@ Every value here is a constant, not a product decision. Values marked "Doc 6" co
 
 | Constant | Value | Source |
 |---|---|---|
-| `API_BASE_PATH` | `'/api/v1'` | Doc 5, A-19 (assumed real; verify) |
+| `API_BASE_PATH` | `'/api/v1'` | D-34 template audit: verified against `frontend/.env`, `frontend/.env.example`, and the existing Axios `baseURL` |
 | `REQUEST_TIMEOUT_DEFAULT_MS` | `30000` | Doc 6, A-42 |
 | `REQUEST_TIMEOUT_LONG_MS` | `60000` (applied by `apiRequest` to EP-22, EP-23, EP-27, EP-28, EP-30) | Doc 6, A-42 |
 | `CHECKOUT_POLL_INTERVAL_MS` | `2000` | Doc 6, A-42 |
@@ -1491,7 +1491,7 @@ Rules for every page:
 
 # 10.23 App Wiring
 
-These are behaviors in the template's existing App/router entry and `QueryClient` setup. Doc 7 does not name those files (A-57), so they are specified as required behavior. Do not create parallel files for them.
+These are behaviors in the template's existing App/router entry and `QueryClient` setup: `frontend/src/main.tsx` renders `frontend/src/App.tsx`; `frontend/src/routes/index.tsx` exports the React Router data-router object; and `frontend/src/lib/queryClient.ts` exports the singleton provided by `frontend/src/App.tsx`. They are specified as required behavior here, not as new parallel files (D-34).
 
 ## 10.23.1 Route table
 
@@ -1532,7 +1532,7 @@ No `/admin`, no landing page, no other route exists in V1.
 2. Otherwise navigate with `replace` to `buildLoginRedirect(currentPathAndSearch)` with router state `{ notice: 'session_expired' }`.
 3. Then call `queryClient.clear()`.
 
-The callback runs outside React, so it needs the router's imperative navigation (for React Router's data routers, the router object). If the template's router has none, hold a navigate function in a module variable set by a top-level component. Verify against the template (Q-19).
+The callback runs outside React, so it uses the imperative `navigate` method on the data-router object exported by `frontend/src/routes/index.tsx`. A module-level navigate setter is unnecessary for this template (D-34).
 
 ## 10.23.4 Values other systems must match
 

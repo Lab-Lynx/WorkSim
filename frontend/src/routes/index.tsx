@@ -1,15 +1,19 @@
+/* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import AuthLayout from '@/components/layouts/AuthLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import AuthLayout from '@/components/layout/AuthLayout';
 import { ROUTES } from '@/constants';
 
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
+const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage'));
 
 function PageLoader() {
   return (
@@ -34,6 +38,9 @@ const router = createBrowserRouter([
         children: [
           { path: ROUTES.LOGIN, element: withSuspense(<LoginPage />) },
           { path: ROUTES.REGISTER, element: withSuspense(<RegisterPage />) },
+          { path: ROUTES.FORGOT_PASSWORD, element: withSuspense(<ForgotPasswordPage />) },
+          { path: ROUTES.RESET_PASSWORD, element: withSuspense(<ResetPasswordPage />) },
+          { path: ROUTES.VERIFY_EMAIL, element: withSuspense(<VerifyEmailPage />) },
         ],
       },
     ],
@@ -43,7 +50,10 @@ const router = createBrowserRouter([
     children: [
       {
         element: <DashboardLayout />,
-        children: [{ path: ROUTES.HOME, element: withSuspense(<DashboardPage />) }],
+        children: [
+          { path: ROUTES.HOME, element: withSuspense(<DashboardPage />) },
+          { path: ROUTES.DASHBOARD, element: withSuspense(<DashboardPage />) },
+        ],
       },
     ],
   },
