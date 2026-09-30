@@ -8,11 +8,19 @@ import profileRouter from './profile.routes.js';
 
 const router = Router();
 
+// Doc 7 §7.9 Phase 9 Item 80 — Route registrations under /api/v1 prefix:
+// Existing routers:
 router.use('/auth', authRouter);
 router.use('/users', userRouter);
 router.use('/tickets', ticketRouter);
 router.use('/tickets', mentorRouter);
 router.use('/tickets', submissionRouter);
 router.use('/profile', profileRouter);
+
+// Pending/deferred routers (to be mounted as their feature branches land):
+// router.use('/subscriptions', subscriptionRouter);
+// router.use('/payments', paymentRouter);
+// router.use('/github', githubRouter);
+// router.use('/webhooks', webhookRouter);
 
 export default router;
