@@ -49,27 +49,27 @@ describe('BillingPage', () => {
         } as unknown as UseQueryResult<Payment[], ApiError>);
 
         mockUseStartCheckout.mockReturnValue({
-            mutate: mockMutateCheckout,
+            mutateAsync: mockMutateCheckout,
             isPending: false,
             isError: false,
             error: null,
         } as unknown as UseMutationResult<StartCheckoutResponse, ApiError, void>);
 
         mockUseCancelSubscription.mockReturnValue({
-            mutate: mockMutateCancel,
+            mutateAsync: mockMutateCancel,
             isPending: false,
             isError: false,
             error: null,
         } as unknown as UseMutationResult<Subscription, ApiError, void>);
     });
 
-    it('renders loading indicator when fetching subscription or payments', () => {
+    it('renders subscription loading state independently', () => {
         mockUseSubscription.mockReturnValueOnce({
             isLoading: true,
         } as unknown as UseQueryResult<SubscriptionStatusResponse, ApiError>);
 
         render(<BillingPage />);
-        expect(screen.getByTestId('billing-loading')).toBeInTheDocument();
+        expect(screen.getByRole('status', { name: /loading subscription/i })).toBeInTheDocument();
     });
 
     it('renders error state and retry button if queries fail', () => {
@@ -84,19 +84,52 @@ describe('BillingPage', () => {
 
         expect(screen.getByRole('alert')).toHaveTextContent('Failed to load subscription');
 
-        const retryBtn = screen.getByRole('button', { name: /retry loading/i });
+        const retryBtn = screen.getByRole('button', { name: /retry subscription/i });
         fireEvent.click(retryBtn);
         expect(mockRefetchSub).toHaveBeenCalledTimes(1);
     });
 
-    it('renders "Subscribe Now" button when user has no active subscription', () => {
+    it('keeps payment history visible when only the subscription request fails', () => {
+        mockUseSubscription.mockReturnValue({
+            data: undefined,
+            isLoading: false,
+            isError: true,
+            error: { message: 'Failed to load subscription' } as ApiError,
+            refetch: mockRefetchSub,
+        } as unknown as UseQueryResult<SubscriptionStatusResponse, ApiError>);
+        mockUsePayments.mockReturnValue({
+            data: [
+                {
+                    id: 'pay-1',
+                    amount: '29.99',
+                    currency: 'USD',
+                    status: 'succeeded',
+                    createdAt: '2026-09-01T12:00:00.000Z',
+                    paidAt: '2026-09-01T12:00:00.000Z',
+                },
+            ],
+            isLoading: false,
+            isError: false,
+            error: null,
+        } as unknown as UseQueryResult<Payment[], ApiError>);
+
         render(<BillingPage />);
 
-        const subscribeBtn = screen.getByRole('button', { name: /subscribe now/i });
+        expect(screen.getByRole('alert')).toHaveTextContent('Failed to load subscription');
+        expect(screen.getByText('Payment history')).toBeInTheDocument();
+        expect(screen.getAllByText('29.99 USD')).toHaveLength(2);
+    });
+
+    it('starts checkout from the subscribe action', () => {
+        mockMutateCheckout.mockImplementation(() => new Promise(() => {}));
+        render(<BillingPage />);
+
+        const subscribeBtn = screen.getByRole('button', { name: /^subscribe$/i });
         expect(subscribeBtn).toBeInTheDocument();
 
         fireEvent.click(subscribeBtn);
-        expect(mockMutateCheckout).toHaveBeenCalledTimes(1);
+        expect(mockMutateCheckout).toHaveBeenCalledOnce();
+        expect(screen.getByRole('button', { name: /opening chapa/i })).toBeDisabled();
     });
 
     it('renders "Cancel Subscription" button when subscription is active', () => {
@@ -106,6 +139,7 @@ describe('BillingPage', () => {
                     id: 'sub-1',
                     status: 'active',
                     currentPeriodEnd: '2026-10-01T00:00:00.000Z',
+                    canceledAt: null,
                 },
                 hasAccess: true,
             },
@@ -116,8 +150,8 @@ describe('BillingPage', () => {
 
         render(<BillingPage />);
 
-        expect(screen.getByText(/active/i)).toBeInTheDocument();
-        expect(screen.getByText(/renews on 1 Oct 2026/i)).toBeInTheDocument();
+        expect(screen.getByText('Active')).toBeInTheDocument();
+        expect(screen.getByText(/next billing date: 1 Oct 2026/i)).toBeInTheDocument();
 
         const cancelBtn = screen.getByRole('button', { name: /cancel subscription/i });
         expect(cancelBtn).toBeInTheDocument();
@@ -128,9 +162,10 @@ describe('BillingPage', () => {
         expect(screen.getByText('Cancel Subscription?')).toBeInTheDocument();
 
         const confirmBtn = screen.getByRole('button', { name: /confirm cancellation/i });
+        mockMutateCancel.mockResolvedValueOnce({});
         fireEvent.click(confirmBtn);
 
-        expect(mockMutateCancel).toHaveBeenCalledTimes(1);
+        expect(mockMutateCancel).toHaveBeenCalledOnce();
     });
 
     it('renders warning banner for past_due or canceled status', () => {
@@ -140,6 +175,7 @@ describe('BillingPage', () => {
                     id: 'sub-1',
                     status: 'canceled',
                     currentPeriodEnd: '2026-10-01T00:00:00.000Z',
+                    canceledAt: '2026-09-01T00:00:00.000Z',
                 },
                 hasAccess: true,
             },
@@ -150,9 +186,8 @@ describe('BillingPage', () => {
 
         render(<BillingPage />);
 
-        expect(screen.getByRole('alert')).toHaveTextContent(
-            'Your subscription has been canceled. You still have access until 1 Oct 2026.'
-        );
+        expect(screen.getByText('Canceled')).toBeInTheDocument();
+        expect(screen.getByText('Access ends 1 Oct 2026.')).toBeInTheDocument();
     });
 
     it('renders payment history table when payments are present', () => {
@@ -176,7 +211,7 @@ describe('BillingPage', () => {
 
         render(<BillingPage />);
 
-        expect(screen.getByText('29.99 USD')).toBeInTheDocument();
-        expect(screen.getByText('succeeded')).toBeInTheDocument();
+        expect(screen.getAllByText('29.99 USD')).toHaveLength(2);
+        expect(screen.getAllByText('Succeeded')).toHaveLength(2);
     });
 });

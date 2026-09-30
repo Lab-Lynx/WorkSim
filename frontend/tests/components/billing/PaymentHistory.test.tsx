@@ -1,19 +1,16 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PaymentHistory from '@/components/billing/PaymentHistory';
-import type { Payment } from '@/types/api';
-
-vi.mock('@/hooks/billing/usePayments');
-
-import { usePayments } from '@/hooks/billing/usePayments';
+import type { Payment } from '@/types';
 
 const mockPayments: Payment[] = [
     {
         id: 'pay_101',
         amount: '100.00',
         currency: 'ETB',
-        status: 'completed',
+        status: 'succeeded',
         createdAt: '2026-03-01T10:00:00Z',
+        paidAt: '2026-03-01T10:00:00Z',
     },
     {
         id: 'pay_102',
@@ -21,6 +18,7 @@ const mockPayments: Payment[] = [
         currency: 'ETB',
         status: 'failed',
         createdAt: '2026-02-01T10:00:00Z',
+        paidAt: null,
     },
 ];
 
@@ -41,69 +39,30 @@ describe('PaymentHistory Component', () => {
         });
     });
 
-    it('renders loading state correctly', () => {
-        vi.mocked(usePayments).mockReturnValue({
-            data: undefined,
-            isLoading: true,
-            error: null,
-        } as unknown as ReturnType<typeof usePayments>);
-
-        render(<PaymentHistory />);
-        expect(screen.getByRole('status')).toBeInTheDocument();
+    it('renders the empty state when there are no payments', () => {
+        render(<PaymentHistory payments={[]} />);
+        expect(screen.getByRole('heading', { name: 'No payments yet.' })).toBeInTheDocument();
     });
 
-    it('renders error state when hook fails', () => {
-        vi.mocked(usePayments).mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: new Error('Failed to load payments'),
-        } as unknown as ReturnType<typeof usePayments>);
+    it('renders table and cards from the supplied data without sorting', () => {
+        render(<PaymentHistory payments={mockPayments} />);
 
-        render(<PaymentHistory />);
-        expect(screen.getByText('Failed to load payment history')).toBeInTheDocument();
+        expect(screen.getAllByText('100.00 ETB')).toHaveLength(4);
+        expect(screen.getAllByText('Succeeded')).toHaveLength(2);
     });
 
-    it('renders empty state when payment list is empty', () => {
-        vi.mocked(usePayments).mockReturnValue({
-            data: [],
-            isLoading: false,
-            error: null,
-        } as unknown as ReturnType<typeof usePayments>);
+    it('uses paidAt when available and createdAt otherwise', () => {
+        render(<PaymentHistory payments={mockPayments} />);
 
-        render(<PaymentHistory />);
-        expect(screen.getByText('No payment history found.')).toBeInTheDocument();
+        expect(screen.getAllByText('1 Mar 2026')).toHaveLength(2);
+        expect(screen.getAllByText('1 Feb 2026')).toHaveLength(2);
     });
 
-    it('renders both table and card views with the same payment data', () => {
-        vi.mocked(usePayments).mockReturnValue({
-            data: mockPayments,
-            isLoading: false,
-            error: null,
-        } as unknown as ReturnType<typeof usePayments>);
-
-        render(<PaymentHistory />);
-
-        const amounts = screen.getAllByText('100.00 ETB');
-        expect(amounts.length).toBeGreaterThanOrEqual(2);
-
-        const completedBadges = screen.getAllByText('completed');
-        expect(completedBadges.length).toBeGreaterThanOrEqual(2);
-    });
-
-    it('ensures only one rendering is visible at a time to screen readers', () => {
-        vi.mocked(usePayments).mockReturnValue({
-            data: mockPayments,
-            isLoading: false,
-            error: null,
-        } as unknown as ReturnType<typeof usePayments>);
-
-        const { container } = render(<PaymentHistory />);
+    it('exposes only the visible responsive rendering to screen readers', () => {
+        const { container } = render(<PaymentHistory payments={mockPayments} />);
 
         const tableWrapper = container.querySelector('.hidden.md\\:block');
         const cardWrapper = container.querySelector('.block.md\\:hidden');
-
-        expect(tableWrapper).toBeInTheDocument();
-        expect(cardWrapper).toBeInTheDocument();
 
         expect(tableWrapper).toHaveAttribute('aria-hidden', 'false');
         expect(cardWrapper).toHaveAttribute('aria-hidden', 'true');

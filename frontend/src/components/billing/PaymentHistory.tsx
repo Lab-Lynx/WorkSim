@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { usePayments } from '@/hooks/billing/usePayments';
 import { formatAmount, formatDate } from '@/lib/format';
 import StatusBadge from '@/components/common/StatusBadge';
-import ErrorState from '@/components/common/ErrorState';
 import EmptyState from '@/components/common/EmptyState';
-import type { Payment } from '@/types/api';
+import type { Payment } from '@/types';
 
-export default function PaymentHistory(): React.JSX.Element {
-    const { data: payments, isLoading, error, refetch } = usePayments();
+export interface PaymentHistoryProps {
+    payments: Payment[];
+}
+
+export default function PaymentHistory({ payments }: PaymentHistoryProps): React.JSX.Element {
     const [isDesktop, setIsDesktop] = useState<boolean>(() => {
         if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
         return window.matchMedia('(min-width: 768px)').matches;
@@ -24,30 +25,8 @@ export default function PaymentHistory(): React.JSX.Element {
         }
     }, []);
 
-    if (isLoading) {
-        return (
-            <div role="status" aria-label="Loading payment history" className="p-4 text-center text-sm text-text-muted">
-                Loading payments…
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <ErrorState
-                message="Failed to load payment history"
-                onRetry={() => void refetch()}
-            />
-        );
-    }
-
-    if (!payments || payments.length === 0) {
-        return (
-            <EmptyState
-                title="No payments"
-                description="No payment history found."
-            />
-        );
+    if (payments.length === 0) {
+        return <EmptyState title="No payments yet." />;
     }
 
     return (
@@ -67,9 +46,9 @@ export default function PaymentHistory(): React.JSX.Element {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                        {payments.map((payment: Payment) => (
+                        {payments.map((payment) => (
                             <tr key={payment.id} className="hover:bg-surface-elevated/50 transition-colors">
-                                <td className="py-3 px-4 text-text-body">{formatDate(payment.createdAt)}</td>
+                                <td className="py-3 px-4 text-text-body">{formatDate(payment.paidAt ?? payment.createdAt)}</td>
                                 <td className="py-3 px-4 font-medium text-foreground">
                                     {formatAmount(payment.amount, payment.currency)}
                                 </td>
@@ -88,13 +67,13 @@ export default function PaymentHistory(): React.JSX.Element {
                 className="block md:hidden flex flex-col gap-3"
                 aria-hidden={isDesktop}
             >
-                {payments.map((payment: Payment) => (
+                {payments.map((payment) => (
                     <div
                         key={payment.id}
                         className="p-4 rounded-lg border border-border bg-surface flex flex-col gap-2"
                     >
                         <div className="flex items-center justify-between">
-                            <span className="text-xs text-text-muted">{formatDate(payment.createdAt)}</span>
+                            <span className="text-xs text-text-muted">{formatDate(payment.paidAt ?? payment.createdAt)}</span>
                             <StatusBadge domain="payment" status={payment.status} />
                         </div>
                         <div className="flex items-center justify-between mt-1">

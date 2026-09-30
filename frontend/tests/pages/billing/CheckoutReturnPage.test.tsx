@@ -25,6 +25,7 @@ function renderComponent(initialEntry = '/checkout/return?session_id=cs_test_123
         <MemoryRouter initialEntries={[initialEntry]}>
             <Routes>
                 <Route path="/checkout/return" element={<CheckoutReturnPage />} />
+                <Route path="/github" element={<div>GitHub setup</div>} />
             </Routes>
         </MemoryRouter>
     );
@@ -40,17 +41,20 @@ describe('CheckoutReturnPage', () => {
         vi.useRealTimers();
     });
 
-    it('renders missing session ID state when session_id param is absent', () => {
+    it('ignores provider query parameters and continues confirming when no active access exists', () => {
         mockedUseSubscription.mockReturnValue({
-            data: undefined,
+            data: {
+                hasAccess: true,
+                subscription: { status: 'canceled' },
+            },
             isLoading: false,
             isError: false,
-        } as ReturnType<typeof useSubscription>);
+        } as unknown as ReturnType<typeof useSubscription>);
 
-        renderComponent('/checkout/return');
+        renderComponent('/checkout/return?provider_state=returned&session_id=ignored');
 
-        expect(screen.getByText('Invalid Checkout Session')).toBeInTheDocument();
-        expect(screen.getByText('No checkout session ID was found in the URL.')).toBeInTheDocument();
+        expect(screen.getByText('Verifying Your Payment')).toBeInTheDocument();
+        expect(screen.queryByText('Subscription Confirmed!')).not.toBeInTheDocument();
     });
 
     it('renders loading state while polling subscription status', () => {
@@ -72,6 +76,7 @@ describe('CheckoutReturnPage', () => {
         mockedUseSubscription.mockReturnValue({
             data: {
                 hasAccess: true,
+                subscription: { status: 'active' },
             },
             isLoading: false,
             isError: false,
@@ -79,13 +84,18 @@ describe('CheckoutReturnPage', () => {
 
         renderComponent();
 
-        expect(screen.getByText('Subscription Confirmed!')).toBeInTheDocument();
+        expect(screen.getByText('Subscription Confirmed')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /connect github/i })).toHaveAttribute(
+            'href',
+            '/github'
+        );
     });
 
     it('navigates to dashboard when clicking button on success state', () => {
         mockedUseSubscription.mockReturnValue({
             data: {
                 hasAccess: true,
+                subscription: { status: 'active' },
             },
             isLoading: false,
             isError: false,
