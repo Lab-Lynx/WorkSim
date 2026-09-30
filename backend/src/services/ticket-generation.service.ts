@@ -7,22 +7,21 @@ import type {
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import * as gemini from '../integrations/gemini.js';
-
 import {
   loadTicketTemplate as lookupTemplate,
   getAllTicketTemplates,
 } from '../ticket-templates/index.js';
+
+export type TicketTemplateSelectionStrategy = (
+  userId: string,
+) => Promise<TicketTemplateSelection> | TicketTemplateSelection;
 
 /** Load a team-authored template; unknown keys fail loudly (Doc 8). */
 export const loadTicketTemplate = (templateKey: string): TicketTemplate => {
   return lookupTemplate(templateKey);
 };
 
-/**
- * Q-09 selection is unsettled — keep strategy isolated.
- * Default: first registry entry (deterministic, swappable in tests via mock).
- */
-export const selectNextTicketTemplate = async (
+const defaultSelectionStrategy: TicketTemplateSelectionStrategy = async (
   userId: string,
 ): Promise<TicketTemplateSelection> => {
   void userId;
@@ -34,14 +33,45 @@ export const selectNextTicketTemplate = async (
   return { templateKey: first.key };
 };
 
+let currentSelectionStrategy: TicketTemplateSelectionStrategy = defaultSelectionStrategy;
+
+export const setTicketTemplateSelectionStrategy = (
+  strategy: TicketTemplateSelectionStrategy,
+): void => {
+  currentSelectionStrategy = strategy;
+};
+
+export const resetTicketTemplateSelectionStrategy = (): void => {
+  currentSelectionStrategy = defaultSelectionStrategy;
+};
+
+/**
+ * Q-09 selection is unsettled — keep strategy isolated in one function.
+ * Default: first registry entry (deterministic, swappable in tests or future strategy).
+ */
+export const selectNextTicketTemplate = async (
+  userId: string,
+): Promise<TicketTemplateSelection> => {
+  return await currentSelectionStrategy(userId);
+};
+
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === 'string');
 
 const validateTicketContent = (
-  content: TicketContent,
+  content: unknown,
   template: TicketTemplate,
 ): TicketContent => {
-  const required: (keyof TicketContent)[] = [
+  if (!content || typeof content !== 'object' || Array.isArray(content)) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_GATEWAY,
+      'Could not generate a ticket, please try again',
+    );
+  }
+
+  const raw = content as Record<string, unknown>;
+
+  const requiredFields = [
     'title',
     'scenario',
     'category',
@@ -49,10 +79,10 @@ const validateTicketContent = (
     'touchedFiles',
     'acceptanceCriteria',
     'testChecklist',
-  ];
+  ] as const;
 
-  for (const key of required) {
-    if (content[key] === undefined || content[key] === null) {
+  for (const key of requiredFields) {
+    if (raw[key] === undefined || raw[key] === null) {
       throw new ApiError(
         HTTP_STATUS.BAD_GATEWAY,
         'Could not generate a ticket, please try again',
@@ -61,13 +91,13 @@ const validateTicketContent = (
   }
 
   if (
-    typeof content.title !== 'string' ||
-    typeof content.scenario !== 'string' ||
-    typeof content.category !== 'string' ||
-    typeof content.difficulty !== 'string' ||
-    !isStringArray(content.touchedFiles) ||
-    !isStringArray(content.acceptanceCriteria) ||
-    !isStringArray(content.testChecklist)
+    typeof raw.title !== 'string' ||
+    typeof raw.scenario !== 'string' ||
+    typeof raw.category !== 'string' ||
+    typeof raw.difficulty !== 'string' ||
+    !isStringArray(raw.touchedFiles) ||
+    !isStringArray(raw.acceptanceCriteria) ||
+    !isStringArray(raw.testChecklist)
   ) {
     throw new ApiError(
       HTTP_STATUS.BAD_GATEWAY,
@@ -77,10 +107,10 @@ const validateTicketContent = (
 
   // Fixed structure fields must match the template (Doc 8 / FR-31).
   if (
-    content.category !== template.category ||
-    content.difficulty !== template.difficulty ||
-    content.touchedFiles.length !== template.touchedFiles.length ||
-    content.touchedFiles.some((f, i) => f !== template.touchedFiles[i])
+    raw.category !== template.category ||
+    raw.difficulty !== template.difficulty ||
+    raw.touchedFiles.length !== template.touchedFiles.length ||
+    raw.touchedFiles.some((f, i) => f !== template.touchedFiles[i])
   ) {
     throw new ApiError(
       HTTP_STATUS.BAD_GATEWAY,
@@ -88,14 +118,15 @@ const validateTicketContent = (
     );
   }
 
+  // Strip extra fields and return clean TicketContent
   return {
-    title: content.title,
-    scenario: content.scenario,
-    category: content.category,
-    difficulty: content.difficulty,
-    touchedFiles: [...content.touchedFiles],
-    acceptanceCriteria: [...content.acceptanceCriteria],
-    testChecklist: [...content.testChecklist],
+    title: raw.title,
+    scenario: raw.scenario,
+    category: template.category,
+    difficulty: template.difficulty,
+    touchedFiles: [...template.touchedFiles],
+    acceptanceCriteria: [...raw.acceptanceCriteria],
+    testChecklist: [...raw.testChecklist],
   };
 };
 
@@ -103,9 +134,11 @@ export const generateTicketContent = async (
   template: TicketTemplate,
   context: TicketGenerationContext,
 ): Promise<TicketContent> => {
-  void context;
   try {
-    const raw = await gemini.generateTicketWording(template);
+    const raw = await (gemini.generateTicketWording as (
+      t: TicketTemplate,
+      c?: TicketGenerationContext,
+    ) => Promise<unknown>)(template, context);
     return validateTicketContent(raw, template);
   } catch (err) {
     if (err instanceof ApiError) throw err;
