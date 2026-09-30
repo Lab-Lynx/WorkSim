@@ -2,11 +2,34 @@ import { z } from 'zod';
 import type { TicketTemplate } from '../types/domain.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
-import { reactAddButtonTemplate } from './react/react-add-button.template.js';
-import { nodeAddRouteTemplate } from './node-express/node-add-route.template.js';
-import { djangoAddModelTemplate } from './django/django-add-model.template.js';
+import {
+  reactAddButtonTemplate,
+  reactAddNavigationPageTemplate,
+  reactDashboardCardTemplate,
+} from './react/index.js';
+import {
+  nodeAddRouteTemplate,
+  nodeAddValidationTemplate,
+  nodeServiceFeatureTemplate,
+} from './node-express/index.js';
+import {
+  djangoAddModelTemplate,
+  djangoTaskFilteringTemplate,
+  djangoCustomActionTemplate,
+} from './django/index.js';
 
 export type { TicketTemplate };
+export {
+  reactAddButtonTemplate,
+  reactAddNavigationPageTemplate,
+  reactDashboardCardTemplate,
+  nodeAddRouteTemplate,
+  nodeAddValidationTemplate,
+  nodeServiceFeatureTemplate,
+  djangoAddModelTemplate,
+  djangoTaskFilteringTemplate,
+  djangoCustomActionTemplate,
+};
 
 /**
  * Zod schema defining the team-authored ticket template shape (Doc 7 §7.2.8; Doc 8 §8.7).
@@ -43,8 +66,14 @@ export const ticketTemplateSchema = z.object({
  */
 export const SHIPPED_TICKET_TEMPLATES: readonly TicketTemplate[] = Object.freeze([
   reactAddButtonTemplate,
+  reactAddNavigationPageTemplate,
+  reactDashboardCardTemplate,
   nodeAddRouteTemplate,
+  nodeAddValidationTemplate,
+  nodeServiceFeatureTemplate,
   djangoAddModelTemplate,
+  djangoTaskFilteringTemplate,
+  djangoCustomActionTemplate,
 ]);
 
 /**

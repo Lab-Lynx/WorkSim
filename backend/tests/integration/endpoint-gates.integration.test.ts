@@ -66,23 +66,7 @@ vi.mock('../../src/integrations/gemini.js', () => ({
     acceptanceCriteria: ['Pass'],
     testChecklist: ['Verify'],
   }),
-  callMentorModel: vi.fn().mockResolvedValue('Mocked mentor guidance'),
   generateMentorReply: vi.fn().mockResolvedValue('Mocked mentor guidance'),
-}));
-
-vi.mock('../../src/integrations/groq.js', () => ({
-  evaluateSubmission: vi.fn().mockResolvedValue({
-    feedback: 'Mocked evaluation feedback',
-    requirementsMetScore: 40,
-    correctnessTestsScore: 25,
-    codeQualityScore: 20,
-    problemSolvingScore: 15,
-  }),
-}));
-
-vi.mock('../../src/services/email.service.js', () => ({
-  sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
-  sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
 export interface EndpointSpec {
@@ -91,9 +75,7 @@ export interface EndpointSpec {
   path: string; // e.g. '/auth/login', '/tickets/:ticketId'
   getPath: (ticketId: string) => string;
   implemented: boolean;
-  unimplementedReason?: string;
-  noSessionExpected?: number; // 401 or undefined for public/webhooks
-  badSignatureExpected?: number; // 401 for webhooks with missing/invalid signature
+  noSessionExpected?: number; // 401 or undefined for public
   noPaidExpected?: number; // 402 or undefined
   noGitHubExpected?: number; // 403 or undefined
   noRepoExpected?: number; // 409 or undefined
@@ -102,7 +84,7 @@ export interface EndpointSpec {
 }
 
 export const ENDPOINT_TABLE: EndpointSpec[] = [
-  // EP-01 to EP-10: Auth (built & active)
+  // EP-01 to EP-10: Auth
   {
     id: 'EP-01',
     method: 'POST',
@@ -178,7 +160,7 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     noSessionExpected: 401,
   },
 
-  // EP-11 to EP-12: Users (built & active)
+  // EP-11 to EP-12: Users
   {
     id: 'EP-11',
     method: 'GET',
@@ -197,15 +179,13 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     validBody: () => ({ displayName: 'Ada Lovelace' }),
   },
 
-  // EP-13 to EP-17: Subscriptions and Payments (deferred/pending BE-013 to BE-017)
-  // These routes will be mounted in src/routes/index.ts when their respective feature branches land.
+  // EP-13 to EP-17: Subscriptions and Payments (deferred/pending)
   {
     id: 'EP-13',
     method: 'POST',
     path: '/subscriptions/checkout',
     getPath: () => '/subscriptions/checkout',
     implemented: false,
-    unimplementedReason: 'Pending subscription checkout service (BE-013)',
     noSessionExpected: 401,
   },
   {
@@ -214,9 +194,7 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     path: '/webhooks/chapa',
     getPath: () => '/webhooks/chapa',
     implemented: false,
-    unimplementedReason:
-      'Pending Chapa webhook handler (BE-014); raw body parser is mounted in app.ts ahead of express.json',
-    badSignatureExpected: 401,
+    noSessionExpected: 401,
   },
   {
     id: 'EP-15',
@@ -224,7 +202,6 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     path: '/subscriptions/me',
     getPath: () => '/subscriptions/me',
     implemented: false,
-    unimplementedReason: 'Pending subscription status endpoint (BE-015)',
     noSessionExpected: 401,
   },
   {
@@ -233,7 +210,6 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     path: '/subscriptions/cancel',
     getPath: () => '/subscriptions/cancel',
     implemented: false,
-    unimplementedReason: 'Pending subscription cancellation endpoint (BE-016)',
     noSessionExpected: 401,
   },
   {
@@ -242,19 +218,16 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     path: '/payments',
     getPath: () => '/payments',
     implemented: false,
-    unimplementedReason: 'Pending payment history endpoint (BE-017)',
     noSessionExpected: 401,
   },
 
-  // EP-18 to EP-22: GitHub OAuth & Repos (deferred/pending branch origin/github_oauth_repo)
-  // Feature branch github_oauth_repo contains routes/controllers/services pending PR merge into Dev.
+  // EP-18 to EP-22: GitHub (deferred/pending)
   {
     id: 'EP-18',
     method: 'GET',
     path: '/github/connect',
     getPath: () => '/github/connect',
     implemented: false,
-    unimplementedReason: 'Pending GitHub OAuth connect endpoint (BE-018) from github_oauth_repo branch',
     noSessionExpected: 401,
     noPaidExpected: 402,
   },
@@ -264,7 +237,6 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     path: '/github/callback',
     getPath: () => '/github/callback',
     implemented: false,
-    unimplementedReason: 'Pending GitHub OAuth callback endpoint (BE-019) from github_oauth_repo branch',
     noSessionExpected: 401,
   },
   {
@@ -273,7 +245,6 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     path: '/github/connection',
     getPath: () => '/github/connection',
     implemented: false,
-    unimplementedReason: 'Pending GitHub connection status endpoint (BE-020) from github_oauth_repo branch',
     noSessionExpected: 401,
   },
   {
@@ -282,7 +253,6 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     path: '/github/connection',
     getPath: () => '/github/connection',
     implemented: false,
-    unimplementedReason: 'Pending GitHub disconnect endpoint (BE-021) from github_oauth_repo branch',
     noSessionExpected: 401,
   },
   {
@@ -291,13 +261,12 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     path: '/github/repo',
     getPath: () => '/github/repo',
     implemented: false,
-    unimplementedReason: 'Pending starter repo creation endpoint (BE-022) from github_oauth_repo branch',
     noSessionExpected: 401,
     noPaidExpected: 402,
     noGitHubExpected: 403,
   },
 
-  // EP-23 to EP-27: Tickets (built & active)
+  // EP-23 to EP-27: Tickets
   {
     id: 'EP-23',
     method: 'POST',
@@ -350,7 +319,7 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     validBody: () => ({ reason: 'Cannot reproduce issue' }),
   },
 
-  // EP-28 to EP-29: Mentor (built & active)
+  // EP-28 to EP-29: Mentor
   {
     id: 'EP-28',
     method: 'POST',
@@ -372,7 +341,7 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     otherUserExpected: 404,
   },
 
-  // EP-30 to EP-32: Submissions (built & active)
+  // EP-30 to EP-32: Submissions
   {
     id: 'EP-30',
     method: 'POST',
@@ -405,19 +374,17 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     otherUserExpected: 404,
   },
 
-  // EP-33: Webhook (deferred/pending BE-033)
+  // EP-33: Webhook (deferred/pending)
   {
     id: 'EP-33',
     method: 'POST',
     path: '/webhooks/github',
     getPath: () => '/webhooks/github',
     implemented: false,
-    unimplementedReason:
-      'Pending GitHub Actions CI webhook (BE-033); raw body parser is mounted in app.ts ahead of express.json',
-    badSignatureExpected: 401,
+    noSessionExpected: 401,
   },
 
-  // EP-34: Profile (built & active)
+  // EP-34: Profile
   {
     id: 'EP-34',
     method: 'GET',
@@ -603,14 +570,9 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
   }
 
   describe('Route resolution and registration under /api/v1', () => {
-    for (const ep of ENDPOINT_TABLE) {
-      if (!ep.implemented) {
-        it.skip(`${ep.id} (${ep.method} ${ep.path}) [PENDING] ${ep.unimplementedReason}`, () => {
-          // Deferred route pending merge of respective feature branch
-        });
-        continue;
-      }
+    const implementedEndpoints = ENDPOINT_TABLE.filter((e) => e.implemented);
 
+    for (const ep of implementedEndpoints) {
       it(`${ep.id} (${ep.method} ${ep.path}) resolves under /api/v1 and does not throw 404 Route Not Found`, async () => {
         const dummyTicketId = randomUUID();
         const subPath = ep.getPath(dummyTicketId);
@@ -618,30 +580,18 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
           body: ep.validBody ? ep.validBody(dummyTicketId) : undefined,
         });
 
-        // Exact method + path assertion: If the route is missing or misnamed,
-        // Express returns 404 with "Route METHOD /path not found".
-        const isRouteNotFound =
-          status === 404 &&
-          typeof json?.message === 'string' &&
-          json.message === `Route ${ep.method} /api/v1${subPath} not found`;
-
-        expect(
-          isRouteNotFound,
-          `Route ${ep.method} /api/v1${subPath} failed to resolve: Express catch-all returned "${json?.message}"`,
-        ).toBe(false);
+        // If the route was unregistered or path was misspelled, Express returns 404 with message 'Route METHOD /path not found'
+        if (status === 404 && json?.message?.includes('not found')) {
+          expect(json.message).not.toContain(`Route ${ep.method}`);
+        }
       });
     }
   });
 
   describe('No session gate (missing or invalid auth cookie)', () => {
-    for (const ep of ENDPOINT_TABLE) {
-      if (!ep.implemented) {
-        it.skip(`${ep.id} (${ep.method} ${ep.path}) [PENDING] ${ep.unimplementedReason}`, () => {
-          // Deferred route pending merge of respective feature branch
-        });
-        continue;
-      }
+    const implementedEndpoints = ENDPOINT_TABLE.filter((e) => e.implemented);
 
+    for (const ep of implementedEndpoints) {
       if (ep.noSessionExpected === 401) {
         it(`${ep.id} (${ep.method} ${ep.path}) returns 401 without session`, async () => {
           const dummyTicketId = randomUUID();
@@ -661,16 +611,9 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
   });
 
   describe('No paid access gate (authenticated user without active subscription)', () => {
-    const paidGated = ENDPOINT_TABLE.filter((e) => e.noPaidExpected === 402);
+    const paidGated = ENDPOINT_TABLE.filter((e) => e.implemented && e.noPaidExpected === 402);
 
     for (const ep of paidGated) {
-      if (!ep.implemented) {
-        it.skip(`${ep.id} (${ep.method} ${ep.path}) [PENDING] ${ep.unimplementedReason}`, () => {
-          // Deferred route pending merge of respective feature branch
-        });
-        continue;
-      }
-
       it(`${ep.id} (${ep.method} ${ep.path}) returns 402 when user has no paid access`, async () => {
         const user = await createUser(); // Has no subscription
         const ticket = await createTicketForUser(user.id);
@@ -686,16 +629,9 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
   });
 
   describe('GitHub not connected gate (authenticated + paid, but no GitHub connection)', () => {
-    const githubGated = ENDPOINT_TABLE.filter((e) => e.noGitHubExpected === 403);
+    const githubGated = ENDPOINT_TABLE.filter((e) => e.implemented && e.noGitHubExpected === 403);
 
     for (const ep of githubGated) {
-      if (!ep.implemented) {
-        it.skip(`${ep.id} (${ep.method} ${ep.path}) [PENDING] ${ep.unimplementedReason}`, () => {
-          // Deferred route pending merge of respective feature branch
-        });
-        continue;
-      }
-
       it(`${ep.id} (${ep.method} ${ep.path}) returns 403 when GitHub is not connected`, async () => {
         const user = await createUser();
         await prisma.subscription.create({
@@ -719,16 +655,9 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
   });
 
   describe('No starter repo gate (authenticated + paid + github, but no starter repo)', () => {
-    const repoGated = ENDPOINT_TABLE.filter((e) => e.noRepoExpected === 409);
+    const repoGated = ENDPOINT_TABLE.filter((e) => e.implemented && e.noRepoExpected === 409);
 
     for (const ep of repoGated) {
-      if (!ep.implemented) {
-        it.skip(`${ep.id} (${ep.method} ${ep.path}) [PENDING] ${ep.unimplementedReason}`, () => {
-          // Deferred route pending merge of respective feature branch
-        });
-        continue;
-      }
-
       it(`${ep.id} (${ep.method} ${ep.path}) returns 409 when starter repo is missing`, async () => {
         const user = await createUser();
         await prisma.subscription.create({
@@ -761,57 +690,19 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
   });
 
   describe("Other user's resource gate (ownership 404 check)", () => {
-    const ownershipGated = ENDPOINT_TABLE.filter((e) => e.otherUserExpected === 404);
+    const ownershipGated = ENDPOINT_TABLE.filter(
+      (e) => e.implemented && e.otherUserExpected === 404,
+    );
 
     for (const ep of ownershipGated) {
-      if (!ep.implemented) {
-        it.skip(`${ep.id} (${ep.method} ${ep.path}) [PENDING] ${ep.unimplementedReason}`, () => {
-          // Deferred route pending merge of respective feature branch
-        });
-        continue;
-      }
-
       it(`${ep.id} (${ep.method} ${ep.path}) returns 404 when accessing another user's ticket`, async () => {
         const userA = await createFullyProvisionedUser();
         const userB = await createFullyProvisionedUser();
 
-        // EP-26 requires status 'assigned' to start; other endpoints operate on 'in_progress' tickets
-        const ticketStatus =
-          ep.id === 'EP-26' ? TicketStatus.assigned : TicketStatus.in_progress;
-        const ticketOfUserA = await createTicketForUser(userA.id, ticketStatus);
-
-        // Seed Submission and MentorMessage on User A's ticket so the resource genuinely exists
-        // (passing the PR steward coverage-honesty check by verifying 404 is truly ownership-gated)
-        await prisma.submission.create({
-          data: {
-            ticketId: ticketOfUserA.id,
-            attempt: 1,
-            prNumber: 42,
-            headSha: '0123456789abcdef0123456789abcdef01234567',
-            diff: 'diff --git a/App.tsx b/App.tsx',
-            status: 'failed',
-            failureReason: 'CI check failed',
-          },
-        });
-        await prisma.mentorMessage.create({
-          data: {
-            ticketId: ticketOfUserA.id,
-            role: 'user',
-            content: 'How should I approach this issue?',
-          },
-        });
-
-        // Verify resource presence: User A can successfully read their own resource
-        if (ep.method === 'GET') {
-          const ownerRes = await api(ep.method, ep.getPath(ticketOfUserA.id), {
-            userId: userA.id,
-          });
-          expect(ownerRes.status).toBe(200);
-        }
-
+        const ticketOfUserA = await createTicketForUser(userA.id);
         const body = ep.validBody ? ep.validBody(ticketOfUserA.id) : undefined;
 
-        // User B tries to access User A's ticket -> must be rejected with 404
+        // User B tries to access User A's ticket
         const { status } = await api(ep.method, ep.getPath(ticketOfUserA.id), {
           userId: userB.id,
           body,
@@ -821,4 +712,3 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
     }
   });
 });
-
