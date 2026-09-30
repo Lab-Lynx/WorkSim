@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcrypt';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/db.js';
 import { env } from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
@@ -12,6 +13,7 @@ import {
 import { hashToken as hashRefreshToken } from '../utils/hashToken.js';
 import { hashToken } from '../lib/crypto/token-hash.js';
 import { parseDurationToMs } from '../utils/cookies.js';
+import logger from '../utils/logger.js';
 import * as emailService from './email.service.js';
 
 /*
@@ -53,6 +55,8 @@ const publicUserSelect = {
   createdAt: true,
 } as const;
 
+const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
 const verificationTokenTtl = () =>
   parseDurationToMs(env.VERIFICATION_TOKEN_EXPIRES_IN ?? '24h');
 
@@ -66,7 +70,8 @@ export const registerUser = async (
   email: string,
   password: string,
 ): Promise<{ user: SafeUser; verificationToken: string }> => {
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const normalizedEmail = normalizeEmail(email);
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (existing) {
     throw new ApiError(HTTP_STATUS.CONFLICT, 'Email already in use');
   }
@@ -74,37 +79,52 @@ export const registerUser = async (
   const passwordHash = await bcrypt.hash(password, Number(env.BCRYPT_SALT_ROUNDS));
   const rawToken = createRawToken();
 
-  const user = await prisma.$transaction(async (tx) => {
-    const created = await tx.user.create({
-      data: { name, email, passwordHash },
-      select: publicUserSelect,
+  try {
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: { name, email: normalizedEmail, passwordHash },
+        select: publicUserSelect,
+      });
+
+      await tx.emailVerificationToken.create({
+        data: {
+          userId: created.id,
+          tokenHash: hashToken(rawToken),
+          expiresAt: new Date(Date.now() + verificationTokenTtl()),
+        },
+      });
+
+      return created;
     });
 
-    await tx.emailVerificationToken.create({
-      data: {
-        userId: created.id,
-        tokenHash: hashToken(rawToken),
-        expiresAt: new Date(Date.now() + verificationTokenTtl()),
-      },
-    });
-
-    return created;
-  });
-
-  return { user: toSafeUser(user), verificationToken: rawToken };
+    return { user: toSafeUser(user), verificationToken: rawToken };
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new ApiError(HTTP_STATUS.CONFLICT, 'Email already in use');
+    }
+    throw err;
+  }
 };
 
 export const validateCredentials = async (
   email: string,
   password: string,
 ): Promise<SafeUser> => {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const normalizedEmail = normalizeEmail(email);
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
   if (!user) {
     throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid email or password');
   }
 
-  const isValid = await bcrypt.compare(password, user.passwordHash);
+  let isValid = false;
+  try {
+    isValid = await bcrypt.compare(password, user.passwordHash);
+  } catch {
+    // Malformed stored hash must still fail with 401, not a 500
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid email or password');
+  }
+
   if (!isValid) {
     throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid email or password');
   }
@@ -148,20 +168,25 @@ export const rotateRefreshToken = async (rawRefreshToken: string): Promise<AuthT
   try {
     payload = verifyRefreshToken(rawRefreshToken);
   } catch {
-    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired refresh token');
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired session');
   }
 
+  const now = new Date();
   const tokenHash = hashRefreshToken(rawRefreshToken);
   const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
 
-  if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
-    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Refresh token is no longer valid');
+  if (!stored || stored.revokedAt || stored.expiresAt < now) {
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired session');
   }
 
-  await prisma.refreshToken.update({
-    where: { id: stored.id },
-    data: { revokedAt: new Date() },
+  const updated = await prisma.refreshToken.updateMany({
+    where: { id: stored.id, revokedAt: null },
+    data: { revokedAt: now },
   });
+
+  if (updated.count === 0) {
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired session');
+  }
 
   const user = await getUserById(payload.id);
   return issueTokens(user);
@@ -227,7 +252,8 @@ export const verifyEmail = async (rawToken: string): Promise<VerifyEmailResult> 
 };
 
 export const resendVerificationEmail = async (email: string): Promise<void> => {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const normalizedEmail = normalizeEmail(email);
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (!user || user.emailVerifiedAt) {
     return;
   }
@@ -243,13 +269,15 @@ export const resendVerificationEmail = async (email: string): Promise<void> => {
 
   try {
     await emailService.sendVerificationEmail(user.email, rawToken);
-  } catch {
+  } catch (err) {
     // Non-enumerating endpoint — swallow send failures after token create.
+    logger.error({ err, to: user.email }, 'Failed to send verification email');
   }
 };
 
 export const requestPasswordReset = async (email: string): Promise<void> => {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const normalizedEmail = normalizeEmail(email);
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (!user) {
     return;
   }
@@ -265,12 +293,17 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
 
   try {
     await emailService.sendPasswordResetEmail(user.email, rawToken);
-  } catch {
+  } catch (err) {
     // Non-enumerating endpoint — swallow send failures.
+    logger.error({ err, to: user.email }, 'Failed to send password reset email');
   }
 };
 
 export const resetPassword = async (rawToken: string, newPassword: string): Promise<void> => {
+  if (!newPassword || newPassword.length < 8) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Password must be at least 8 characters');
+  }
+
   const tokenHash = hashToken(rawToken);
   const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
 
@@ -310,12 +343,22 @@ export const changePassword = async (
   currentPassword: string,
   newPassword: string,
 ): Promise<void> => {
+  if (!newPassword || newPassword.length < 8) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Password must be at least 8 characters');
+  }
+
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'User no longer exists');
   }
 
-  const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+  let matches = false;
+  try {
+    matches = await bcrypt.compare(currentPassword, user.passwordHash);
+  } catch {
+    matches = false;
+  }
+
   if (!matches) {
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Current password is incorrect');
   }
@@ -326,3 +369,8 @@ export const changePassword = async (
     data: { passwordHash },
   });
 };
+
+// Aliases matching Doc 8 §8.2 specifications
+export const authenticateUser = validateCredentials;
+export const revokeCurrentSession = revokeRefreshToken;
+export const refreshSession = rotateRefreshToken;

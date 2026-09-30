@@ -11,6 +11,7 @@ declare global {
   namespace Express {
     interface Request {
       id: string;
+      rawBody?: Buffer;
       // Set by validate.middleware.ts when a route's schema includes a
       // `query` shape. See the comment there for why this isn't just
       // written back onto `req.query` (Express 5: getter-only).
