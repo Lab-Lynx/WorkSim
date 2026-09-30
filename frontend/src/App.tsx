@@ -4,6 +4,7 @@ import { queryClient } from '@/lib/queryClient';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import router from '@/routes';
 import { configureApiClient } from '@/lib/api/client';
+import { configureApiClient as configureLegacyApiClient } from '@/lib/axios';
 import { env } from '@/config/env';
 import { queryKeys } from '@/lib/query-keys';
 import { buildLoginRedirect } from '@/lib/navigation';
@@ -27,6 +28,11 @@ function onSessionExpired(): void {
 }
 
 configureApiClient({
+  baseUrl: env.VITE_API_URL,
+  onSessionExpired,
+});
+
+configureLegacyApiClient({
   baseUrl: env.VITE_API_URL,
   onSessionExpired,
 });
