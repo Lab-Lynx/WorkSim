@@ -9,6 +9,7 @@ export function useCurrentTicket() {
   return {
     data: null as Ticket | null,
     isLoading: false,
+    isError: false,
     error: null,
   };
 }
