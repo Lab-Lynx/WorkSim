@@ -44,6 +44,7 @@ export default function LoginPage() {
             <input
               type="email"
               placeholder="Email"
+              aria-label="Email address"
               className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
               {...register('email')}
             />
@@ -56,6 +57,7 @@ export default function LoginPage() {
             <input
               type="password"
               placeholder="Password"
+              aria-label="Password"
               className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
               {...register('password')}
             />
@@ -70,9 +72,13 @@ export default function LoginPage() {
             {isSubmitting ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
+
         <p className="text-center text-sm text-muted-foreground mt-4">
           New here?{' '}
-          <Link to={ROUTES.REGISTER} className="text-primary underline underline-offset-4">
+          <Link
+            to={ROUTES.REGISTER}
+            className="text-primary underline underline-offset-4"
+          >
             Create an account
           </Link>
         </p>
