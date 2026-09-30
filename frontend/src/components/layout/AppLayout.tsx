@@ -16,6 +16,8 @@ import {
 import { useFocusPageHeading } from '@/hooks/useFocusPageHeading';
 import { useCurrentTicket } from '@/hooks/useCurrentTicket';
 import { useLogout } from '@/hooks/useLogout';
+import { EmailVerificationBanner } from '@/components/layout/EmailVerificationBanner';
+import { SubscriptionBanner } from '@/components/layout/SubscriptionBanner';
 
 import { cn } from '@/lib/utils';
 
@@ -23,17 +25,17 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-// Banners defined before AppLayout so they are initialized when AppLayout renders
-const EmailVerificationBanner = () => <div data-testid="email-verification-banner" />;
-const SubscriptionBanner = () => <div data-testid="subscription-banner" />;
-
 export default function AppLayout({ children }: AppLayoutProps) {
   useFocusPageHeading();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
-  const { data: currentTicket, isLoading: isTicketLoading } = useCurrentTicket();
+  const {
+    data: currentTicket,
+    isLoading: isTicketLoading,
+    isError: isTicketError,
+  } = useCurrentTicket();
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
 
   const closeMobileMenu = () => setMobileOpen(false);
@@ -58,7 +60,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const navItems = [
     { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-    ...(currentTicket && !isTicketLoading
+    ...(currentTicket && !isTicketLoading && !isTicketError
       ? [{ label: 'Current Ticket', to: `/tickets/${currentTicket.id}`, icon: Ticket }]
       : []),
     { label: 'GitHub Setup', to: '/github', icon: GitBranch },

@@ -115,6 +115,10 @@ function buildRequestUrl(baseUrl: string, path: string, query?: RequestOptions['
 }
 
 export async function refreshSessionOnce(): Promise<void> {
+  if (sessionExpiredGuard) {
+    throw new ApiError(401, 'Session expired', 'api');
+  }
+
   if (refreshInFlight) {
     return refreshInFlight;
   }
