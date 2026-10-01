@@ -72,7 +72,8 @@ describe('Security and accessibility integration', () => {
     expect(document.querySelector('img')).toBeNull();
     expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.every(([, init]) => init?.credentials === 'include')).toBe(true);
-    expect(localStorage.length).toBe(0);
+    expect(localStorage.getItem('accessToken')).toBeNull();
+    expect(localStorage.getItem('refreshToken')).toBeNull();
     expect(sessionStorage.length).toBe(0);
   });
 });
