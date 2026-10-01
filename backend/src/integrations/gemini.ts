@@ -75,6 +75,23 @@ interface GeminiRequestPayload {
   };
 }
 
+interface GeminiApiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+}
+
+interface RawTicketJson {
+  title?: unknown;
+  scenario?: unknown;
+  acceptanceCriteria?: unknown;
+  testChecklist?: unknown;
+}
+
 /**
  * Execute Gemini REST API call with sanitized error handling and logging.
  * Never logs prompt contents or raw error objects containing API keys or user code.
@@ -138,9 +155,9 @@ async function executeGeminiRequest(payload: GeminiRequestPayload): Promise<stri
     throw new GeminiOutageError();
   }
 
-  let data: any;
+  let data: GeminiApiResponse | undefined;
   try {
-    data = await response.json();
+    data = (await response.json()) as GeminiApiResponse;
   } catch {
     logger.error({ cause: 'malformed_response' }, 'Failed to parse Gemini response JSON');
     throw new GeminiMalformedResponseError();
@@ -259,7 +276,7 @@ export async function callTicketGenerationModel(
 
   const rawResponse = await executeGeminiRequest(payload);
 
-  let parsed: any;
+  let parsed: unknown;
   try {
     // Strip possible markdown code blocks ```json ... ``` if model returned them
     const cleaned = rawResponse.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -269,30 +286,32 @@ export async function callTicketGenerationModel(
     throw new GeminiMalformedResponseError();
   }
 
+  const candidate = parsed as RawTicketJson | null;
+
   if (
-    !parsed ||
-    typeof parsed !== 'object' ||
-    typeof parsed.title !== 'string' ||
-    !parsed.title.trim() ||
-    typeof parsed.scenario !== 'string' ||
-    !parsed.scenario.trim() ||
-    !Array.isArray(parsed.acceptanceCriteria) ||
-    parsed.acceptanceCriteria.length === 0 ||
-    !Array.isArray(parsed.testChecklist) ||
-    parsed.testChecklist.length === 0
+    !candidate ||
+    typeof candidate !== 'object' ||
+    typeof candidate.title !== 'string' ||
+    !candidate.title.trim() ||
+    typeof candidate.scenario !== 'string' ||
+    !candidate.scenario.trim() ||
+    !Array.isArray(candidate.acceptanceCriteria) ||
+    candidate.acceptanceCriteria.length === 0 ||
+    !Array.isArray(candidate.testChecklist) ||
+    candidate.testChecklist.length === 0
   ) {
     logger.error({ cause: 'malformed_response' }, 'Generated ticket content missing required fields');
     throw new GeminiMalformedResponseError();
   }
 
   const result: TicketContent = {
-    title: parsed.title.trim(),
-    scenario: parsed.scenario.trim(),
+    title: candidate.title.trim(),
+    scenario: candidate.scenario.trim(),
     category: template.category,
     difficulty: template.difficulty,
     touchedFiles: [...template.touchedFiles],
-    acceptanceCriteria: parsed.acceptanceCriteria.map((c: any) => String(c).trim()),
-    testChecklist: parsed.testChecklist.map((t: any) => String(t).trim()),
+    acceptanceCriteria: candidate.acceptanceCriteria.map((c: unknown) => String(c).trim()),
+    testChecklist: candidate.testChecklist.map((t: unknown) => String(t).trim()),
   };
 
   return result;

@@ -12,7 +12,7 @@ interface IApiResponse {
 /**
  * 🟢 Standardized wrapper for successful actions
  */
-export class SuccessResponse<T = any> implements IApiResponse {
+export class SuccessResponse<T = unknown> implements IApiResponse {
   statusCode: number;
   success: boolean = true; // Always true
   message: string;
@@ -28,7 +28,7 @@ export class SuccessResponse<T = any> implements IApiResponse {
 /**
  * 🔴 Standardized wrapper for error actions
  */
-export class ErrorResponse<E = any> implements IApiResponse {
+export class ErrorResponse<E = unknown> implements IApiResponse {
   statusCode: number;
   success: boolean = false; // Always false
   message: string;

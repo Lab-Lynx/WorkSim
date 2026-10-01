@@ -2,7 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import pinoHttp from 'pino-http';
+import { pinoHttp } from 'pino-http';
 import { randomUUID } from 'crypto';
 import type { IncomingMessage } from 'http';
 
@@ -28,9 +28,9 @@ app.use((req, res, next) => {
 });
 
 // 🟢 3. Link Express Request IDs directly to Pino logs
-app.use((pinoHttp as any)({
+app.use(pinoHttp({
   logger,
-  genReqId: (req: IncomingMessage) => (req as any).id || randomUUID(),
+  genReqId: (req: IncomingMessage) => (typeof req.id === 'string' ? req.id : randomUUID()),
 }));
 
 // 🛡️ Security Middlewares
