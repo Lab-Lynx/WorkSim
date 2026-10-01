@@ -31,7 +31,7 @@ describe('AuthLayout', () => {
     expect(mockUseFocusPageHeading).toHaveBeenCalled();
   });
 
-  it('contains no third-party scripts, images, or external links', () => {
+  it('uses the local brand logo and contains no third-party assets or external links', () => {
     const { container } = render(
       <AuthLayout>
         <h1>Register</h1>
@@ -39,7 +39,9 @@ describe('AuthLayout', () => {
     );
 
     expect(container.querySelectorAll('script')).toHaveLength(0);
-    expect(container.querySelectorAll('img')).toHaveLength(0);
+    expect(container.querySelector('img')).toHaveAttribute('src', '/worksim-logo.svg');
+    expect(screen.getByText('WorkSim')).toBeInTheDocument();
+    expect(container.querySelectorAll("img[src^='http']")).toHaveLength(0);
     expect(container.querySelectorAll("a[href^='http']")).toHaveLength(0);
   });
 });
