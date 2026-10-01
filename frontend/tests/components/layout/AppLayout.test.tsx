@@ -18,7 +18,7 @@ let currentTicketState: CurrentTicketState;
 
 const mockLogoutMutate = vi.fn();
 
-vi.mock('@/hooks/useLogout', () => ({
+vi.mock('@/hooks/auth/useLogout', () => ({
   useLogout: () => logoutState,
 }));
 
@@ -64,6 +64,19 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument();
     expect(screen.getByTestId('email-verification-banner-component')).toBeInTheDocument();
     expect(screen.getByTestId('subscription-banner-component')).toBeInTheDocument();
+  });
+
+  it('collapses and expands the desktop sidebar', () => {
+    render(
+      <MemoryRouter>
+        <AppLayout><div>Content</div></AppLayout>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /collapse sidebar/i }));
+    expect(screen.getByRole('button', { name: /expand sidebar/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /expand sidebar/i }));
+    expect(screen.getByRole('button', { name: /collapse sidebar/i })).toBeInTheDocument();
   });
 
   it('shows current-ticket link when a current ticket exists', () => {

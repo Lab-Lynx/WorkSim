@@ -8,6 +8,7 @@ import { configureApiClient as configureLegacyApiClient } from '@/lib/axios';
 import { env } from '@/config/env';
 import { queryKeys } from '@/lib/query-keys';
 import { buildLoginRedirect } from '@/lib/navigation';
+import ThemeToggle from '@/components/common/ThemeToggle';
 
 function onSessionExpired(): void {
   if (!queryClient.getQueryData(queryKeys.me)) {
@@ -41,6 +42,7 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
+        <ThemeToggle />
         <RouterProvider router={router} />
       </QueryClientProvider>
     </ErrorBoundary>

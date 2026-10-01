@@ -1,20 +1,18 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import SettingsPage from '@/pages/SettingsPage';
+import SettingsPage from '@/pages/settings/SettingsPage';
 
 const mocks = vi.hoisted(() => ({
   useMe: vi.fn(),
   useUpdateProfile: vi.fn(),
   useChangePassword: vi.fn(),
   useLogoutAll: vi.fn(),
-  useResendVerification: vi.fn(),
   useUnsavedChangesWarning: vi.fn(),
   useToast: vi.fn(),
   updateProfile: vi.fn(),
   changePassword: vi.fn(),
   logoutAll: vi.fn(),
-  resend: vi.fn(),
   confirmLeave: vi.fn(),
   cancelLeave: vi.fn(),
   successToast: vi.fn(),
@@ -24,7 +22,6 @@ vi.mock('@/hooks/auth/useMe', () => ({ useMe: mocks.useMe }));
 vi.mock('@/hooks/auth/useUpdateProfile', () => ({ useUpdateProfile: mocks.useUpdateProfile }));
 vi.mock('@/hooks/auth/useChangePassword', () => ({ useChangePassword: mocks.useChangePassword }));
 vi.mock('@/hooks/auth/useLogoutAll', () => ({ useLogoutAll: mocks.useLogoutAll }));
-vi.mock('@/hooks/auth/useResendVerification', () => ({ useResendVerification: mocks.useResendVerification }));
 vi.mock('@/hooks/useUnsavedChangesWarning', () => ({ useUnsavedChangesWarning: mocks.useUnsavedChangesWarning }));
 vi.mock('@/hooks/useToast', () => ({ useToast: mocks.useToast }));
 
@@ -38,10 +35,6 @@ describe('SettingsPage (FE-099)', () => {
     mocks.useUpdateProfile.mockReturnValue({ mutateAsync: mocks.updateProfile, isPending: false });
     mocks.useChangePassword.mockReturnValue({ mutateAsync: mocks.changePassword, isPending: false });
     mocks.useLogoutAll.mockReturnValue({ mutateAsync: mocks.logoutAll, isPending: false });
-    mocks.useResendVerification.mockReturnValue({
-      resend: mocks.resend, isPending: false, isCoolingDown: false, cooldownSecondsLeft: 0,
-      message: null, error: null,
-    });
     mocks.useUnsavedChangesWarning.mockReturnValue({
       isBlocked: false, confirmLeave: mocks.confirmLeave, cancelLeave: mocks.cancelLeave,
     });
@@ -56,6 +49,12 @@ describe('SettingsPage (FE-099)', () => {
     expect(screen.getByLabelText('Email')).toHaveValue('alex@example.com');
     expect(screen.getByLabelText('Email')).toBeDisabled();
     expect(screen.queryByRole('button', { name: /delete account/i })).not.toBeInTheDocument();
+  });
+
+  it('does not include email verification controls in settings', () => {
+    renderPage();
+    expect(screen.queryByRole('heading', { name: /email verification/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /resend verification email/i })).not.toBeInTheDocument();
   });
 
   it('saves profile and resets the form from the returned server name', async () => {
