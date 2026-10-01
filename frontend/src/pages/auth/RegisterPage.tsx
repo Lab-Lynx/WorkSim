@@ -1,16 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
 import { registerSchema, type RegisterInput } from '@/schemas/auth.schemas';
 import { useRegister } from '@/hooks/auth/useRegister';
-import { useResendVerification } from '@/hooks/auth/useResendVerification';
+import { useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { applyServerErrorToForm } from '@/lib/api/errors';
 import { ROUTES } from '@/constants';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import PasswordInput from '@/components/common/PasswordInput';
 import FormRootError from '@/components/common/FormRootError';
 import SubmitButton from '@/components/common/SubmitButton';
@@ -18,11 +17,8 @@ import SubmitButton from '@/components/common/SubmitButton';
 export default function RegisterPage(): React.JSX.Element {
   useDocumentTitle('Create account');
 
-  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
-  const successHeadingRef = useRef<HTMLHeadingElement | null>(null);
-
+  const navigate = useNavigate();
   const register = useRegister();
-  const resend = useResendVerification();
 
   const {
     register: registerField,
@@ -36,16 +32,10 @@ export default function RegisterPage(): React.JSX.Element {
     reValidateMode: 'onChange',
   });
 
-  useEffect(() => {
-    if (registeredEmail && successHeadingRef.current) {
-      successHeadingRef.current.focus();
-    }
-  }, [registeredEmail]);
-
   const onSubmit = async (values: RegisterInput) => {
     try {
       await register.mutateAsync(values);
-      setRegisteredEmail(values.email);
+      navigate(`${ROUTES.VERIFY_EMAIL}?email=${encodeURIComponent(values.email)}`, { replace: true });
     } catch (err: unknown) {
       const ui = applyServerErrorToForm(err, { setError }, 'register');
       if (ui.status === 409) {
@@ -53,62 +43,6 @@ export default function RegisterPage(): React.JSX.Element {
       }
     }
   };
-
-  const handleResend = () => {
-    if (registeredEmail) {
-      resend.resend(registeredEmail);
-    }
-  };
-
-  if (registeredEmail) {
-    return (
-      <div className="flex flex-col">
-        <h1
-          ref={successHeadingRef}
-          tabIndex={-1}
-          className="text-xl font-semibold tracking-tight text-foreground outline-none mb-2"
-        >
-          Check your email
-        </h1>
-        <p className="text-sm text-muted-foreground mb-6">
-          We&apos;ve sent a verification link to{' '}
-          <strong className="font-medium text-foreground">{registeredEmail}</strong>. If it
-          doesn&apos;t arrive, you can send it again.
-        </p>
-
-        {resend.message && (
-          <div className="mb-4 rounded-md border border-primary/20 bg-primary/10 p-3 text-sm text-primary font-medium">
-            {resend.message}
-          </div>
-        )}
-
-        {resend.error && (
-          <div className="mb-4 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive font-medium">
-            {resend.error.message}
-          </div>
-        )}
-
-        <div className="flex flex-col gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleResend}
-            disabled={resend.isPending || resend.isCoolingDown}
-            className="w-full"
-          >
-            {resend.isPending
-              ? 'Sending...'
-              : resend.isCoolingDown
-                ? `Resend in ${resend.cooldownSeconds}s`
-                : 'Resend verification email'}
-          </Button>
-          <Button asChild className="w-full">
-            <Link to={ROUTES.DASHBOARD}>Go to dashboard</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col">

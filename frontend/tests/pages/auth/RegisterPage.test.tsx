@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import RegisterPage from '@/pages/auth/RegisterPage';
 import * as apiClient from '@/lib/api/client';
 import { ApiError } from '@/lib/api/errors';
@@ -23,9 +23,15 @@ function renderRegisterPage(queryClient: QueryClient) {
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={['/register']}>
                 <RegisterPage />
+                <CurrentLocation />
             </MemoryRouter>
         </QueryClientProvider>
     );
+}
+
+function CurrentLocation() {
+    const location = useLocation();
+    return <output data-testid="current-location">{location.pathname}{location.search}</output>;
 }
 
 describe('FE-067 · RegisterPage (doc 10 §10.22 PG-01; doc 6 PG-01; doc 11 §11.2.17)', () => {
@@ -95,7 +101,7 @@ describe('FE-067 · RegisterPage (doc 10 §10.22 PG-01; doc 6 PG-01; doc 11 §11
         expect(apiRequestSpy).not.toHaveBeenCalled();
     });
 
-    it('success: registers user, seeds queryKeys.me, replaces card in-place with "Check your email" view, and focuses heading', async () => {
+    it('success: registers user, seeds queryKeys.me, and redirects directly to email verification', async () => {
         apiRequestSpy.mockResolvedValueOnce({
             statusCode: 201,
             message: 'User registered',
@@ -112,25 +118,13 @@ describe('FE-067 · RegisterPage (doc 10 §10.22 PG-01; doc 6 PG-01; doc 11 §11
         fireEvent.click(submitBtn);
 
         await waitFor(() => {
-            expect(screen.getByRole('heading', { level: 1, name: /check your email/i })).toBeInTheDocument();
+            expect(screen.getByTestId('current-location')).toHaveTextContent('/verify-email?email=taylor%40example.com');
         });
-
-        // Heading has tabIndex={-1} and is focused
-        const successHeading = screen.getByRole('heading', { level: 1, name: /check your email/i });
-        expect(successHeading).toHaveAttribute('tabIndex', '-1');
-        expect(successHeading).toHaveFocus();
-
-        // Sent message with registered email
-        expect(screen.getByText(/sent a verification link to/i)).toHaveTextContent('taylor@example.com');
 
         // Seeds queryKeys.me (D-10) and auth store
         expect(queryClient.getQueryData(queryKeys.me)).toEqual(mockUser);
         expect(useAuthStore.getState().user).toEqual(mockUser);
 
-        // Dashboard navigation control
-        const dashboardLink = screen.getByRole('link', { name: /go to dashboard|continue/i });
-        expect(dashboardLink).toBeInTheDocument();
-        expect(dashboardLink).toHaveAttribute('href', '/dashboard');
     });
 
     it('server 409: maps duplicate email error to email field and focuses email input', async () => {
@@ -157,58 +151,6 @@ describe('FE-067 · RegisterPage (doc 10 §10.22 PG-01; doc 6 PG-01; doc 11 §11
 
         // Email input must be focused on 409
         expect(emailInput).toHaveFocus();
-    });
-
-    it('resend: clicks Resend verification email, displays server message unchanged, and enters cooldown', async () => {
-        // 1. Successful registration
-        apiRequestSpy.mockResolvedValueOnce({
-            statusCode: 201,
-            message: 'User registered',
-            data: { user: mockUser },
-        });
-
-        renderRegisterPage(queryClient);
-
-        fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'Taylor Dev' } });
-        fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: 'taylor@example.com' } });
-        fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'password123' } });
-
-        fireEvent.click(screen.getByRole('button', { name: /create account/i }));
-
-        await waitFor(() => {
-            expect(screen.getByRole('heading', { level: 1, name: /check your email/i })).toBeInTheDocument();
-        });
-
-        // 2. Resend verification
-        apiRequestSpy.mockResolvedValueOnce({
-            statusCode: 200,
-            message: 'Verification email resent',
-            data: null,
-        });
-
-        const resendBtn = screen.getByRole('button', { name: /resend verification email/i });
-        expect(resendBtn).not.toBeDisabled();
-
-        fireEvent.click(resendBtn);
-
-        await waitFor(() => {
-            expect(apiRequestSpy).toHaveBeenCalledWith('POST', '/auth/resend-verification', {
-                body: { email: 'taylor@example.com' },
-            });
-            expect(screen.getByText(/verification email resent/i)).toBeInTheDocument();
-        });
-
-        // Button should now be in cooldown
-        expect(resendBtn).toBeDisabled();
-
-        // Advance timers past 60s cooldown
-        act(() => {
-            vi.advanceTimersByTime(60_000);
-        });
-
-        await waitFor(() => {
-            expect(resendBtn).not.toBeDisabled();
-        });
     });
 
     it('pending: disables form fields and shows pending indicator while registration is in flight', async () => {
@@ -251,7 +193,7 @@ describe('FE-067 · RegisterPage (doc 10 §10.22 PG-01; doc 6 PG-01; doc 11 §11
         });
 
         await waitFor(() => {
-            expect(screen.getByRole('heading', { level: 1, name: /check your email/i })).toBeInTheDocument();
+            expect(screen.getByTestId('current-location')).toHaveTextContent('/verify-email?email=taylor%40example.com');
         });
     });
 });
