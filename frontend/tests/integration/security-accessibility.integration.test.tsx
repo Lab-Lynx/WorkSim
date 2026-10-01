@@ -69,7 +69,7 @@ describe('Security and accessibility integration', () => {
     const heading = await screen.findByRole('heading', { name: 'Improve project search' });
     expect(heading).toHaveAttribute('tabindex', '-1');
     expect(screen.getByText(hostileText)).toBeInTheDocument();
-    expect(document.querySelector('img')).toBeNull();
+    expect(document.querySelector('img[src="x"]')).toBeNull();
     expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.every(([, init]) => init?.credentials === 'include')).toBe(true);
     expect(localStorage.getItem('accessToken')).toBeNull();

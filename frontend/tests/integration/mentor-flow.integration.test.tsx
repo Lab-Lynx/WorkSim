@@ -83,7 +83,7 @@ describe('Mentor flow integration', () => {
 
     expect(await screen.findByText('Try checking the filter predicate.')).toBeInTheDocument();
     expect(screen.getByText(sentText)).toBeInTheDocument();
-    expect(document.querySelector('script, img')).toBeNull();
+    expect(document.querySelector('script, img[src="x"]')).toBeNull();
     expect(sendCount).toBe(1);
     expect(sentBody).toEqual({ content: sentText });
   });

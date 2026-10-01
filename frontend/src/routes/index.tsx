@@ -66,7 +66,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    // element: <RequireAuth />,
+    element: <RequireAuth />,
     children: [
       {
         element: <AppLayout><Outlet /></AppLayout>,
