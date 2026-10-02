@@ -48,7 +48,39 @@ app.use(
 app.use(defaultLimiter);
 
 // 📦 Body Parsing Configurations
-app.use(express.json({ limit: '10kb' }));
+// Doc 7 §7.2.9, §7.8; doc 7 §7.9 items 83–84:
+// Webhook routes (EP-14: Chapa, EP-33: GitHub) must receive the raw request body
+// ahead of express.json() so cryptographic signature verification (HMAC-SHA256)
+// operates on the untouched byte stream.
+// Note: Webhook domain controllers/routes are tracked in BE-033 and pending implementation;
+// mounting this raw-body parser ahead of express.json() ensures the untouched buffer is preserved.
+export const WEBHOOK_PATHS = [
+  '/api/v1/webhooks/chapa',
+  '/api/v1/webhooks/github',
+  '/webhooks/chapa',
+  '/webhooks/github',
+];
+
+app.use(
+  WEBHOOK_PATHS,
+  express.raw({ type: '*/*', limit: '1mb' }),
+  (req, _res, next) => {
+    if (Buffer.isBuffer(req.body)) {
+      req.rawBody = req.body;
+    }
+    next();
+  }
+);
+
+// Standard JSON body parsing for all other routes
+app.use(
+  express.json({
+    limit: '10kb',
+    verify: (req, _res, buf) => {
+      (req as express.Request).rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 

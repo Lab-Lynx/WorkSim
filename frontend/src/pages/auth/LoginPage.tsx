@@ -1,97 +1,151 @@
+/* eslint-disable react-refresh/only-export-components */
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { loginSchema, type LoginInput } from '@/schemas/auth.schemas';
+import { useLogin } from '@/hooks/auth/useLogin';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { applyServerErrorToForm } from '@/lib/api/errors';
+import { getSafeRedirectPath } from '@/lib/navigation';
 import { ROUTES } from '@/constants';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import PasswordInput from '@/components/common/PasswordInput';
+import FormRootError from '@/components/common/FormRootError';
+import SubmitButton from '@/components/common/SubmitButton';
 
-const LOGIN_NOTICE_MESSAGES: Record<string, string> = {
+export const LOGIN_NOTICE_MESSAGES: Record<string, string> = {
   session_expired: 'Your session expired. Log in again.',
   password_reset: 'Password reset. Log in with your new password.',
   logged_out_all: "You've been logged out of all devices.",
 };
 
-const loginSchema = z.object({
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-});
+export default function LoginPage(): React.JSX.Element {
+  useDocumentTitle('Log in');
 
-type LoginFormValues = z.infer<typeof loginSchema>;
-
-export default function LoginPage() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
   const noticeKey = (location.state as { notice?: string } | null)?.notice;
   const noticeMessage = noticeKey ? LOGIN_NOTICE_MESSAGES[noticeKey] : null;
 
-  const { login } = useAuth();
+  const login = useLogin();
+
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
     setError,
-  } = useForm<LoginFormValues>({
+    setFocus,
+    resetField,
+    formState: { errors },
+  } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
 
-  const onSubmit = async (data: LoginFormValues) => {
+  const onSubmit = async (values: LoginInput) => {
     try {
-      await login(data);
-    } catch {
-      setError('root', {
-        message: 'Invalid email or password',
-      });
+      await login.mutateAsync(values);
+      const from = searchParams.get('from');
+      const destination = getSafeRedirectPath(from, ROUTES.DASHBOARD);
+      navigate(destination, { replace: true });
+    } catch (err: unknown) {
+      const ui = applyServerErrorToForm(err, { setError });
+      if (ui.status === 401) {
+        resetField('password');
+        setFocus('password');
+      }
     }
   };
 
   return (
-    <Card>
-      <CardContent className="p-6">
-        <h1 className="text-lg font-semibold mb-4 text-foreground">Sign in</h1>
-        {noticeMessage && (
-          <div role="status" className="mb-4 rounded-md bg-muted p-3 text-sm text-foreground">
-            {noticeMessage}
-          </div>
-        )}
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div>
-            <input
-              type="email"
-              placeholder="Email"
-              className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
-              {...register('email')}
-            />
-            {errors.email && (
-              <p className="text-destructive text-xs mt-1">{errors.email.message}</p>
-            )}
-          </div>
+    <div className="flex flex-col">
+      {noticeMessage && (
+        <div
+          role="status"
+          className="mb-4 rounded-md border border-primary/20 bg-primary/10 p-3 text-sm text-primary font-medium"
+        >
+          {noticeMessage}
+        </div>
+      )}
 
-          <div>
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
-              {...register('password')}
-            />
-            {errors.password && (
-              <p className="text-destructive text-xs mt-1">{errors.password.message}</p>
-            )}
-          </div>
+      <h1
+        tabIndex={-1}
+        className="text-xl font-semibold tracking-tight text-foreground outline-none mb-6"
+      >
+        Log in
+      </h1>
 
-          {errors.root && <p className="text-destructive text-xs">{errors.root.message}</p>}
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="jane@example.com"
+            disabled={login.isPending}
+            aria-describedby={errors.email ? 'email-error' : undefined}
+            aria-invalid={errors.email ? 'true' : 'false'}
+            {...register('email')}
+          />
+          {errors.email && (
+            <p id="email-error" className="text-xs text-destructive">
+              {errors.email.message}
+            </p>
+          )}
+        </div>
 
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Signing in...' : 'Sign in'}
-          </Button>
-        </form>
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          New here?{' '}
-          <Link to={ROUTES.REGISTER} className="text-primary underline underline-offset-4">
-            Create an account
-          </Link>
-        </p>
-      </CardContent>
-    </Card>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password">Password</Label>
+          <PasswordInput
+            id="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            disabled={login.isPending}
+            aria-describedby={errors.password ? 'password-error' : undefined}
+            aria-invalid={errors.password ? 'true' : 'false'}
+            {...register('password')}
+          />
+          {errors.password && (
+            <p id="password-error" className="text-xs text-destructive">
+              {errors.password.message}
+            </p>
+          )}
+        </div>
+
+        <FormRootError message={errors.root?.message} />
+
+        <SubmitButton
+          isPending={login.isPending}
+          pendingLabel="Logging in…"
+          className="w-full mt-2"
+        >
+          Log in
+        </SubmitButton>
+      </form>
+
+      <div className="text-center mt-4">
+        <Link
+          to={ROUTES.FORGOT_PASSWORD}
+          className="text-sm text-primary underline underline-offset-4 hover:text-primary/90"
+        >
+          Forgot your password?
+        </Link>
+      </div>
+
+      <p className="text-center text-sm text-muted-foreground mt-4">
+        Don&apos;t have an account?{' '}
+        <Link
+          to={ROUTES.REGISTER}
+          className="text-primary underline underline-offset-4 hover:text-primary/90"
+        >
+          Create an account
+        </Link>
+      </p>
+    </div>
   );
 }
