@@ -4,7 +4,6 @@ import { createBrowserRouter, Outlet, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import RequireAuth from './RequireAuth';
 import PublicOnly from './PublicOnly';
-import RootRedirect from './RootRedirect';
 import AppLayout from '@/components/layout/AppLayout';
 import AuthLayout from '@/components/layout/AuthLayout';
 import { ROUTES } from '@/constants';
@@ -71,9 +70,11 @@ const router = createBrowserRouter([
     element: <RequireAuth />,
     children: [
       {
-        element: <DashboardLayout />,
-        children: [{ path: ROUTES.DASHBOARD, element: withSuspense(<DashboardPage />) }],
-        element: <AppLayout><Outlet /></AppLayout>,
+        element: (
+          <AppLayout>
+            <Outlet />
+          </AppLayout>
+        ),
         children: [
           { path: ROUTES.DASHBOARD, element: withSuspense(<DashboardPage />) },
           { path: ROUTES.BILLING, element: withSuspense(<BillingPage />) },
