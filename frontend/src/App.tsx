@@ -3,12 +3,22 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import router from '@/routes';
+<<<<<<< Updated upstream
 import { configureApiClient } from '@/lib/api/client';
 import { configureApiClient as configureLegacyApiClient } from '@/lib/axios';
 import { env } from '@/config/env';
 import { queryKeys } from '@/lib/query-keys';
 import { buildLoginRedirect } from '@/lib/navigation';
 import ThemeToggle from '@/components/common/ThemeToggle';
+=======
+import { configureApiClient as configureAxiosClient } from '@/lib/axios';
+import { configureApiClient } from '@/lib/api/client';
+import { env } from '@/config/env';
+import { queryKeys } from '@/lib/query-keys';
+import { buildLoginRedirect } from '@/lib/navigation';
+import { useAuthStore } from '@/store/auth.store';
+import { Assistant } from '@/components/Assistant';
+>>>>>>> Stashed changes
 
 function onSessionExpired(): void {
   if (!queryClient.getQueryData(queryKeys.me)) {
@@ -28,6 +38,11 @@ function onSessionExpired(): void {
   queryClient.clear();
 }
 
+configureAxiosClient({
+  baseUrl: env.VITE_API_URL,
+  onSessionExpired,
+});
+
 configureApiClient({
   baseUrl: env.VITE_API_URL,
   onSessionExpired,
@@ -44,6 +59,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeToggle />
         <RouterProvider router={router} />
+        <Assistant />
       </QueryClientProvider>
     </ErrorBoundary>
   );
