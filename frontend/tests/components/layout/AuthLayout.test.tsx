@@ -39,8 +39,8 @@ describe('AuthLayout', () => {
     );
 
     expect(container.querySelectorAll('script')).toHaveLength(0);
-    expect(container.querySelector('img')).toHaveAttribute('src', '/worksim-logo.svg');
-    expect(screen.getByText('WorkSim')).toBeInTheDocument();
+    expect(container.querySelector('img')).toHaveAttribute('src', '/logo.png');
+    expect(screen.getByAltText('WorkSim')).toBeInTheDocument();
     expect(container.querySelectorAll("img[src^='http']")).toHaveLength(0);
     expect(container.querySelectorAll("a[href^='http']")).toHaveLength(0);
   });

@@ -112,7 +112,7 @@ export default function SettingsPage(): React.JSX.Element {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1
           tabIndex={-1}
@@ -131,175 +131,185 @@ export default function SettingsPage(): React.JSX.Element {
         </p>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-heading text-base font-medium">Profile</CardTitle>
-          <CardDescription>
-            This information is visible on your public experience profile.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-5 flex items-center gap-4">
-            <Avatar fallback={initials(me?.name)} />
-          </div>
-          <form
-            onSubmit={profileForm.handleSubmit(saveProfile)}
-            className="space-y-4"
-            noValidate
-            aria-labelledby="profile-settings-heading"
-          >
-            <h2 id="profile-settings-heading" className="sr-only">
-              Profile
-            </h2>
-            <div className="space-y-2">
-              <Label htmlFor="profile-name">Name</Label>
-              <Input id="profile-name" autoComplete="name" {...profileForm.register('name')} />
-              {profileForm.formState.errors.name && (
-                <p className="text-sm text-destructive">
-                  {profileForm.formState.errors.name.message}
-                </p>
-              )}
+      <div className="grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Profile — wide */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="font-heading text-base font-medium">Profile</CardTitle>
+            <CardDescription>
+              This information is visible on your public experience profile.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-5 flex items-center gap-4">
+              <Avatar fallback={initials(me?.name)} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="profile-email">Email</Label>
-              <Input id="profile-email" type="email" value={me?.email ?? ''} readOnly disabled />
-              <p className="text-xs text-muted-foreground">Contact support to change your email.</p>
-            </div>
-            <FormRootError message={profileForm.formState.errors.root?.message} />
-            <div className="flex flex-wrap gap-2">
-              <SubmitButton
-                isPending={updateProfile.isPending}
-                pendingLabel="Saving…"
-                disabled={!profileForm.formState.isDirty}
-              >
-                Save profile
-              </SubmitButton>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => profileForm.reset({ name: me?.name ?? '' })}
-                disabled={!profileForm.formState.isDirty}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-heading text-base font-medium">Connections</CardTitle>
-          <CardDescription>
-            Work Simulator uses GitHub to assign repos and pull your submissions.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Code className="size-5" />
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">GitHub</span>
-                <span className="text-xs text-muted-foreground">Manage in GitHub settings</span>
-              </div>
-            </div>
-            <Badge variant="secondary" className="gap-1.5 bg-primary/15 text-primary">
-              <span className="size-1.5 rounded-full bg-primary" />
-              Connected
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <MailCheck className="size-5" />
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">Email verification</span>
-                <span className="text-xs text-muted-foreground">{me?.email}</span>
-              </div>
-            </div>
-            <Badge
-              variant="secondary"
-              className={
-                me?.emailVerifiedAt
-                  ? 'gap-1.5 bg-primary/15 text-primary'
-                  : 'gap-1.5'
-              }
+            <form
+              onSubmit={profileForm.handleSubmit(saveProfile)}
+              className="space-y-4"
+              noValidate
+              aria-labelledby="profile-settings-heading"
             >
-              <span
-                className={`size-1.5 rounded-full ${me?.emailVerifiedAt ? 'bg-primary' : 'bg-muted-foreground'}`}
-              />
-              {me?.emailVerifiedAt ? 'Verified' : 'Unverified'}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+              <h2 id="profile-settings-heading" className="sr-only">
+                Profile
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="profile-name">Name</Label>
+                  <Input id="profile-name" autoComplete="name" {...profileForm.register('name')} />
+                  {profileForm.formState.errors.name && (
+                    <p className="text-sm text-destructive">
+                      {profileForm.formState.errors.name.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile-email">Email</Label>
+                  <Input id="profile-email" type="email" value={me?.email ?? ''} readOnly disabled />
+                  <p className="text-xs text-muted-foreground">
+                    Contact support to change your email.
+                  </p>
+                </div>
+              </div>
+              <FormRootError message={profileForm.formState.errors.root?.message} />
+              <div className="flex flex-wrap gap-2">
+                <SubmitButton
+                  isPending={updateProfile.isPending}
+                  pendingLabel="Saving…"
+                  disabled={!profileForm.formState.isDirty}
+                >
+                  Save profile
+                </SubmitButton>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => profileForm.reset({ name: me?.name ?? '' })}
+                  disabled={!profileForm.formState.isDirty}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-heading text-base font-medium">Change password</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form
-            onSubmit={passwordForm.handleSubmit(savePassword)}
-            className="space-y-4"
-            noValidate
-            aria-labelledby="password-settings-heading"
-          >
-            <h2 id="password-settings-heading" className="sr-only">
-              Change password
-            </h2>
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current password</Label>
-              <PasswordInput
-                id="currentPassword"
-                autoComplete="current-password"
-                {...passwordForm.register('currentPassword')}
-              />
-              {passwordForm.formState.errors.currentPassword && (
-                <p className="text-sm text-destructive">
-                  {passwordForm.formState.errors.currentPassword.message}
-                </p>
-              )}
+        {/* Connections — tall side cell */}
+        <Card className="md:row-span-1">
+          <CardHeader>
+            <CardTitle className="font-heading text-base font-medium">Connections</CardTitle>
+            <CardDescription>
+              Work Simulator uses GitHub to assign repos and pull your submissions.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-3">
+              <div className="flex items-center gap-3">
+                <Code className="size-5 shrink-0" />
+                <div className="flex min-w-0 flex-col">
+                  <span className="text-sm font-medium">GitHub</span>
+                  <span className="text-xs text-muted-foreground">Manage in GitHub settings</span>
+                </div>
+              </div>
+              <Badge variant="secondary" className="shrink-0 gap-1.5 bg-primary/15 text-primary">
+                <span className="size-1.5 rounded-full bg-primary" />
+                Connected
+              </Badge>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New password</Label>
-              <PasswordInput
-                id="newPassword"
-                autoComplete="new-password"
-                {...passwordForm.register('newPassword')}
-              />
-              {passwordForm.formState.errors.newPassword && (
-                <p className="text-sm text-destructive">
-                  {passwordForm.formState.errors.newPassword.message}
-                </p>
-              )}
+            <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-3">
+              <div className="flex items-center gap-3">
+                <MailCheck className="size-5 shrink-0" />
+                <div className="flex min-w-0 flex-col">
+                  <span className="text-sm font-medium">Email verification</span>
+                  <span className="truncate text-xs text-muted-foreground">{me?.email}</span>
+                </div>
+              </div>
+              <Badge
+                variant="secondary"
+                className={
+                  me?.emailVerifiedAt ? 'shrink-0 gap-1.5 bg-primary/15 text-primary' : 'shrink-0 gap-1.5'
+                }
+              >
+                <span
+                  className={`size-1.5 rounded-full ${me?.emailVerifiedAt ? 'bg-primary' : 'bg-muted-foreground'}`}
+                />
+                {me?.emailVerifiedAt ? 'Verified' : 'Unverified'}
+              </Badge>
             </div>
-            <FormRootError message={passwordForm.formState.errors.root?.message} />
-            <SubmitButton isPending={changePassword.isPending} pendingLabel="Changing password…">
-              Change password
-            </SubmitButton>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-heading text-base font-medium">Sessions</CardTitle>
-          <CardDescription>Sign out of all other devices and this session.</CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => setIsLogoutDialogOpen(true)}
-            aria-labelledby="sessions-settings-heading"
-          >
-            <span id="sessions-settings-heading" className="sr-only">
-              Sessions
-            </span>
-            Log out everywhere
-          </Button>
-        </CardFooter>
-      </Card>
+        {/* Password */}
+        <Card className="md:col-span-1 lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="font-heading text-base font-medium">Change password</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form
+              onSubmit={passwordForm.handleSubmit(savePassword)}
+              className="space-y-4"
+              noValidate
+              aria-labelledby="password-settings-heading"
+            >
+              <h2 id="password-settings-heading" className="sr-only">
+                Change password
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword">Current password</Label>
+                  <PasswordInput
+                    id="currentPassword"
+                    autoComplete="current-password"
+                    {...passwordForm.register('currentPassword')}
+                  />
+                  {passwordForm.formState.errors.currentPassword && (
+                    <p className="text-sm text-destructive">
+                      {passwordForm.formState.errors.currentPassword.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New password</Label>
+                  <PasswordInput
+                    id="newPassword"
+                    autoComplete="new-password"
+                    {...passwordForm.register('newPassword')}
+                  />
+                  {passwordForm.formState.errors.newPassword && (
+                    <p className="text-sm text-destructive">
+                      {passwordForm.formState.errors.newPassword.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <FormRootError message={passwordForm.formState.errors.root?.message} />
+              <SubmitButton isPending={changePassword.isPending} pendingLabel="Changing password…">
+                Change password
+              </SubmitButton>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Sessions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-heading text-base font-medium">Sessions</CardTitle>
+            <CardDescription>Sign out of all other devices and this session.</CardDescription>
+          </CardHeader>
+          <CardFooter className="mt-auto">
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setIsLogoutDialogOpen(true)}
+              aria-labelledby="sessions-settings-heading"
+            >
+              <span id="sessions-settings-heading" className="sr-only">
+                Sessions
+              </span>
+              Log out everywhere
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
 
       <ConfirmDialog
         open={isLogoutDialogOpen}

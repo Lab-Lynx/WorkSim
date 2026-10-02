@@ -1,26 +1,38 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   Bot,
+  Check,
   CircleCheck,
-  CircleDot,
-  CodeXml,
   FolderGit2,
   GitBranch,
   GitPullRequest,
   GraduationCap,
   Layers,
   MessageCircle,
-  Send,
+  Play,
+  Quote,
   Sparkles,
   SquareTerminal,
   Ticket,
-  UserRound,
   Workflow,
   Zap,
 } from 'lucide-react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ROUTES } from '@/constants';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Avatar } from '@/components/ui/avatar';
 
 const STEPS = [
   {
@@ -93,302 +105,629 @@ const FEATURES = [
   },
 ] as const;
 
+const ORBIT_ICONS = [
+  { Icon: Ticket, label: 'Tickets', className: 'top-[8%] left-1/2 -translate-x-1/2' },
+  { Icon: GitBranch, label: 'Git', className: 'top-[28%] right-[10%]' },
+  { Icon: Bot, label: 'Mentor', className: 'bottom-[28%] right-[8%]' },
+  { Icon: GitPullRequest, label: 'PRs', className: 'bottom-[8%] left-1/2 -translate-x-1/2' },
+  { Icon: Zap, label: 'Review', className: 'bottom-[28%] left-[8%]' },
+  { Icon: FolderGit2, label: 'Repos', className: 'top-[28%] left-[10%]' },
+] as const;
+
+const HIGHLIGHTS = [
+  {
+    quote:
+      'Tickets with real acceptance criteria taught me to ask better questions before I start coding.',
+    name: 'Maya',
+    role: 'Frontend practitioner',
+    initials: 'MA',
+  },
+  {
+    quote:
+      'Opening PRs every week made the review loop feel normal instead of intimidating.',
+    name: 'Jordan',
+    role: 'Full-stack learner',
+    initials: 'JO',
+  },
+  {
+    quote:
+      'The mentor hints nudged me without spoiling the solution. That is how I want to learn.',
+    name: 'Sam',
+    role: 'Backend practitioner',
+    initials: 'SA',
+  },
+] as const;
+
+const PRACTITIONER_FEATURES = [
+  'Unlimited assigned tickets each month',
+  'Full AI mentor access with guided hints',
+  'Rubric-scored feedback on every submission',
+  'Experience profile with public work history',
+] as const;
+
+type BillingCycle = 'monthly' | 'annual';
+
+function priceLabel(cycle: BillingCycle, monthly: number) {
+  if (cycle === 'monthly') {
+    return { amount: monthly, suffix: '/month' };
+  }
+  return { amount: monthly * 10, suffix: '/year' };
+}
+
 export default function LandingPage() {
   useDocumentTitle('WorkSim');
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+  const practitionerPrice = priceLabel(billingCycle, 450);
 
   return (
-    <div className="min-h-screen bg-white text-[#10231F] selection:bg-emerald-200 selection:text-emerald-950">
-      <header className="border-b border-white/10 bg-[#071B17] text-white">
+    <div className="min-h-screen bg-[#F5F5F5] text-neutral-950 selection:bg-neutral-900/10">
+      <header className="sticky top-0 z-40 border-b border-neutral-200/80 bg-[#F5F5F5]/90 backdrop-blur-md">
         <nav
-          className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10"
+          className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 lg:px-8"
           aria-label="Main navigation"
         >
-          <a href="#top" className="flex items-center gap-2.5" aria-label="WorkSim home">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-400 text-[#071B17]">
-              <CodeXml className="h-5 w-5" strokeWidth={2.5} aria-hidden />
-            </span>
-            <span className="text-xl font-extrabold tracking-[-0.04em] text-emerald-300">
-              WorkSim
-            </span>
+          <a href="#top" className="flex items-center" aria-label="WorkSim home">
+            <img
+              src="/logo.png"
+              alt="WorkSim"
+              className="h-[50px] w-auto object-contain max-sm:h-11"
+            />
           </a>
 
-          <div className="hidden items-center gap-9 text-sm font-medium text-emerald-100/70 md:flex">
-            <a href="#how-it-works" className="transition-colors hover:text-white">
+          <div className="hidden items-center gap-8 text-sm text-neutral-500 md:flex">
+            <a href="#how-it-works" className="transition-colors hover:text-neutral-950">
               How it Works
             </a>
-            <a href="#features" className="transition-colors hover:text-white">
+            <a href="#pricing" className="transition-colors hover:text-neutral-950">
+              Pricing
+            </a>
+            <a href="#features" className="transition-colors hover:text-neutral-950">
               Features
             </a>
-            <a href="#credentials" className="transition-colors hover:text-white">
-              About Credentials
+            <a href="#credentials" className="transition-colors hover:text-neutral-950">
+              Credentials
             </a>
           </div>
 
-          <Link
-            to={ROUTES.REGISTER}
-            className="rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-bold text-[#071B17] shadow-[0_8px_24px_rgba(52,211,153,0.18)] transition-transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:ring-offset-2 focus:ring-offset-[#071B17]"
-          >
-            Get Started
-          </Link>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden rounded-full text-neutral-600 hover:bg-neutral-200/70 hover:text-neutral-950 sm:inline-flex"
+              asChild
+            >
+              <Link to={ROUTES.LOGIN}>Log in</Link>
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-full bg-neutral-950 px-4 text-white hover:bg-neutral-800"
+              asChild
+            >
+              <Link to={ROUTES.REGISTER}>
+                Get Started
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+          </div>
         </nav>
       </header>
 
       <main id="top">
-        <section className="overflow-hidden bg-[#071B17] text-white" id="start">
-          <div className="mx-auto grid max-w-7xl items-center gap-14 px-6 pb-24 pt-16 lg:grid-cols-[0.9fr_1.1fr] lg:px-10 lg:pb-32 lg:pt-24">
-            <div className="max-w-2xl">
-              <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
-                <CircleDot className="h-3.5 w-3.5" aria-hidden />
-                <span>Practice with purpose</span>
+        <section className="px-6 pb-16 pt-14 lg:px-8 lg:pb-24 lg:pt-20" id="start">
+          <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
+            <Badge
+              variant="secondary"
+              className="h-7 rounded-full border-0 bg-white px-3 text-[11px] uppercase tracking-[0.14em] text-neutral-500 shadow-sm"
+            >
+              Practice with purpose
+            </Badge>
+
+            <h1 className="mt-6 max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight text-neutral-950 sm:text-5xl lg:text-6xl">
+              Your first{' '}
+              <em className="font-heading italic font-medium text-neutral-950">job</em> before you
+              get your first job.
+            </h1>
+
+            <p className="mt-5 max-w-xl text-base leading-7 text-neutral-500 sm:text-lg">
+              Practice the real software engineering workflows that make teams move: tickets,
+              branches, pull requests, reviews, and everything between.
+            </p>
+
+            <div className="relative mx-auto mt-12 aspect-square w-full max-w-md">
+              <div className="absolute inset-[8%] rounded-full border border-dashed border-neutral-300" />
+              <div className="absolute inset-[20%] rounded-full border border-dashed border-neutral-300/80" />
+              <div className="absolute inset-[34%] rounded-full border border-dashed border-neutral-300/60" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex size-20 items-center justify-center rounded-3xl bg-neutral-950 shadow-xl shadow-neutral-950/15">
+                  <img src="/icon.png" alt="" className="size-12 object-contain invert" />
+                </div>
               </div>
-
-              <h1 className="max-w-xl text-5xl font-black leading-[0.98] tracking-[-0.065em] sm:text-6xl lg:text-[5.15rem]">
-                Your First Job Before You Get Your First Job.
-              </h1>
-
-              <p className="mt-7 max-w-lg text-lg leading-8 text-emerald-100/70">
-                Practice the real software engineering workflows that make teams move: tickets,
-                branches, pull requests, reviews, and everything between.
-              </p>
-
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  to={ROUTES.REGISTER}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-400 px-5 py-3.5 text-sm font-bold text-[#071B17] transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              {ORBIT_ICONS.map(({ Icon, label, className }) => (
+                <div
+                  key={label}
+                  className={cn(
+                    'absolute flex size-11 items-center justify-center rounded-2xl border border-neutral-200 bg-white shadow-sm',
+                    className,
+                  )}
+                  title={label}
                 >
-                  <span>Start Building</span>
-                  <ArrowRight className="h-4 w-4" aria-hidden />
+                  <Icon className="size-5 text-neutral-700" aria-hidden />
+                  <span className="sr-only">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
+              <Button
+                size="lg"
+                className="h-11 rounded-full bg-neutral-950 px-6 text-white hover:bg-neutral-800"
+                asChild
+              >
+                <Link to={ROUTES.REGISTER}>
+                  Start Building
+                  <ArrowRight data-icon="inline-end" />
                 </Link>
-                <a
-                  href="#how-it-works"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-100/25 px-5 py-3.5 text-sm font-bold text-white transition hover:border-emerald-200/60 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                >
-                  <span>See How It Works</span>
-                  <ArrowRight className="h-4 w-4" aria-hidden />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-11 rounded-full border-neutral-300 bg-white px-6 text-neutral-950 hover:bg-neutral-100"
+                asChild
+              >
+                <a href="#how-it-works">
+                  <Play data-icon="inline-start" className="size-3.5 fill-current" />
+                  See How It Works
                 </a>
-              </div>
-
-              <p className="mt-6 flex items-center gap-2 text-xs text-emerald-100/45">
-                <CircleCheck className="h-3.5 w-3.5 text-emerald-400" aria-hidden />
-                <span>No polished portfolio required. Just curiosity and a willingness to build.</span>
-              </p>
+              </Button>
             </div>
 
-            <div className="relative mx-auto w-full max-w-[650px]">
-              <div className="rounded-2xl border border-white/15 bg-[#102B25] p-2 shadow-[0_28px_90px_rgba(0,0,0,0.32)]">
-                <div className="flex items-center justify-between rounded-t-xl border-b border-white/10 bg-[#0B211D] px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#F87171]" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#FBBF24]" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                  </div>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100/40">
-                    workspace / ticket-184
-                  </span>
-                  <span className="w-10" />
-                </div>
-
-                <div className="grid gap-2 p-2 sm:grid-cols-[1fr_1.08fr]">
-                  <div className="rounded-xl border border-white/10 bg-[#0B211D] p-4">
-                    <div className="mb-5 flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-xs font-bold text-emerald-100">
-                        <Ticket className="h-3.5 w-3.5 text-emerald-400" aria-hidden />
-                        <span>ENG-184</span>
-                      </span>
-                      <span className="rounded-full bg-emerald-400/10 px-2 py-1 text-[10px] font-bold text-emerald-300">
-                        IN PROGRESS
-                      </span>
-                    </div>
-                    <h2 className="text-lg font-bold leading-snug text-white">
-                      Add pagination to the activity feed
-                    </h2>
-                    <p className="mt-3 text-xs leading-5 text-emerald-100/55">
-                      Keep initial load under 500ms and expose a cursor-based API for older
-                      events.
-                    </p>
-                    <div className="mt-7 border-t border-white/10 pt-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-100/35">
-                        Acceptance criteria
-                      </p>
-                      <ul className="mt-3 space-y-2 text-xs text-emerald-100/70">
-                        <li className="flex gap-2">
-                          <CircleCheck
-                            className="h-3.5 w-3.5 shrink-0 text-emerald-400"
-                            aria-hidden
-                          />
-                          <span>Cursor is stable between requests</span>
-                        </li>
-                        <li className="flex gap-2">
-                          <CircleCheck
-                            className="h-3.5 w-3.5 shrink-0 text-emerald-400"
-                            aria-hidden
-                          />
-                          <span>Empty states are handled</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <div className="rounded-xl border border-white/10 bg-[#F7FBF9] p-4 text-[#10231F]">
-                      <div className="flex items-center gap-2 border-b border-[#DCEAE3] pb-3">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                          <Sparkles className="h-4 w-4" aria-hidden />
-                        </span>
-                        <div>
-                          <p className="text-xs font-bold">AI Mentor</p>
-                          <p className="text-[10px] text-emerald-700">Context-aware guidance</p>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex gap-2">
-                        <MessageCircle
-                          className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-600"
-                          aria-hidden
-                        />
-                        <p className="text-xs leading-5 text-[#48635A]">
-                          Nice direction. Before you push, what happens when the cursor no longer
-                          points to a record?
-                        </p>
-                      </div>
-                      <div className="mt-3 ml-5 rounded-lg bg-white p-2.5 text-[10px] leading-4 text-[#6B8178] shadow-sm">
-                        Try writing that case as a test first.
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-white/10 bg-[#12372D] p-4 text-white">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2 text-xs font-bold">
-                          <GitPullRequest className="h-4 w-4" aria-hidden />
-                          <span>Pull request</span>
-                        </span>
-                        <span className="rounded-full bg-emerald-400/15 px-2 py-1 text-[10px] font-bold text-emerald-300">
-                          READY
-                        </span>
-                      </div>
-                      <p className="mt-4 text-sm font-semibold">feat: paginate activity feed</p>
-                      <div className="mt-3 flex items-center justify-between text-[10px] text-emerald-100/50">
-                        <span>8 files changed</span>
-                        <span>+142 −38</span>
-                      </div>
-                      <div className="mt-4 flex items-center justify-between rounded-lg bg-emerald-400 px-3 py-2 text-xs font-bold text-[#071B17]">
-                        <span>Submit for review</span>
-                        <Send className="h-3.5 w-3.5" aria-hidden />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <p className="mt-5 flex items-center gap-2 text-xs text-neutral-500">
+              <CircleCheck className="size-3.5 text-neutral-950" aria-hidden />
+              No polished portfolio required. Just curiosity and a willingness to build.
+            </p>
           </div>
         </section>
 
-        <section id="how-it-works" className="bg-white px-6 py-24 lg:px-10 lg:py-28">
-          <div className="mx-auto max-w-7xl">
-            <div className="max-w-2xl">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+        <section id="how-it-works" className="px-6 py-16 lg:px-8 lg:py-24">
+          <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <Badge
+                variant="outline"
+                className="h-7 rounded-full border-neutral-200 bg-white px-3 text-neutral-500"
+              >
                 A better way to get ready
-              </p>
-              <h2 className="mt-4 text-4xl font-black tracking-[-0.05em] text-[#10231F] sm:text-5xl">
-                Learn the work by doing the work.
+              </Badge>
+              <h2 className="mt-5 text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl">
+                Learn the work by doing the{' '}
+                <em className="font-heading italic font-medium">work</em>.
               </h2>
-              <p className="mt-5 text-lg leading-8 text-[#61756D]">
+              <p className="mt-4 text-base leading-7 text-neutral-500">
                 The loop is simple. The confidence you build in it is not.
               </p>
+
+              <ul className="mt-8 space-y-4">
+                {STEPS.slice(0, 3).map(({ step, title, description, Icon }) => (
+                  <li key={step} className="flex gap-3">
+                    <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-2xl bg-neutral-200/80 text-neutral-950">
+                      <Icon className="size-4" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="font-medium text-neutral-950">{title}</p>
+                      <p className="mt-0.5 text-sm leading-6 text-neutral-500">{description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Button
+                  className="rounded-full bg-neutral-950 px-5 text-white hover:bg-neutral-800"
+                  asChild
+                >
+                  <Link to={ROUTES.REGISTER}>
+                    Get Started
+                    <ArrowRight data-icon="inline-end" />
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-full border-neutral-300 bg-white px-5 text-neutral-950 hover:bg-neutral-100"
+                  asChild
+                >
+                  <a href="#pricing">
+                    <Play data-icon="inline-start" className="size-3.5 fill-current" />
+                    View pricing
+                  </a>
+                </Button>
+              </div>
             </div>
 
-            <ol className="mt-16 grid gap-8 md:grid-cols-5 md:gap-5">
-              {STEPS.map(({ step, title, description, Icon }) => (
-                <li key={step} className="relative border-t border-[#DDE9E3] pt-5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black tracking-[0.16em] text-emerald-600">
-                      {step}
+            <Card className="rounded-3xl border-0 bg-white p-2 shadow-sm ring-1 ring-neutral-200/80">
+              <CardContent className="space-y-3 p-4 sm:p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-9 items-center justify-center rounded-xl bg-neutral-100 text-neutral-950">
+                      <Ticket className="size-4" aria-hidden />
                     </span>
-                    <Icon className="h-5 w-5 text-emerald-600" aria-hidden />
+                    <div>
+                      <p className="text-sm font-medium text-neutral-950">ENG-184</p>
+                      <p className="text-xs text-neutral-500">Active ticket</p>
+                    </div>
                   </div>
-                  <h3 className="mt-7 text-base font-extrabold text-[#10231F]">{title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-[#6B8178]">{description}</p>
-                </li>
-              ))}
-            </ol>
+                  <Badge className="rounded-full bg-neutral-950 text-white hover:bg-neutral-950">
+                    96%
+                  </Badge>
+                </div>
+
+                <p className="font-heading text-lg font-medium leading-snug text-neutral-950">
+                  Add pagination to the activity feed
+                </p>
+
+                <div className="space-y-3 pt-2">
+                  {[
+                    { label: 'Requirements', value: 92 },
+                    { label: 'Code quality', value: 88 },
+                    { label: 'Testing', value: 79 },
+                  ].map((row) => (
+                    <div key={row.label}>
+                      <div className="mb-1.5 flex items-center justify-between text-xs">
+                        <span className="text-neutral-500">{row.label}</span>
+                        <span className="font-medium text-neutral-950">{row.value}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-neutral-100">
+                        <div
+                          className="h-full rounded-full bg-neutral-950"
+                          style={{ width: `${row.value}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-start gap-2 rounded-2xl bg-neutral-100 p-3">
+                  <MessageCircle className="mt-0.5 size-4 shrink-0 text-neutral-950" aria-hidden />
+                  <p className="text-xs leading-5 text-neutral-500">
+                    Nice direction. Before you push, what happens when the cursor no longer points
+                    to a record?
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </section>
 
-        <section id="features" className="bg-[#F3F8F5] px-6 py-24 lg:px-10 lg:py-28">
-          <div className="mx-auto max-w-7xl">
-            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
-                  Built around your growth
-                </p>
-                <h2 className="mt-4 text-4xl font-black tracking-[-0.05em] text-[#10231F] sm:text-5xl">
-                  Everything you need to practice with intent.
-                </h2>
+        <section id="pricing" className="px-6 py-16 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-2xl text-center">
+              <Badge
+                variant="outline"
+                className="h-7 rounded-full border-neutral-200 bg-white px-3 text-neutral-500"
+              >
+                Pricing
+              </Badge>
+              <h2 className="mt-5 text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl">
+                Plans for your{' '}
+                <em className="font-heading italic font-medium">practice</em>
+              </h2>
+              <p className="mt-3 text-base text-neutral-500">
+                Start exploring free, then unlock the full Practitioner track when you are ready to
+                ship every week.
+              </p>
+
+              <div
+                className="mx-auto mt-8 inline-flex rounded-full border border-neutral-200 bg-white p-1"
+                role="group"
+                aria-label="Billing cycle"
+              >
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('monthly')}
+                  className={cn(
+                    'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                    billingCycle === 'monthly'
+                      ? 'bg-neutral-950 text-white'
+                      : 'text-neutral-500 hover:text-neutral-950',
+                  )}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('annual')}
+                  className={cn(
+                    'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                    billingCycle === 'annual'
+                      ? 'bg-neutral-950 text-white'
+                      : 'text-neutral-500 hover:text-neutral-950',
+                  )}
+                >
+                  Annually
+                </button>
               </div>
-              <p className="max-w-sm text-base leading-7 text-[#61756D]">
+            </div>
+
+            <div className="mt-12 grid gap-5 lg:grid-cols-3">
+              <Card className="rounded-3xl border-0 bg-neutral-200/60 shadow-none ring-0">
+                <CardHeader className="gap-3">
+                  <span className="flex size-10 items-center justify-center rounded-2xl bg-neutral-950 text-white">
+                    <Sparkles className="size-5" aria-hidden />
+                  </span>
+                  <div>
+                    <CardTitle className="text-xl font-semibold text-neutral-950">Explorer</CardTitle>
+                    <CardDescription className="mt-1 text-neutral-500">
+                      For getting a feel for the WorkSim loop
+                    </CardDescription>
+                  </div>
+                  <p className="pt-2">
+                    <span className="text-4xl font-semibold tracking-tight text-neutral-950">
+                      0 ETB
+                    </span>
+                    <span className="ml-1 text-sm text-neutral-500">
+                      /{billingCycle === 'monthly' ? 'month' : 'year'}
+                    </span>
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    variant="secondary"
+                    className="w-full rounded-full bg-white text-neutral-950 hover:bg-neutral-100"
+                    asChild
+                  >
+                    <Link to={ROUTES.REGISTER}>Get Started</Link>
+                  </Button>
+                  <div className="my-5 border-t border-neutral-300/80" />
+                  <p className="mb-3 text-sm font-semibold text-neutral-950">Features</p>
+                  <ul className="space-y-2.5">
+                    {['Create your account', 'Browse the practice workflow', 'Sample ticket preview'].map(
+                      (item) => (
+                        <li key={item} className="flex items-start gap-2 text-sm text-neutral-500">
+                          <Check className="mt-0.5 size-4 shrink-0 text-neutral-950" aria-hidden />
+                          <span>{item}</span>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-3xl border-0 bg-neutral-950 text-white shadow-lg shadow-neutral-950/20 ring-0">
+                <CardHeader className="gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="flex size-10 items-center justify-center rounded-2xl bg-white/10 text-white">
+                      <Ticket className="size-5" aria-hidden />
+                    </span>
+                    <Badge className="rounded-full border-0 bg-white/10 text-white hover:bg-white/10">
+                      Popular
+                    </Badge>
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl font-semibold text-white">Practitioner</CardTitle>
+                    <CardDescription className="mt-1 text-white/55">
+                      For shipping real tickets every month
+                    </CardDescription>
+                  </div>
+                  <p className="pt-2">
+                    <span className="text-4xl font-semibold tracking-tight text-white">
+                      {practitionerPrice.amount} ETB
+                    </span>
+                    <span className="ml-1 text-sm text-white/50">{practitionerPrice.suffix}</span>
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    className="w-full rounded-full bg-white text-neutral-950 hover:bg-neutral-100"
+                    asChild
+                  >
+                    <Link to={ROUTES.REGISTER}>Subscribe Now</Link>
+                  </Button>
+                  <div className="my-5 border-t border-white/10" />
+                  <p className="mb-3 text-sm font-semibold text-white">Features</p>
+                  <ul className="space-y-2.5">
+                    {PRACTITIONER_FEATURES.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-white/65">
+                        <Check className="mt-0.5 size-4 shrink-0 text-white" aria-hidden />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-3xl border-0 bg-neutral-200/60 shadow-none ring-0">
+                <CardHeader className="gap-3">
+                  <span className="flex size-10 items-center justify-center rounded-2xl bg-neutral-950 text-white">
+                    <GraduationCap className="size-5" aria-hidden />
+                  </span>
+                  <div>
+                    <CardTitle className="text-xl font-semibold text-neutral-950">Cohort</CardTitle>
+                    <CardDescription className="mt-1 text-neutral-500">
+                      For schools and learning groups
+                    </CardDescription>
+                  </div>
+                  <p className="pt-2">
+                    <span className="text-4xl font-semibold tracking-tight text-neutral-950">
+                      Custom
+                    </span>
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    variant="secondary"
+                    className="w-full rounded-full bg-white text-neutral-950 hover:bg-neutral-100"
+                    asChild
+                  >
+                    <Link to={ROUTES.REGISTER}>Talk to us</Link>
+                  </Button>
+                  <div className="my-5 border-t border-neutral-300/80" />
+                  <p className="mb-3 text-sm font-semibold text-neutral-950">Features</p>
+                  <ul className="space-y-2.5">
+                    {[
+                      'Everything in Practitioner',
+                      'Shared cohort progress',
+                      'Custom onboarding support',
+                    ].map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-neutral-500">
+                        <Check className="mt-0.5 size-4 shrink-0 text-neutral-950" aria-hidden />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        <section id="features" className="px-6 py-16 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-2xl text-center">
+              <Badge
+                variant="outline"
+                className="h-7 rounded-full border-neutral-200 bg-white px-3 text-neutral-500"
+              >
+                Built around your growth
+              </Badge>
+              <h2 className="mt-5 text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl">
+                Everything you need to practice with{' '}
+                <em className="font-heading italic font-medium">intent</em>.
+              </h2>
+              <p className="mt-3 text-base text-neutral-500">
                 A focused environment for turning “I’ve seen this before” into “I can ship this.”
               </p>
             </div>
 
-            <div className="mt-16 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map(({ title, description, Icon }) => (
-                <article key={title} className="border-t border-[#CFE0D7] pt-5">
-                  <Icon className="h-5 w-5 text-emerald-700" aria-hidden />
-                  <h3 className="mt-5 text-lg font-extrabold text-[#10231F]">{title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-[#61756D]">{description}</p>
-                </article>
+                <Card
+                  key={title}
+                  className="rounded-3xl border-0 bg-white shadow-sm ring-1 ring-neutral-200/80"
+                >
+                  <CardHeader>
+                    <span className="mb-2 flex size-10 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-950">
+                      <Icon className="size-5" aria-hidden />
+                    </span>
+                    <CardTitle className="text-lg font-semibold text-neutral-950">{title}</CardTitle>
+                    <CardDescription className="text-sm leading-6 text-neutral-500">
+                      {description}
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
               ))}
+            </div>
+
+            <div className="mt-14 grid gap-5 md:grid-cols-3">
+              {HIGHLIGHTS.map((item) => (
+                <Card
+                  key={item.name}
+                  className="rounded-3xl border-0 bg-white shadow-sm ring-1 ring-neutral-200/80"
+                >
+                  <CardHeader className="gap-4">
+                    <Quote className="size-6 text-neutral-400" aria-hidden />
+                    <CardDescription className="text-sm leading-6 text-neutral-700">
+                      {item.quote}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardFooter className="gap-3 border-t border-neutral-200 bg-transparent pt-4">
+                    <Avatar
+                      fallback={item.initials}
+                      className="size-9 border-neutral-200 bg-neutral-100 text-xs text-neutral-950"
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-neutral-950">{item.name}</p>
+                      <p className="truncate text-xs text-neutral-500">{item.role}</p>
+                    </div>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+
+            <div className="mt-10 flex justify-center gap-3">
+              <Button
+                className="rounded-full bg-neutral-950 px-5 text-white hover:bg-neutral-800"
+                asChild
+              >
+                <Link to={ROUTES.REGISTER}>
+                  Get Started
+                  <ArrowRight data-icon="inline-end" />
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-full border-neutral-300 bg-white px-5 text-neutral-950 hover:bg-neutral-100"
+                asChild
+              >
+                <a href="#credentials">About credentials</a>
+              </Button>
             </div>
           </div>
         </section>
 
-        <section id="credentials" className="bg-white px-6 py-24 lg:px-10">
-          <div className="mx-auto max-w-7xl">
-            <div className="rounded-2xl bg-[#0D3027] px-7 py-10 text-white sm:px-12 sm:py-14 lg:flex lg:items-center lg:justify-between lg:gap-16">
-              <div className="max-w-2xl">
-                <div className="flex items-center gap-2 text-emerald-300">
-                  <UserRound className="h-4 w-4" aria-hidden />
-                  <span className="text-xs font-bold uppercase tracking-[0.18em]">
-                    About credentials
-                  </span>
+        <section id="credentials" className="px-6 pb-16 lg:px-8 lg:pb-24">
+          <div className="mx-auto max-w-6xl">
+            <Card className="overflow-hidden rounded-[2rem] border-0 bg-neutral-950 text-white shadow-none ring-0">
+              <CardContent className="grid gap-10 p-8 sm:p-10 lg:grid-cols-[1.2fr_0.8fr] lg:p-12">
+                <div>
+                  <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                    Practice experience is not a promise of employment.
+                  </h2>
+                  <p className="mt-4 max-w-xl text-sm leading-7 text-white/60 sm:text-base">
+                    WorkSim tracks the work you practice: the tickets you complete, the decisions
+                    you make, and the feedback you apply. It does not issue employer-certified
+                    credentials or replace professional experience. It is an honest record of
+                    momentum you can take into your next conversation.
+                  </p>
+                  <div className="mt-8 flex flex-wrap gap-3">
+                    <Button
+                      className="rounded-full bg-white text-neutral-950 hover:bg-neutral-100"
+                      asChild
+                    >
+                      <Link to={ROUTES.REGISTER}>
+                        Start building honestly
+                        <ArrowRight data-icon="inline-end" />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="rounded-full border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                      asChild
+                    >
+                      <a href="#pricing">View Pricing</a>
+                    </Button>
+                  </div>
                 </div>
-                <h2 className="mt-5 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
-                  Practice experience is not a promise of employment.
-                </h2>
-                <p className="mt-5 text-base leading-7 text-emerald-100/70">
-                  WorkSim tracks the work you practice: the tickets you complete, the decisions
-                  you make, and the feedback you apply. It does not issue employer-certified
-                  credentials or replace professional experience. It is an honest record of
-                  momentum you can take into your next conversation.
-                </p>
-              </div>
-              <div className="mt-9 shrink-0 lg:mt-0">
-                <Link
-                  to={ROUTES.REGISTER}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-5 py-3.5 text-sm font-bold text-[#071B17] transition hover:bg-emerald-300"
-                >
-                  <span>Start building honestly</span>
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Link>
-              </div>
-            </div>
+
+                <ul className="grid content-center gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                  {[
+                    'Real tickets with clear criteria',
+                    'GitHub-native workflow practice',
+                    'AI mentor that guides, not spoils',
+                    'Rubric feedback you can act on',
+                    'Experience profile you control',
+                    'No lock-in to a proprietary IDE',
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-white/75">
+                      <CircleCheck className="mt-0.5 size-4 shrink-0 text-white" aria-hidden />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-[#E1ECE6] bg-white px-6 py-9 lg:px-10">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 text-sm text-[#71847C] sm:flex-row sm:items-center sm:justify-between">
-          <a href="#top" className="flex items-center gap-2 font-extrabold text-[#10231F]">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#0D3027] text-emerald-300">
-              <CodeXml className="h-4 w-4" aria-hidden />
-            </span>
-            <span>WorkSim</span>
+      <footer className="border-t border-neutral-200 px-6 py-8 lg:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 text-sm text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
+          <a href="#top" className="flex items-center" aria-label="WorkSim home">
+            <img src="/logo.png" alt="WorkSim" className="h-[50px] w-auto object-contain" />
           </a>
           <p>© {new Date().getFullYear()} WorkSim. Practice experience is not employer certification.</p>
           <div className="flex gap-5">
-            <a href="#credentials" className="transition hover:text-emerald-700">
+            <a href="#credentials" className="transition hover:text-neutral-950">
               Credentials note
             </a>
-            <Link to={ROUTES.LOGIN} className="transition hover:text-emerald-700">
+            <Link to={ROUTES.LOGIN} className="transition hover:text-neutral-950">
               Log in
             </Link>
           </div>

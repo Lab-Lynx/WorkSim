@@ -32,10 +32,12 @@ describe('LandingPage', () => {
     }
   });
 
-  it('exposes how-it-works and features sections', () => {
+  it('exposes how-it-works, pricing, and features sections', () => {
     renderLanding();
 
     expect(document.getElementById('how-it-works')).toBeTruthy();
+    expect(document.getElementById('pricing')).toBeTruthy();
     expect(document.getElementById('features')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /plans for your practice/i })).toBeInTheDocument();
   });
 });

@@ -20,6 +20,7 @@ import { useCurrentTicket } from '@/hooks/useCurrentTicket';
 import { useLogout } from '@/hooks/auth/useLogout';
 import { EmailVerificationBanner } from '@/components/layout/EmailVerificationBanner';
 import { SubscriptionBanner } from '@/components/layout/SubscriptionBanner';
+import ThemeToggle from '@/components/common/ThemeToggle';
 import { ROUTES } from '@/constants';
 import { cn } from '@/lib/utils';
 
@@ -87,7 +88,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
     breadcrumbLabels[location.pathname] ??
     (location.pathname.startsWith('/tickets/') ? 'Current Ticket' : 'Workspace');
 
-  const renderNavLinks = (collapsed = false) => (
+  const navLinkClass = ({ isActive }: { isActive: boolean }, collapsed = false) =>
+    cn(
+      'flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition-colors',
+      'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+      isActive
+        ? 'bg-card text-foreground shadow-sm ring-1 ring-border/60'
+        : 'text-sidebar-foreground/80',
+      collapsed && 'justify-center px-0',
+    );
+
+  const renderWorkspaceNav = (collapsed = false) => (
     <nav className="space-y-1" aria-label="Main navigation">
       <p
         className={cn(
@@ -102,24 +113,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
           key={item.to}
           to={item.to}
           onClick={closeMobileMenu}
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition-colors',
-              'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-              isActive
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-sidebar-foreground/80',
-              collapsed && 'justify-center px-0',
-            )
-          }
+          className={(args) => navLinkClass(args, collapsed)}
         >
           <item.icon className="size-4 shrink-0" />
           <span className={cn(collapsed && 'sr-only')}>{item.label}</span>
         </NavLink>
       ))}
+    </nav>
+  );
+
+  const renderAccountFooter = (collapsed = false) => (
+    <div className="space-y-1">
       <p
         className={cn(
-          'mb-2 mt-6 px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground',
+          'mb-2 px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground',
           collapsed && 'sr-only',
         )}
       >
@@ -128,25 +135,30 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <NavLink
         to={ROUTES.SETTINGS}
         onClick={closeMobileMenu}
-        className={({ isActive }) =>
-          cn(
-            'flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition-colors',
-            'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-            isActive
-              ? 'bg-card text-foreground shadow-sm'
-              : 'text-sidebar-foreground/80',
-            collapsed && 'justify-center px-0',
-          )
-        }
+        className={(args) => navLinkClass(args, collapsed)}
       >
         <Settings className="size-4 shrink-0" />
         <span className={cn(collapsed && 'sr-only')}>Settings</span>
       </NavLink>
-    </nav>
+      <ThemeToggle collapsed={collapsed} />
+      <button
+        type="button"
+        className={cn(
+          'flex w-full items-center rounded-2xl py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive',
+          collapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3',
+        )}
+        onClick={handleLogout}
+        disabled={isLoggingOut}
+        aria-label="Log out"
+      >
+        <LogOut className="size-4 shrink-0" />
+        {!collapsed && (isLoggingOut ? 'Logging out...' : 'Log out')}
+      </button>
+    </div>
   );
 
   return (
-    <div className="flex h-svh flex-col overflow-hidden bg-sidebar text-foreground">
+    <div className="flex h-svh flex-col overflow-hidden overscroll-none bg-sidebar text-foreground">
       <div className="z-40 flex w-full shrink-0 flex-col">
         <EmailVerificationBanner />
         <SubscriptionBanner />
@@ -158,69 +170,58 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           className={cn(
-            'hidden min-h-0 shrink-0 flex-col justify-between overflow-y-auto scrollbar-transparent py-4 text-sidebar-foreground transition-[width] duration-200 md:flex',
+            'hidden min-h-0 shrink-0 flex-col overflow-hidden py-4 text-sidebar-foreground transition-[width] duration-200 md:flex',
             sidebarCollapsed ? 'w-16 px-2' : 'w-64 px-3',
           )}
         >
-          <div className="space-y-6">
-            <div
-              className={cn(
-                'flex items-center gap-2 px-2 py-1',
-                sidebarCollapsed ? 'flex-col justify-center' : 'justify-between',
+          <div
+            className={cn(
+              'mb-6 flex shrink-0 items-center gap-2 px-2 py-1',
+              sidebarCollapsed ? 'flex-col justify-center' : 'justify-between',
+            )}
+          >
+            <div className="flex min-w-0 items-center">
+              {sidebarCollapsed ? (
+                <img
+                  src="/icon.png"
+                  alt="WorkSim"
+                  className="size-9 object-contain dark:invert"
+                />
+              ) : (
+                <img
+                  src="/logo.png"
+                  alt="WorkSim"
+                  className="h-10 w-auto object-contain object-left dark:invert"
+                />
               )}
-            >
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                  <Ticket className="size-4" />
-                </div>
-                {!sidebarCollapsed && (
-                  <div className="flex min-w-0 flex-col leading-none">
-                    <span className="font-heading text-base font-medium tracking-tight">
-                      Work Simulator
-                    </span>
-                    <span className="mt-0.5 text-xs text-muted-foreground">Practitioner Track</span>
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              >
-                {sidebarCollapsed ? (
-                  <PanelLeftOpen className="size-4" />
-                ) : (
-                  <PanelLeftClose className="size-4" />
-                )}
-              </button>
             </div>
-            {renderNavLinks(sidebarCollapsed)}
-          </div>
-
-          <div className="pt-3">
             <button
               type="button"
-              className={cn(
-                'flex w-full items-center rounded-2xl py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive',
-                sidebarCollapsed ? 'justify-center px-0' : 'justify-start px-3',
-              )}
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              aria-label="Log out"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              <LogOut className={cn('size-4', !sidebarCollapsed && 'mr-2')} />
-              {!sidebarCollapsed && (isLoggingOut ? 'Logging out...' : 'Log out')}
+              {sidebarCollapsed ? (
+                <PanelLeftOpen className="size-4" />
+              ) : (
+                <PanelLeftClose className="size-4" />
+              )}
             </button>
           </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-transparent">
+            {renderWorkspaceNav(sidebarCollapsed)}
+          </div>
+
+          <div className="mt-auto shrink-0 pt-4">{renderAccountFooter(sidebarCollapsed)}</div>
         </aside>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3 md:p-4">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-3 md:p-4">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl bg-card shadow-[0_1px_3px_rgba(0,0,0,0.06)] ring-1 ring-border/50">
             <header className="z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border/40 bg-card px-4">
               <button
                 type="button"
@@ -244,27 +245,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 aria-label="Mobile Navigation"
                 className="space-y-4 border-b border-border bg-sidebar p-4 md:hidden"
               >
-                {renderNavLinks(false)}
-                <div className="border-t border-border pt-4">
-                  <button
-                    type="button"
-                    className="flex w-full items-center rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive"
-                    onClick={() => {
-                      closeMobileMenu();
-                      handleLogout();
-                    }}
-                    disabled={isLoggingOut}
-                    aria-label="Log out"
-                  >
-                    <LogOut className="mr-2 size-4" />
-                    {isLoggingOut ? 'Logging out...' : 'Log out'}
-                  </button>
-                </div>
+                {renderWorkspaceNav(false)}
+                <div className="border-t border-border pt-4">{renderAccountFooter(false)}</div>
               </div>
             )}
 
-            <main className="min-h-0 flex-1 overflow-y-auto scrollbar-transparent p-4 md:p-8">
-              <div className="flex flex-col gap-6">{children}</div>
+            <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-transparent p-4 md:p-8">
+              <div className="flex min-h-0 flex-col gap-6">{children}</div>
             </main>
           </div>
         </div>

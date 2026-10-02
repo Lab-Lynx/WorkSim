@@ -45,14 +45,14 @@ export default function RegisterPage(): React.JSX.Element {
 
   return (
     <div className="flex flex-col">
-      <div className="mb-6">
+      <div className="mb-7">
         <h1
           tabIndex={-1}
-          className="text-2xl font-semibold tracking-tight text-foreground outline-none"
+          className="text-xl font-semibold tracking-tight text-foreground outline-none"
         >
           Create your account
         </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">Sign up for your WorkSim account</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">Please enter your details.</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
@@ -120,17 +120,17 @@ export default function RegisterPage(): React.JSX.Element {
         <SubmitButton
           isPending={register.isPending}
           pendingLabel="Creating account…"
-          className="mt-2 w-full"
+          className="mt-1 h-10 w-full rounded-lg bg-foreground text-background hover:bg-foreground/90"
         >
           Create account
         </SubmitButton>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 text-sm text-muted-foreground">
         Already have an account?{' '}
         <Link
           to={ROUTES.LOGIN}
-          className="font-medium text-foreground underline underline-offset-4 hover:text-foreground/80"
+          className="font-semibold text-foreground underline underline-offset-4 hover:text-foreground/80"
         >
           Log in
         </Link>
