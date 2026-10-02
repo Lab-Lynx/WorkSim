@@ -1,10 +1,12 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   Bot,
   Check,
   CircleCheck,
+  CircleCheck,
+  CircleDot,
+  CodeXml,
   FolderGit2,
   GitBranch,
   GitPullRequest,
@@ -16,6 +18,11 @@ import {
   Sparkles,
   SquareTerminal,
   Ticket,
+  Send,
+  Sparkles,
+  SquareTerminal,
+  Ticket,
+  UserRound,
   Workflow,
   Zap,
 } from 'lucide-react';

@@ -71,11 +71,9 @@ const router = createBrowserRouter([
     element: <RequireAuth />,
     children: [
       {
-        element: (
-          <AppLayout>
-            <Outlet />
-          </AppLayout>
-        ),
+        element: <DashboardLayout />,
+        children: [{ path: ROUTES.DASHBOARD, element: withSuspense(<DashboardPage />) }],
+        element: <AppLayout><Outlet /></AppLayout>,
         children: [
           { path: ROUTES.DASHBOARD, element: withSuspense(<DashboardPage />) },
           { path: ROUTES.BILLING, element: withSuspense(<BillingPage />) },
