@@ -155,6 +155,28 @@ describe('VerifyEmailPage (FE-071)', () => {
             expect(screen.getByRole('heading', { level: 1, name: /email verified/i })).toBeInTheDocument();
             expect(screen.getByText(/your email address has been verified successfully/i)).toBeInTheDocument();
         });
+
+        expect(screen.getByRole('link', { name: /go to login/i })).toHaveAttribute('href', '/login');
+    });
+
+    it('sends a logged-in user to the dashboard after successful verification', async () => {
+        vi.spyOn(useMeModule, 'useMe').mockReturnValue({
+            data: { id: '1', email: 'user@domain.com', name: 'User' },
+            isLoading: false,
+            isError: false,
+        } as unknown as ReturnType<typeof useMeModule.useMe>);
+        mockMutateAsync.mockResolvedValueOnce({
+            emailVerifiedAt: '2026-01-01T00:00:00.000Z',
+        });
+
+        renderComponent(['/verify-email?token=valid-token']);
+
+        await waitFor(() => {
+            expect(screen.getByRole('link', { name: /go to dashboard/i })).toHaveAttribute(
+                'href',
+                '/dashboard'
+            );
+        });
     });
 
     it('disables resend button during active cooldown', () => {

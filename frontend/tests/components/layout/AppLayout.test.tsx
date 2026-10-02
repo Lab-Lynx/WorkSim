@@ -18,12 +18,20 @@ let currentTicketState: CurrentTicketState;
 
 const mockLogoutMutate = vi.fn();
 
-vi.mock('@/hooks/useLogout', () => ({
+vi.mock('@/hooks/auth/useLogout', () => ({
   useLogout: () => logoutState,
 }));
 
 vi.mock('@/hooks/useCurrentTicket', () => ({
   useCurrentTicket: () => currentTicketState,
+}));
+
+vi.mock('@/components/layout/EmailVerificationBanner', () => ({
+  EmailVerificationBanner: () => <div data-testid="email-verification-banner-component" />,
+}));
+
+vi.mock('@/components/layout/SubscriptionBanner', () => ({
+  SubscriptionBanner: () => <div data-testid="subscription-banner-component" />,
 }));
 
 describe('AppLayout', () => {
@@ -54,6 +62,21 @@ describe('AppLayout', () => {
 
     expect(screen.getByTestId('test-content')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument();
+    expect(screen.getByTestId('email-verification-banner-component')).toBeInTheDocument();
+    expect(screen.getByTestId('subscription-banner-component')).toBeInTheDocument();
+  });
+
+  it('collapses and expands the desktop sidebar', () => {
+    render(
+      <MemoryRouter>
+        <AppLayout><div>Content</div></AppLayout>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /collapse sidebar/i }));
+    expect(screen.getByRole('button', { name: /expand sidebar/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /expand sidebar/i }));
+    expect(screen.getByRole('button', { name: /collapse sidebar/i })).toBeInTheDocument();
   });
 
   it('shows current-ticket link when a current ticket exists', () => {
@@ -73,6 +96,25 @@ describe('AppLayout', () => {
     );
 
     expect(screen.getByRole('link', { name: /current ticket/i })).toBeInTheDocument();
+  });
+
+  it('hides the current-ticket link when the query fails with stale data', () => {
+    currentTicketState = {
+      data: { id: 'ticket-123', code: 'A12' },
+      isLoading: false,
+      isError: true,
+      error: new Error('Request failed'),
+    };
+
+    render(
+      <MemoryRouter>
+        <AppLayout>
+          <div>Content</div>
+        </AppLayout>
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('link', { name: /current ticket/i })).not.toBeInTheDocument();
   });
 
   it('invokes useLogout and updates state on logout click', async () => {
