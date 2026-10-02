@@ -4,5 +4,5 @@ import { ROUTES } from '@/constants';
 
 export default function PublicRoute() {
   const user = useAuthStore((s) => s.user);
-  return user ? <Navigate to={ROUTES.HOME} replace /> : <Outlet />;
+  return user ? <Navigate to={ROUTES.DASHBOARD} replace /> : <Outlet />;
 }

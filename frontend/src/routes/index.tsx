@@ -9,6 +9,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import AuthLayout from '@/components/layout/AuthLayout';
 import { ROUTES } from '@/constants';
 
+const LandingPage = lazy(() => import('@/pages/public/LandingPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
@@ -37,14 +38,15 @@ function PageLoader() {
   );
 }
 
-// Wrap each lazy element so Suspense boundaries stay per-page,
-// matching the granularity your original Suspense had.
 const withSuspense = (element: React.ReactNode) => (
   <Suspense fallback={<PageLoader />}>{element}</Suspense>
 );
 
 const router = createBrowserRouter([
-  { path: ROUTES.HOME, element: <RootRedirect /> },
+  {
+    path: ROUTES.HOME,
+    element: withSuspense(<LandingPage />),
+  },
   {
     element: <PublicOnly />,
     children: [
@@ -69,6 +71,8 @@ const router = createBrowserRouter([
     element: <RequireAuth />,
     children: [
       {
+        element: <DashboardLayout />,
+        children: [{ path: ROUTES.DASHBOARD, element: withSuspense(<DashboardPage />) }],
         element: <AppLayout><Outlet /></AppLayout>,
         children: [
           { path: ROUTES.DASHBOARD, element: withSuspense(<DashboardPage />) },
