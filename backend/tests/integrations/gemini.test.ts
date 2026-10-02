@@ -74,12 +74,20 @@ describe('Gemini Integration Adapter (doc 8 §8.8, §8.7, doc 9 §9.2.10)', () =
     it('Gemini — request contents includes ticket content, transcript, current message, hint stage, and key from config', async () => {
       let interceptedUrl = '';
       let interceptedHeaders: Record<string, string> = {};
-      let interceptedBody: any = null;
+      interface GeminiCallMentorPayload {
+        systemInstruction?: {
+          parts?: Array<{ text?: string }>;
+        };
+        contents?: Array<{
+          parts?: Array<{ text?: string }>;
+        }>;
+      }
+      let interceptedBody: GeminiCallMentorPayload | null = null;
 
       globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
         interceptedUrl = url;
         interceptedHeaders = (init?.headers as Record<string, string>) || {};
-        interceptedBody = init?.body ? JSON.parse(init.body as string) : null;
+        interceptedBody = init?.body ? (JSON.parse(init.body as string) as GeminiCallMentorPayload) : null;
 
         return {
           ok: true,
@@ -104,11 +112,12 @@ describe('Gemini Integration Adapter (doc 8 §8.8, §8.7, doc 9 §9.2.10)', () =
       // Key should be in header x-goog-api-key or as configured
       expect(interceptedHeaders['x-goog-api-key'] || interceptedUrl).toBeTruthy();
 
-      expect(interceptedBody.systemInstruction.parts[0].text).toContain(mockMentorInput.ticketContent.title);
-      expect(interceptedBody.systemInstruction.parts[0].text).toContain(mockMentorInput.hintStage);
-      expect(interceptedBody.contents[0].parts[0].text).toBe(mockMentorInput.transcript[0].content);
-      expect(interceptedBody.contents[1].parts[0].text).toBe(mockMentorInput.transcript[1].content);
-      expect(interceptedBody.contents[2].parts[0].text).toBe(mockMentorInput.userMessage);
+      const body = interceptedBody as unknown as GeminiCallMentorPayload;
+      expect(body.systemInstruction?.parts?.[0]?.text).toContain(mockMentorInput.ticketContent.title);
+      expect(body.systemInstruction?.parts?.[0]?.text).toContain(mockMentorInput.hintStage);
+      expect(body.contents?.[0]?.parts?.[0]?.text).toBe(mockMentorInput.transcript[0].content);
+      expect(body.contents?.[1]?.parts?.[0]?.text).toBe(mockMentorInput.transcript[1].content);
+      expect(body.contents?.[2]?.parts?.[0]?.text).toBe(mockMentorInput.userMessage);
     });
 
     it('Gemini — plain-text response returns a string', async () => {
@@ -264,7 +273,7 @@ describe('Gemini Integration Adapter (doc 8 §8.8, §8.7, doc 9 §9.2.10)', () =
     it('Gemini — request contents includes template structure, context and key from config', async () => {
       let interceptedUrl = '';
       let interceptedHeaders: Record<string, string> = {};
-      let interceptedBody: any = null;
+      let interceptedBody: Record<string, unknown> | null = null;
 
       const generatedTicketData: TicketContent = {
         title: 'Prevent stale closures in useCounter',
@@ -285,7 +294,7 @@ describe('Gemini Integration Adapter (doc 8 §8.8, §8.7, doc 9 §9.2.10)', () =
       globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
         interceptedUrl = url;
         interceptedHeaders = (init?.headers as Record<string, string>) || {};
-        interceptedBody = init?.body ? JSON.parse(init.body as string) : null;
+        interceptedBody = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : null;
 
         return {
           ok: true,
