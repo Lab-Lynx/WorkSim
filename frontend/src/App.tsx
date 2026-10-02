@@ -9,6 +9,7 @@ import { env } from '@/config/env';
 import { queryKeys } from '@/lib/query-keys';
 import { buildLoginRedirect } from '@/lib/navigation';
 import { ApplyStoredTheme } from '@/components/common/ThemeToggle';
+import { Assistant } from '@/components/Assistant';
 
 function onSessionExpired(): void {
   if (!queryClient.getQueryData(queryKeys.me)) {
@@ -44,6 +45,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ApplyStoredTheme />
         <RouterProvider router={router} />
+        <Assistant />
       </QueryClientProvider>
     </ErrorBoundary>
   );
