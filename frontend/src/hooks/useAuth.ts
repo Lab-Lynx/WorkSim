@@ -14,7 +14,7 @@ export function useAuth() {
     // intentional, see lib/axios.ts.
     const { data } = await api.post<{ user: User }>('/auth/login', credentials);
     setUser(data.user);
-    navigate(ROUTES.HOME);
+    navigate(ROUTES.DASHBOARD);
   };
 
   const logout = async () => {
