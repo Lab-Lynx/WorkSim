@@ -22,7 +22,7 @@ vi.mock('@/hooks/auth/useLogout', () => ({
   useLogout: () => logoutState,
 }));
 
-vi.mock('@/hooks/useCurrentTicket', () => ({
+vi.mock('@/hooks/tickets/useCurrentTicket', () => ({
   useCurrentTicket: () => currentTicketState,
 }));
 
@@ -79,9 +79,9 @@ describe('AppLayout', () => {
     expect(screen.getByRole('button', { name: /collapse sidebar/i })).toBeInTheDocument();
   });
 
-  it('shows current-ticket link when a current ticket exists', () => {
+  it('always shows Current Ticket in the sidebar', () => {
     currentTicketState = {
-      data: { id: 'ticket-123', code: 'A12' },
+      data: null,
       isLoading: false,
       isError: false,
       error: null,
@@ -98,9 +98,52 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: /current ticket/i })).toBeInTheDocument();
   });
 
-  it('hides the current-ticket link when the query fails with stale data', () => {
+  it('points Current Ticket at the active ticket when one exists', () => {
     currentTicketState = {
       data: { id: 'ticket-123', code: 'A12' },
+      isLoading: false,
+      isError: false,
+      error: null,
+    };
+
+    render(
+      <MemoryRouter>
+        <AppLayout>
+          <div>Content</div>
+        </AppLayout>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('link', { name: /current ticket/i })).toHaveAttribute(
+      'href',
+      '/tickets/ticket-123',
+    );
+  });
+
+  it('keeps Current Ticket linked to the open ticket when the query errors', () => {
+    currentTicketState = {
+      data: null,
+      isLoading: false,
+      isError: true,
+      error: new Error('Request failed'),
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/tickets/ticket-abc']}>
+        <AppLayout>
+          <div>Ticket Content</div>
+        </AppLayout>
+      </MemoryRouter>
+    );
+
+    const link = screen.getByRole('link', { name: /current ticket/i });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/tickets/ticket-abc');
+  });
+
+  it('falls back Current Ticket to the dashboard when there is no active ticket', () => {
+    currentTicketState = {
+      data: null,
       isLoading: false,
       isError: true,
       error: new Error('Request failed'),
@@ -114,7 +157,10 @@ describe('AppLayout', () => {
       </MemoryRouter>
     );
 
-    expect(screen.queryByRole('link', { name: /current ticket/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /current ticket/i })).toHaveAttribute(
+      'href',
+      '/dashboard',
+    );
   });
 
   it('invokes useLogout and updates state on logout click', async () => {

@@ -46,7 +46,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
   return (
     <div className="flex h-svh flex-col items-center justify-center overflow-hidden bg-background px-4 py-5">
-      <div className="flex h-full max-h-[640px] w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
+      <div className="flex h-full max-h-[640px] w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-[0_12px_40px_rgba(0,0,0,0.08)] animate-in fade-in zoom-in-95 duration-500">
         {/* Form panel */}
         <div className="flex w-full flex-col overflow-y-auto scrollbar-transparent bg-card p-5 sm:w-1/2 sm:p-7 md:p-8">
           <div className="mb-6 flex justify-center">

@@ -28,7 +28,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -69,39 +68,46 @@ const STEPS = [
 
 const FEATURES = [
   {
-    title: 'Real-World Tickets',
+    title: 'Automated Evaluation',
     description:
-      'Practice on realistic product requests with clear acceptance criteria and useful constraints.',
-    Icon: Layers,
+      'Every submission is scored against a consistent rubric—requirements, code quality, testing, and performance—so feedback stays fair and actionable. See where you met the bar, where you fell short, and what to improve before the next ticket.',
+    Icon: Zap,
+    className: 'md:col-span-2 md:row-span-2',
+    featured: true,
   },
   {
     title: 'AI Mentor Guidance',
     description: 'Get thoughtful nudges when you are stuck without giving away the solution.',
     Icon: Bot,
+    className: 'md:col-span-1',
   },
   {
     title: 'GitHub Workflow',
     description:
       'Build the muscle memory of branches, commits, pull requests, and collaboration.',
     Icon: FolderGit2,
+    className: 'md:col-span-1',
   },
   {
-    title: 'Automated Evaluation',
+    title: 'Real-World Tickets',
     description:
-      'Receive consistent feedback on requirements, quality, testing, and performance.',
-    Icon: Zap,
+      'Practice on realistic product requests with clear acceptance criteria and useful constraints.',
+    Icon: Layers,
+    className: 'md:col-span-1',
   },
   {
     title: 'Experience Profile',
     description:
       'Keep a grounded record of the work you have practiced and the skills you are developing.',
     Icon: GraduationCap,
+    className: 'md:col-span-1',
   },
   {
     title: 'No Lock-In',
     description:
       'Work in your own editor, use your own tools, and keep your engineering flow intact.',
     Icon: Workflow,
+    className: 'md:col-span-1',
   },
 ] as const;
 
@@ -214,7 +220,7 @@ export default function LandingPage() {
 
       <main id="top">
         <section className="px-6 pb-16 pt-14 lg:px-8 lg:pb-24 lg:pt-20" id="start">
-          <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
+          <div className="mx-auto flex max-w-4xl flex-col items-center text-center animate-in fade-in slide-in-from-bottom-3 duration-700">
             <Badge
               variant="secondary"
               className="h-7 rounded-full border-0 bg-white px-3 text-[11px] uppercase tracking-[0.14em] text-neutral-500 shadow-sm"
@@ -233,12 +239,12 @@ export default function LandingPage() {
               branches, pull requests, reviews, and everything between.
             </p>
 
-            <div className="relative mx-auto mt-12 aspect-square w-full max-w-md">
+            <div className="relative mx-auto mt-12 aspect-square w-full max-w-md animate-in fade-in zoom-in-95 duration-700 delay-150 fill-mode-both">
               <div className="absolute inset-[8%] rounded-full border border-dashed border-neutral-300" />
               <div className="absolute inset-[20%] rounded-full border border-dashed border-neutral-300/80" />
               <div className="absolute inset-[34%] rounded-full border border-dashed border-neutral-300/60" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex size-20 items-center justify-center rounded-3xl bg-neutral-950 shadow-xl shadow-neutral-950/15">
+                <div className="flex size-20 items-center justify-center rounded-3xl bg-neutral-950 shadow-xl shadow-neutral-950/15 transition-transform duration-300 hover:scale-105">
                   <img src="/icon.png" alt="" className="size-12 object-contain invert" />
                 </div>
               </div>
@@ -596,52 +602,101 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {FEATURES.map(({ title, description, Icon }) => (
-                <Card
-                  key={title}
-                  className="rounded-3xl border-0 bg-white shadow-sm ring-1 ring-neutral-200/80"
-                >
-                  <CardHeader>
-                    <span className="mb-2 flex size-10 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-950">
-                      <Icon className="size-5" aria-hidden />
-                    </span>
-                    <CardTitle className="text-lg font-semibold text-neutral-950">{title}</CardTitle>
-                    <CardDescription className="text-sm leading-6 text-neutral-500">
-                      {description}
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
+            <div className="mt-12 grid auto-rows-[minmax(11rem,auto)] grid-cols-1 gap-4 md:grid-cols-3">
+              {FEATURES.map(({ title, description, Icon, className, ...rest }) => {
+                const featured = 'featured' in rest && rest.featured;
+
+                return (
+                  <div
+                    key={title}
+                    className={cn(
+                      'rounded-[1.75rem] border border-neutral-200/70 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]',
+                      featured
+                        ? 'flex flex-col gap-5 overflow-hidden p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6'
+                        : 'flex flex-col justify-between p-6',
+                      className,
+                    )}
+                  >
+                    {featured ? (
+                      <>
+                        <div className="flex shrink-0 justify-center sm:w-[42%] sm:justify-start">
+                          <img
+                            src="/orb.gif"
+                            alt=""
+                            className="h-36 w-36 object-contain sm:h-44 sm:w-44 lg:h-52 lg:w-52 ml-8"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="mb-4 flex size-11 items-center justify-center rounded-2xl bg-neutral-950 text-white">
+                            <Icon className="size-5" aria-hidden />
+                          </span>
+                          <h3 className="font-heading text-xl font-medium tracking-tight text-neutral-950 md:text-2xl">
+                            {title}
+                          </h3>
+                          <p className="mt-3 text-sm leading-6 text-neutral-500 md:text-base md:leading-7">
+                            {description}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <span className="mb-4 flex size-11 items-center justify-center rounded-2xl bg-neutral-950 text-white">
+                          <Icon className="size-5" aria-hidden />
+                        </span>
+                        <h3 className="font-heading text-xl font-medium tracking-tight text-neutral-950">
+                          {title}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-neutral-500">{description}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="testimonials"
+          aria-labelledby="testimonials-heading"
+          className="border-y border-neutral-200 bg-[#F5F5F5] px-6 py-16 lg:px-8 lg:py-24"
+        >
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-400">
+                From practitioners
+              </p>
+              <h2
+                id="testimonials-heading"
+                className="mt-3 text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl"
+              >
+                What people notice after a few{' '}
+                <em className="font-heading italic font-medium">tickets</em>.
+              </h2>
             </div>
 
-            <div className="mt-14 grid gap-5 md:grid-cols-3">
+            <div className="mt-12 grid gap-8 md:grid-cols-3 md:gap-10">
               {HIGHLIGHTS.map((item) => (
-                <Card
-                  key={item.name}
-                  className="rounded-3xl border-0 bg-white shadow-sm ring-1 ring-neutral-200/80"
-                >
-                  <CardHeader className="gap-4">
-                    <Quote className="size-6 text-neutral-400" aria-hidden />
-                    <CardDescription className="text-sm leading-6 text-neutral-700">
-                      {item.quote}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardFooter className="gap-3 border-t border-neutral-200 bg-transparent pt-4">
+                <figure key={item.name} className="flex flex-col gap-6">
+                  <Quote className="size-8 text-neutral-300" aria-hidden />
+                  <blockquote className="text-base leading-7 text-neutral-600 text-pretty">
+                    “{item.quote}”
+                  </blockquote>
+                  <figcaption className="mt-auto flex items-center gap-3 border-t border-neutral-200 pt-5">
                     <Avatar
                       fallback={item.initials}
-                      className="size-9 border-neutral-200 bg-neutral-100 text-xs text-neutral-950"
+                      className="size-9 border-neutral-200 bg-white text-xs text-neutral-950"
                     />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-neutral-950">{item.name}</p>
                       <p className="truncate text-xs text-neutral-500">{item.role}</p>
                     </div>
-                  </CardFooter>
-                </Card>
+                  </figcaption>
+                </figure>
               ))}
             </div>
 
-            <div className="mt-10 flex justify-center gap-3">
+            <div className="mt-12 flex justify-center gap-3">
               <Button
                 className="rounded-full bg-neutral-950 px-5 text-white hover:bg-neutral-800"
                 asChild

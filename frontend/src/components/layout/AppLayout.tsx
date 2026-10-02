@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 import { useFocusPageHeading } from '@/hooks/useFocusPageHeading';
-import { useCurrentTicket } from '@/hooks/useCurrentTicket';
+import { useCurrentTicket } from '@/hooks/tickets/useCurrentTicket';
 import { useLogout } from '@/hooks/auth/useLogout';
 import { EmailVerificationBanner } from '@/components/layout/EmailVerificationBanner';
 import { SubscriptionBanner } from '@/components/layout/SubscriptionBanner';
@@ -48,8 +48,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const {
     data: currentTicket,
-    isLoading: isTicketLoading,
-    isError: isTicketError,
   } = useCurrentTicket();
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
 
@@ -73,11 +71,18 @@ export default function AppLayout({ children }: AppLayoutProps) {
     });
   };
 
+  const ticketPathMatch = location.pathname.match(/^\/tickets\/([^/]+)/);
+  const ticketIdFromPath = ticketPathMatch?.[1];
+  const activeTicketId = currentTicket?.id ?? ticketIdFromPath;
+
   const navItems = [
     { label: 'Dashboard', to: ROUTES.DASHBOARD, icon: LayoutGrid },
-    ...(currentTicket && !isTicketLoading && !isTicketError
-      ? [{ label: 'Current Ticket', to: `/tickets/${currentTicket.id}`, icon: Ticket }]
-      : []),
+    {
+      label: 'Current Ticket',
+      to: activeTicketId ? `/tickets/${activeTicketId}` : ROUTES.DASHBOARD,
+      icon: Ticket,
+      ticketNav: true as const,
+    },
     { label: 'Submissions', to: ROUTES.SUBMISSIONS, icon: Layers2 },
     { label: 'Experience Profile', to: ROUTES.PROFILE, icon: Award },
     { label: 'GitHub', to: ROUTES.GITHUB, icon: GitBranch },
@@ -90,8 +95,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const navLinkClass = ({ isActive }: { isActive: boolean }, collapsed = false) =>
     cn(
-      'flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition-colors',
-      'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+      'flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition-all duration-200 ease-out',
+      'hover:bg-white/50 hover:text-sidebar-accent-foreground',
       isActive
         ? 'bg-card text-foreground shadow-sm ring-1 ring-border/60'
         : 'text-sidebar-foreground/80',
@@ -110,10 +115,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </p>
       {navItems.map((item) => (
         <NavLink
-          key={item.to}
+          key={item.label}
           to={item.to}
+          end={item.label === 'Dashboard'}
           onClick={closeMobileMenu}
-          className={(args) => navLinkClass(args, collapsed)}
+          className={({ isActive }) =>
+            navLinkClass(
+              {
+                isActive: item.ticketNav
+                  ? location.pathname.startsWith('/tickets/')
+                  : isActive,
+              },
+              collapsed,
+            )
+          }
         >
           <item.icon className="size-4 shrink-0" />
           <span className={cn(collapsed && 'sr-only')}>{item.label}</span>
@@ -173,7 +188,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           className={cn(
-            'hidden min-h-0 shrink-0 flex-col overflow-hidden py-4 text-sidebar-foreground transition-[width] duration-200 md:flex',
+            'hidden min-h-0 shrink-0 flex-col overflow-hidden py-4 text-sidebar-foreground transition-[width] duration-300 ease-out md:flex',
             sidebarCollapsed ? 'w-16 px-2' : 'w-64 px-3',
           )}
         >
@@ -221,12 +236,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-3 md:p-4">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl bg-card shadow-[0_1px_3px_rgba(0,0,0,0.06)] ring-1 ring-border/50">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl bg-card shadow-[0_1px_3px_rgba(0,0,0,0.06)] ring-1 ring-border/50 animate-in fade-in duration-500">
             <header className="z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border/40 bg-card px-4">
               <button
                 type="button"
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="inline-flex size-8 items-center justify-center rounded-md border border-border md:hidden"
+                className="inline-flex size-8 items-center justify-center rounded-md border border-border transition-colors duration-200 md:hidden"
                 aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
               >
                 {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
@@ -235,7 +250,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <div className="flex min-w-0 items-center gap-2 text-sm">
                 <span className="hidden text-muted-foreground sm:inline">Workspace</span>
                 <span className="hidden text-muted-foreground sm:inline">/</span>
-                <span className="truncate font-medium text-foreground">{pageLabel}</span>
+                <span
+                  key={pageLabel}
+                  className="truncate font-medium text-foreground animate-in fade-in slide-in-from-bottom-1 duration-300"
+                >
+                  {pageLabel}
+                </span>
               </div>
             </header>
 
@@ -243,7 +263,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <div
                 role="dialog"
                 aria-label="Mobile Navigation"
-                className="space-y-4 border-b border-border bg-sidebar p-4 md:hidden"
+                className="space-y-4 border-b border-border bg-sidebar p-4 animate-in slide-in-from-top-2 fade-in duration-200 md:hidden"
               >
                 {renderWorkspaceNav(false)}
                 <div className="border-t border-border pt-4">{renderAccountFooter(false)}</div>
@@ -251,7 +271,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
             )}
 
             <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-transparent p-4 md:p-8">
-              <div className="flex min-h-0 flex-col gap-6">{children}</div>
+              <div
+                key={location.pathname}
+                className="flex min-h-0 flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-400 fill-mode-both"
+              >
+                {children}
+              </div>
             </main>
           </div>
         </div>
