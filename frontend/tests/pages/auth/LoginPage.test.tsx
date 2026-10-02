@@ -123,11 +123,11 @@ describe('FE-068 · LoginPage (doc 10 §10.22 PG-02; doc 6 PG-02; doc 11 §11.2.
             expect(document.title).toContain('Log in');
         });
 
-        it('renders heading "Log in" with tabIndex={-1}', () => {
+        it('renders heading "Welcome back" with tabIndex={-1}', () => {
             renderLoginPage(queryClient);
 
             const heading = screen.getByRole('heading', { level: 1 });
-            expect(heading).toHaveTextContent(/^log in$/i);
+            expect(heading).toHaveTextContent(/^welcome back$/i);
             expect(heading).toHaveAttribute('tabIndex', '-1');
         });
 

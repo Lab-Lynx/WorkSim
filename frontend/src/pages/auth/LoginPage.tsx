@@ -66,18 +66,21 @@ export default function LoginPage(): React.JSX.Element {
       {noticeMessage && (
         <div
           role="status"
-          className="mb-4 rounded-md border border-primary/20 bg-primary/10 p-3 text-sm text-primary font-medium"
+          className="mb-4 rounded-md border border-primary/20 bg-primary/10 p-3 text-sm font-medium text-primary"
         >
           {noticeMessage}
         </div>
       )}
 
-      <h1
-        tabIndex={-1}
-        className="text-xl font-semibold tracking-tight text-foreground outline-none mb-6"
-      >
-        Log in
-      </h1>
+      <div className="mb-6">
+        <h1
+          tabIndex={-1}
+          className="text-2xl font-semibold tracking-tight text-foreground outline-none"
+        >
+          Welcome back
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">Log in to your WorkSim account</p>
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
@@ -100,7 +103,15 @@ export default function LoginPage(): React.JSX.Element {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              to={ROUTES.FORGOT_PASSWORD}
+              className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Forgot your password?
+            </Link>
+          </div>
           <PasswordInput
             id="password"
             autoComplete="current-password"
@@ -122,26 +133,17 @@ export default function LoginPage(): React.JSX.Element {
         <SubmitButton
           isPending={login.isPending}
           pendingLabel="Logging in…"
-          className="w-full mt-2"
+          className="mt-2 w-full"
         >
           Log in
         </SubmitButton>
       </form>
 
-      <div className="text-center mt-4">
-        <Link
-          to={ROUTES.FORGOT_PASSWORD}
-          className="text-sm text-primary underline underline-offset-4 hover:text-primary/90"
-        >
-          Forgot your password?
-        </Link>
-      </div>
-
-      <p className="text-center text-sm text-muted-foreground mt-4">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
         <Link
           to={ROUTES.REGISTER}
-          className="text-primary underline underline-offset-4 hover:text-primary/90"
+          className="font-medium text-foreground underline underline-offset-4 hover:text-foreground/80"
         >
           Create an account
         </Link>

@@ -1,10 +1,9 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { registerSchema, type RegisterInput } from '@/schemas/auth.schemas';
 import { useRegister } from '@/hooks/auth/useRegister';
-import { useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { applyServerErrorToForm } from '@/lib/api/errors';
 import { ROUTES } from '@/constants';
@@ -46,12 +45,15 @@ export default function RegisterPage(): React.JSX.Element {
 
   return (
     <div className="flex flex-col">
-      <h1
-        tabIndex={-1}
-        className="text-xl font-semibold tracking-tight text-foreground outline-none mb-6"
-      >
-        Create your account
-      </h1>
+      <div className="mb-6">
+        <h1
+          tabIndex={-1}
+          className="text-2xl font-semibold tracking-tight text-foreground outline-none"
+        >
+          Create your account
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">Sign up for your WorkSim account</p>
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
@@ -118,15 +120,18 @@ export default function RegisterPage(): React.JSX.Element {
         <SubmitButton
           isPending={register.isPending}
           pendingLabel="Creating account…"
-          className="w-full mt-2"
+          className="mt-2 w-full"
         >
           Create account
         </SubmitButton>
       </form>
 
-      <p className="text-center text-sm text-muted-foreground mt-6">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         Already have an account?{' '}
-        <Link to={ROUTES.LOGIN} className="text-primary underline underline-offset-4 hover:text-primary/90">
+        <Link
+          to={ROUTES.LOGIN}
+          className="font-medium text-foreground underline underline-offset-4 hover:text-foreground/80"
+        >
           Log in
         </Link>
       </p>

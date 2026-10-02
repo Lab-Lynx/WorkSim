@@ -13,7 +13,7 @@ export interface RequireAuthProps {
  * TEMP: set to `false` before shipping — skips auth so UI work can hit
  * /dashboard, /billing, etc. without a session.
  */
-const BYPASS_AUTH_FOR_UI = true;
+export const BYPASS_AUTH_FOR_UI = true;
 
 /**
  * FE-064: Protected route guard for PG-06 through PG-12 (doc 10 §10.14).

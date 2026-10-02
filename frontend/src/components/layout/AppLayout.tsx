@@ -104,10 +104,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
           onClick={closeMobileMenu}
           className={({ isActive }) =>
             cn(
-              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              'flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition-colors',
               'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
               isActive
-                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                ? 'bg-card text-foreground shadow-sm'
                 : 'text-sidebar-foreground/80',
               collapsed && 'justify-center px-0',
             )
@@ -130,10 +130,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
         onClick={closeMobileMenu}
         className={({ isActive }) =>
           cn(
-            'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+            'flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition-colors',
             'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
             isActive
-              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+              ? 'bg-card text-foreground shadow-sm'
               : 'text-sidebar-foreground/80',
             collapsed && 'justify-center px-0',
           )
@@ -146,22 +146,22 @@ export default function AppLayout({ children }: AppLayoutProps) {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <div className="z-40 flex w-full flex-col">
+    <div className="flex h-svh flex-col overflow-hidden bg-sidebar text-foreground">
+      <div className="z-40 flex w-full shrink-0 flex-col">
         <EmailVerificationBanner />
         <SubscriptionBanner />
       </div>
 
       {logoutError && (
-        <div role="alert" className="bg-destructive/15 p-3 text-center text-sm text-destructive">
+        <div role="alert" className="shrink-0 bg-destructive/15 p-3 text-center text-sm text-destructive">
           {logoutError}
         </div>
       )}
 
-      <div className="flex flex-1">
+      <div className="flex min-h-0 flex-1">
         <aside
           className={cn(
-            'hidden shrink-0 flex-col justify-between border-r border-sidebar-border bg-sidebar py-4 text-sidebar-foreground transition-[width] duration-200 md:flex',
+            'hidden min-h-0 shrink-0 flex-col justify-between overflow-y-auto scrollbar-transparent py-4 text-sidebar-foreground transition-[width] duration-200 md:flex',
             sidebarCollapsed ? 'w-16 px-2' : 'w-64 px-3',
           )}
         >
@@ -202,11 +202,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
             {renderNavLinks(sidebarCollapsed)}
           </div>
 
-          <div className="border-t border-sidebar-border pt-3">
+          <div className="pt-3">
             <button
               type="button"
               className={cn(
-                'flex w-full items-center rounded-md py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive',
+                'flex w-full items-center rounded-2xl py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive',
                 sidebarCollapsed ? 'justify-center px-0' : 'justify-start px-3',
               )}
               onClick={handleLogout}
@@ -219,50 +219,54 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border/60 bg-background/80 px-4 backdrop-blur-sm">
-            <button
-              type="button"
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="inline-flex size-8 items-center justify-center rounded-md border border-border md:hidden"
-              aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
-            >
-              {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
-            </button>
-            <div className="hidden h-4 w-px bg-border md:block" />
-            <div className="flex min-w-0 items-center gap-2 text-sm">
-              <span className="hidden text-muted-foreground sm:inline">Workspace</span>
-              <span className="hidden text-muted-foreground sm:inline">/</span>
-              <span className="truncate font-medium text-foreground">{pageLabel}</span>
-            </div>
-          </header>
-
-          {mobileOpen && (
-            <div
-              role="dialog"
-              aria-label="Mobile Navigation"
-              className="space-y-4 border-b border-border bg-sidebar p-4 md:hidden"
-            >
-              {renderNavLinks(false)}
-              <div className="border-t border-border pt-4">
-                <button
-                  type="button"
-                  className="flex w-full items-center rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive"
-                  onClick={() => {
-                    closeMobileMenu();
-                    handleLogout();
-                  }}
-                  disabled={isLoggingOut}
-                  aria-label="Log out"
-                >
-                  <LogOut className="mr-2 size-4" />
-                  {isLoggingOut ? 'Logging out...' : 'Log out'}
-                </button>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3 md:p-4">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <header className="z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border/40 bg-card px-4">
+              <button
+                type="button"
+                onClick={() => setMobileOpen(!mobileOpen)}
+                className="inline-flex size-8 items-center justify-center rounded-md border border-border md:hidden"
+                aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              >
+                {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+              </button>
+              <div className="hidden h-4 w-px bg-border md:block" />
+              <div className="flex min-w-0 items-center gap-2 text-sm">
+                <span className="hidden text-muted-foreground sm:inline">Workspace</span>
+                <span className="hidden text-muted-foreground sm:inline">/</span>
+                <span className="truncate font-medium text-foreground">{pageLabel}</span>
               </div>
-            </div>
-          )}
+            </header>
 
-          <main className="flex flex-1 flex-col gap-6 p-4 md:p-8">{children}</main>
+            {mobileOpen && (
+              <div
+                role="dialog"
+                aria-label="Mobile Navigation"
+                className="space-y-4 border-b border-border bg-sidebar p-4 md:hidden"
+              >
+                {renderNavLinks(false)}
+                <div className="border-t border-border pt-4">
+                  <button
+                    type="button"
+                    className="flex w-full items-center rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive"
+                    onClick={() => {
+                      closeMobileMenu();
+                      handleLogout();
+                    }}
+                    disabled={isLoggingOut}
+                    aria-label="Log out"
+                  >
+                    <LogOut className="mr-2 size-4" />
+                    {isLoggingOut ? 'Logging out...' : 'Log out'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <main className="min-h-0 flex-1 overflow-y-auto scrollbar-transparent p-4 md:p-8">
+              <div className="flex flex-col gap-6">{children}</div>
+            </main>
+          </div>
         </div>
       </div>
     </div>
