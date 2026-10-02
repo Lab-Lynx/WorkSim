@@ -13,10 +13,10 @@ export default function ExperienceItem({ item }: ExperienceItemProps): React.JSX
   const hasLongFeedback = item.evaluation.feedback.length > 160;
 
   return (
-    <article className="space-y-4 border-b border-border py-5">
+    <article className="space-y-4 border-b border-border py-5 last:border-b-0">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">{item.title}</h2>
+          <h2 className="font-heading text-lg font-medium text-foreground">{item.title}</h2>
           <p className="mt-1 text-sm text-muted-foreground">Completed {formatDate(item.completedAt)}</p>
         </div>
         <div className="flex flex-wrap gap-2">

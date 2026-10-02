@@ -8,6 +8,7 @@ export const ROUTES = {
   GITHUB: '/github',
   PROFILE: '/profile',
   SETTINGS: '/settings',
+  SUBMISSIONS: '/submissions',
   TICKET: '/tickets/:ticketId',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',

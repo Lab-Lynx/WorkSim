@@ -11,6 +11,7 @@ import {
   GitBranch,
   CreditCard,
   Award,
+  Layers2,
   X,
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ const breadcrumbLabels: Record<string, string> = {
   [ROUTES.BILLING_RETURN]: 'Checkout',
   [ROUTES.GITHUB]: 'GitHub',
   [ROUTES.PROFILE]: 'Experience Profile',
+  [ROUTES.SUBMISSIONS]: 'Submissions',
   [ROUTES.SETTINGS]: 'Settings',
 };
 
@@ -75,6 +77,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     ...(currentTicket && !isTicketLoading && !isTicketError
       ? [{ label: 'Current Ticket', to: `/tickets/${currentTicket.id}`, icon: Ticket }]
       : []),
+    { label: 'Submissions', to: ROUTES.SUBMISSIONS, icon: Layers2 },
     { label: 'Experience Profile', to: ROUTES.PROFILE, icon: Award },
     { label: 'GitHub', to: ROUTES.GITHUB, icon: GitBranch },
     { label: 'Billing', to: ROUTES.BILLING, icon: CreditCard },
