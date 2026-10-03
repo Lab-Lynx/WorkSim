@@ -237,16 +237,29 @@ export const verifyEmail = async (rawToken: string): Promise<VerifyEmailResult> 
   }
 
   const verifiedAt = new Date();
-  await prisma.$transaction([
-    prisma.emailVerificationToken.update({
-      where: { id: record.id },
+  const consumed = await prisma.$transaction(async (tx) => {
+    const claim = await tx.emailVerificationToken.updateMany({
+      where: { id: record.id, usedAt: null },
       data: { usedAt: verifiedAt },
-    }),
-    prisma.user.update({
+    });
+
+    if (claim.count === 0) {
+      return false;
+    }
+
+    await tx.user.update({
       where: { id: record.userId },
       data: { emailVerifiedAt: verifiedAt },
-    }),
-  ]);
+    });
+    return true;
+  });
+
+  if (!consumed) {
+    return {
+      emailVerifiedAt: record.user.emailVerifiedAt ?? verifiedAt,
+      alreadyVerified: true,
+    };
+  }
 
   return { emailVerifiedAt: verifiedAt, alreadyVerified: false };
 };
@@ -322,20 +335,25 @@ export const resetPassword = async (rawToken: string, newPassword: string): Prom
   const passwordHash = await bcrypt.hash(newPassword, Number(env.BCRYPT_SALT_ROUNDS));
   const usedAt = new Date();
 
-  await prisma.$transaction([
-    prisma.passwordResetToken.update({
-      where: { id: record.id },
+  await prisma.$transaction(async (tx) => {
+    const claim = await tx.passwordResetToken.updateMany({
+      where: { id: record.id, usedAt: null },
       data: { usedAt },
-    }),
-    prisma.user.update({
+    });
+
+    if (claim.count === 0) {
+      throw new ApiError(HTTP_STATUS.GONE, 'This reset link has already been used');
+    }
+
+    await tx.user.update({
       where: { id: record.userId },
       data: { passwordHash },
-    }),
-    prisma.refreshToken.updateMany({
+    });
+    await tx.refreshToken.updateMany({
       where: { userId: record.userId, revokedAt: null },
       data: { revokedAt: usedAt },
-    }),
-  ]);
+    });
+  });
 };
 
 export const changePassword = async (

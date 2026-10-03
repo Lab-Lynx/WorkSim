@@ -15,6 +15,7 @@ import { HTTP_STATUS } from './constants/index.js';
 
 // Middlewares & Routes
 import { defaultLimiter } from './middlewares/rateLimiter.middleware.js';
+import csrfMiddleware from './middlewares/csrf.middleware.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 import router from './routes/index.js';
 
@@ -83,6 +84,7 @@ app.use(
 );
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
+app.use(csrfMiddleware);
 
 // 🚀 Core Application Routing Paths
 app.use('/api/v1', router);

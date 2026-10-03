@@ -45,4 +45,9 @@ Desktop.ini
 *.swp
 *.swo
 
+# Audit reports
+API_MISMATCHES_REPORT.md
+SECURITY-REVIEW.md
+
+
 
