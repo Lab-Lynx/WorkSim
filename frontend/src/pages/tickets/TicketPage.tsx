@@ -35,15 +35,16 @@ export default function TicketPage(): React.JSX.Element {
   const { toast } = useToast();
   const ticketQuery = useTicket(ticketId);
   const subscriptionQuery = useSubscription();
-  const start = useStartTicket(ticketId ?? '');
-  const abandon = useAbandonTicket(ticketId ?? '');
-  const assign = useAssignTicket();
-  const submitWork = useSubmitWork(ticketId ?? '');
   const data = ticketQuery.data;
   const ticket = data?.ticket;
   const submissions = data?.submissions ?? [];
   const phase = ticket ? getTicketPhase(ticket, submissions) : null;
-  const retry = useRetrySubmission(ticketId ?? '', phase?.retryAttempt ?? 1);
+  const resolvedTicketId = ticket?.id ?? ticketId ?? '';
+  const start = useStartTicket(resolvedTicketId);
+  const abandon = useAbandonTicket(resolvedTicketId);
+  const assign = useAssignTicket();
+  const submitWork = useSubmitWork(resolvedTicketId);
+  const retry = useRetrySubmission(resolvedTicketId, phase?.retryAttempt ?? 1);
   const hasAccess = subscriptionQuery.data ? subscriptionQuery.data.hasAccess : true;
   const [pendingAction, setPendingAction] = useState<TicketPrimaryAction | null>(null);
   const [actionError, setActionError] = useState<UiError | null>(null);
@@ -265,7 +266,9 @@ export default function TicketPage(): React.JSX.Element {
         <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-5">
           <div className="flex flex-col gap-6 rounded-xl bg-card p-4 ring-1 ring-foreground/10 lg:col-span-3">
             <TicketDetails ticket={ticket} />
-            <BranchInstructions repoFullName={ticket.repo.fullName} branchName={ticket.branchName} />
+            {ticket.repo?.fullName && ticket.branchName && (
+              <BranchInstructions repoFullName={ticket.repo.fullName} branchName={ticket.branchName} />
+            )}
             {phase.canAbandon && (
               <div className="flex justify-end border-t border-border pt-4">
                 <Button

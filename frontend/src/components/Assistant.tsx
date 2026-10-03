@@ -21,7 +21,7 @@ import type { SendMentorMessageResult } from '@/hooks/mentor/useSendMentorMessag
 
 // Publishable key — safe to ship in the browser
 export const ai = new VoxideClient({
-  publicKey: 'vox_pub_2d14be0b73b3dd50ee3119872ec40b81354e3f2aee5465e5',
+  publicKey: 'vox_pub_fb95760987d4a4566570993f7d6ee30502cc6b30062b0300',
 });
 
 // Auto-register navigation for app routes
@@ -47,7 +47,29 @@ ai.enableNavigation(
 
 function getActiveTicketId(): string | null {
   const cached = queryClient.getQueryData<Ticket | null>(queryKeys.currentTicket);
-  return cached?.id ?? null;
+  if (cached?.id) return cached.id;
+  const path =
+    router.state?.location?.pathname ??
+    (typeof window !== 'undefined' ? window.location.pathname : '');
+  const match = path.match(/^\/tickets\/([^/]+)/);
+  if (match?.[1]) return match[1];
+  return null;
+}
+
+async function resolveActiveTicketId(ticketId?: string): Promise<string | null> {
+  if (ticketId) return ticketId;
+  const current = getActiveTicketId();
+  if (current) return current;
+  try {
+    const response = await apiRequest<{ ticket: Ticket | null }>('GET', '/tickets/current');
+    if (response.data.ticket) {
+      queryClient.setQueryData(queryKeys.currentTicket, response.data.ticket);
+      return response.data.ticket.id;
+    }
+  } catch {
+    // Ignore fetch error and handle null target below
+  }
+  return null;
 }
 
 // Register real capabilities for WorkSim
@@ -155,7 +177,7 @@ ai.register({
     handler: async (args: Record<string, unknown> = {}) => {
       try {
         const ticketId = typeof args.ticketId === 'string' ? args.ticketId : undefined;
-        const targetId = ticketId || getActiveTicketId();
+        const targetId = await resolveActiveTicketId(ticketId);
         if (!targetId) {
           return {
             status: 'error',
@@ -203,7 +225,7 @@ ai.register({
     handler: async (args: Record<string, unknown> = {}) => {
       try {
         const ticketId = typeof args.ticketId === 'string' ? args.ticketId : undefined;
-        const targetId = ticketId || getActiveTicketId();
+        const targetId = await resolveActiveTicketId(ticketId);
         if (!targetId) {
           return { status: 'error', message: 'No active ticket found to submit.' };
         }
@@ -254,7 +276,7 @@ ai.register({
       try {
         const content = typeof args.content === 'string' ? args.content : '';
         const ticketId = typeof args.ticketId === 'string' ? args.ticketId : undefined;
-        const targetId = ticketId || getActiveTicketId();
+        const targetId = await resolveActiveTicketId(ticketId);
         if (!targetId) {
           return {
             status: 'error',
@@ -311,7 +333,7 @@ ai.register({
     handler: async (args: Record<string, unknown> = {}) => {
       try {
         const ticketId = typeof args.ticketId === 'string' ? args.ticketId : undefined;
-        const targetId = ticketId || getActiveTicketId();
+        const targetId = await resolveActiveTicketId(ticketId);
         if (!targetId) {
           return { status: 'error', message: 'No active ticket found to abandon.' };
         }
@@ -489,9 +511,7 @@ router.subscribe((state) => {
 });
 
 export function Assistant() {
-  // Pass nothing but the client. Every other prop outranks the dashboard, so
-  // hardcoding one makes the matching Appearance control silently do nothing.
-  return <VoxideWidget client={ai} />;
+  return <VoxideWidget client={ai} accentColor="#EBEBEB" />;
 }
 
 export default Assistant;

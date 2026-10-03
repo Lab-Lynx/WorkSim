@@ -26,14 +26,18 @@ export default function TicketHeader({ ticket, phase }: TicketHeaderProps): Reac
         {ticket.title}
       </h1>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <Code className="size-3.5" />
-          <span className="font-mono">{ticket.repo.fullName}</span>
-        </span>
-        <span className="flex items-center gap-1">
-          <GitBranch className="size-3.5" />
-          {ticket.branchName}
-        </span>
+        {ticket.repo?.fullName && (
+          <span className="flex items-center gap-1.5">
+            <Code className="size-3.5" />
+            <span className="font-mono">{ticket.repo.fullName}</span>
+          </span>
+        )}
+        {ticket.branchName && (
+          <span className="flex items-center gap-1">
+            <GitBranch className="size-3.5" />
+            {ticket.branchName}
+          </span>
+        )}
       </div>
     </header>
   );
