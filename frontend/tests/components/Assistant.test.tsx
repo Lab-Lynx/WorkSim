@@ -72,8 +72,15 @@ describe('Voxide Assistant integration (Assistant.tsx)', () => {
     expect(ai.actions.has('getSubscriptionStatus')).toBe(true);
     expect(ai.actions.has('navigate')).toBe(true);
 
-    const abandonAction = ai.actions.get('abandonTicket');
-    expect(abandonAction?.dangerous).toBe(true);
+    for (const capability of [
+      'assignTicket',
+      'startTicket',
+      'submitWork',
+      'askMentor',
+      'abandonTicket',
+    ]) {
+      expect(ai.actions.get(capability)?.dangerous).toBe(true);
+    }
   });
 
   it('getCurrentTicket returns cached ticket when present', async () => {

@@ -47,6 +47,11 @@ enum MentorMessageRole {
   mentor
 }
 
+enum WebhookProvider {
+  chapa
+  github
+}
+
 // --- Models ---
 
 /// Extends the built User placeholder with Doc 4 fields (name, emailVerifiedAt).
@@ -163,6 +168,17 @@ model Payment {
   createdAt      DateTime      @default(now())
 
   @@index([userId, createdAt])
+}
+
+model WebhookEvent {
+  id          String          @id @default(uuid())
+  provider    WebhookProvider
+  eventKey    String
+  receivedAt  DateTime        @default(now())
+  processedAt DateTime?
+
+  @@unique([provider, eventKey])
+  @@index([provider, receivedAt])
 }
 
 model Ticket {

@@ -35,9 +35,8 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().min(1),
   GITHUB_CALLBACK_URL: z.string().url(),
   GITHUB_TOKEN_ENCRYPTION_KEY: z.string().min(1),
-  GITHUB_REQUESTED_SCOPE: z.string().default('repo,write:repo_hook'),
-  // Pending team decision: this is required when GitHub webhook handling is enabled.
-  GITHUB_WEBHOOK_SECRET: z.string().min(1).optional(),
+  GITHUB_REQUESTED_SCOPE: z.string().default('write:repo_hook'),
+  GITHUB_WEBHOOK_SECRET: z.string().min(1),
 
   GEMINI_API_KEY: z.string().min(1),
   GROQ_API_KEY: z.string().min(1),

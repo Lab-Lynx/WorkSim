@@ -13,6 +13,7 @@ const requiredEnvironment = {
   GITHUB_CLIENT_SECRET: 'github-client-secret',
   GITHUB_CALLBACK_URL: 'https://example.com/auth/github/callback',
   GITHUB_TOKEN_ENCRYPTION_KEY: 'github-encryption-key',
+  GITHUB_WEBHOOK_SECRET: 'github-webhook-secret',
   GEMINI_API_KEY: 'gemini-key',
   GROQ_API_KEY: 'groq-key',
   CLIENT_URL: 'https://example.com',
@@ -29,7 +30,7 @@ describe('loadEnv', () => {
       ...requiredEnvironment,
       CHAPA_PRICE: '100',
       CHAPA_CURRENCY: 'ETB',
-      GITHUB_REQUESTED_SCOPE: 'repo,write:repo_hook',
+      GITHUB_REQUESTED_SCOPE: 'write:repo_hook',
       GEMINI_MODEL: 'pending-gemini-model',
       GROQ_MODEL: 'pending-groq-model',
       MENTOR_MESSAGE_MAX_CHARS: '1200',
@@ -46,7 +47,7 @@ describe('loadEnv', () => {
     expect(result.CHAPA_PRICE).toBe(100);
     expect(result.MENTOR_MESSAGES_PER_TICKET).toBe(20);
     expect(result.SUBMISSION_CI_TIMEOUT_MS).toBe(600000);
-    expect(result.GITHUB_REQUESTED_SCOPE).toBe('repo,write:repo_hook');
+    expect(result.GITHUB_REQUESTED_SCOPE).toBe('write:repo_hook');
     expect(result.BRANCH_NAME_PREFIX).toBe('ticket/');
     expect(result.DIFF_MAX_BYTES).toBe(1_048_576);
   });
@@ -61,7 +62,12 @@ describe('loadEnv', () => {
   });
 
   it('fails when a required secret or URL is missing or invalid', () => {
-    for (const key of ['CHAPA_SECRET_KEY', 'GITHUB_CLIENT_SECRET', 'GEMINI_API_KEY']) {
+    for (const key of [
+      'CHAPA_SECRET_KEY',
+      'GITHUB_CLIENT_SECRET',
+      'GITHUB_WEBHOOK_SECRET',
+      'GEMINI_API_KEY',
+    ]) {
       const environment = { ...requiredEnvironment };
       delete environment[key as keyof typeof environment];
 
