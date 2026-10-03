@@ -4,11 +4,11 @@ import { createBrowserRouter, Outlet, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import RequireAuth from './RequireAuth';
 import PublicOnly from './PublicOnly';
-import RootRedirect from './RootRedirect';
 import AppLayout from '@/components/layout/AppLayout';
 import AuthLayout from '@/components/layout/AuthLayout';
 import { ROUTES } from '@/constants';
 
+const LandingPage = lazy(() => import('@/pages/public/LandingPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
@@ -22,6 +22,7 @@ const GitHubSetupPage = lazy(() => import('@/pages/github/GitHubSetupPage'));
 const TicketPage = lazy(() => import('@/pages/tickets/TicketPage'));
 const ProfilePage = lazy(() => import('@/pages/profile/ExperienceProfilePage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
+const SubmissionsPage = lazy(() => import('@/pages/submissions/SubmissionsPage'));
 
 function TicketRoute() {
   const { ticketId } = useParams();
@@ -37,14 +38,15 @@ function PageLoader() {
   );
 }
 
-// Wrap each lazy element so Suspense boundaries stay per-page,
-// matching the granularity your original Suspense had.
 const withSuspense = (element: React.ReactNode) => (
   <Suspense fallback={<PageLoader />}>{element}</Suspense>
 );
 
 const router = createBrowserRouter([
-  { path: ROUTES.HOME, element: <RootRedirect /> },
+  {
+    path: ROUTES.HOME,
+    element: withSuspense(<LandingPage />),
+  },
   {
     element: <PublicOnly />,
     children: [
@@ -77,6 +79,7 @@ const router = createBrowserRouter([
           { path: ROUTES.GITHUB, element: withSuspense(<GitHubSetupPage />) },
           { path: ROUTES.TICKET, element: <TicketRoute /> },
           { path: ROUTES.PROFILE, element: withSuspense(<ProfilePage />) },
+          { path: ROUTES.SUBMISSIONS, element: withSuspense(<SubmissionsPage />) },
           { path: ROUTES.SETTINGS, element: withSuspense(<SettingsPage />) },
         ],
       },

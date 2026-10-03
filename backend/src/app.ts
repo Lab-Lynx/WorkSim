@@ -4,7 +4,11 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { pinoHttp } from 'pino-http';
 import { randomUUID } from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import type { IncomingMessage } from 'http';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Utilities & Configs
 import { env } from './config/env.js';
@@ -94,6 +98,23 @@ app.get('/health', (req, res) => {
   return res
     .status(HTTP_STATUS.OK)
     .json(new SuccessResponse(HTTP_STATUS.OK, 'Server is running healthily', { status: 'ok' }));
+});
+
+// 📦 Serve frontend static files in production
+// The frontend is built and output to the WorkSim/frontend/dist directory
+const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDistPath));
+
+// 🔄 SPA fallback: serve index.html for all non-API routes
+// This ensures client-side routing works properly
+// Must come AFTER static file serving and API routes
+app.use((req, res, next) => {
+  // Skip if this is an API request or a direct file request
+  if (req.path.startsWith('/api/') || req.path.startsWith('/webhooks/') || req.path === '/health') {
+    return next();
+  }
+  // For all other routes, serve the frontend index.html
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 // 🔍 404 Route Catch-All Handling

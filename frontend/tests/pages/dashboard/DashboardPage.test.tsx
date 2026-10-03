@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   useSetupProgress: vi.fn(),
   useCurrentTicket: vi.fn(),
   useAssignTicket: vi.fn(),
+  useSubscription: vi.fn(),
+  useExperienceProfile: vi.fn(),
   assignTicket: vi.fn(),
 }));
 
@@ -20,6 +22,13 @@ vi.mock('@/hooks/auth/useMe', () => ({ useMe: mocks.useMe }));
 vi.mock('@/hooks/useSetupProgress', () => ({ useSetupProgress: mocks.useSetupProgress }));
 vi.mock('@/hooks/tickets/useCurrentTicket', () => ({ useCurrentTicket: mocks.useCurrentTicket }));
 vi.mock('@/hooks/tickets/useAssignTicket', () => ({ useAssignTicket: mocks.useAssignTicket }));
+vi.mock('@/hooks/billing/useSubscription', () => ({ useSubscription: mocks.useSubscription }));
+vi.mock('@/hooks/profile/useExperienceProfile', () => ({
+  useExperienceProfile: mocks.useExperienceProfile,
+}));
+vi.mock('@/components/dashboard/ScoreTrendChart', () => ({
+  ScoreTrendChart: () => <div data-testid="score-trend-chart" />,
+}));
 
 const ticket: Ticket = {
   id: 'ticket-123',
@@ -93,6 +102,8 @@ describe('DashboardPage (FE-082)', () => {
       mutateAsync: mocks.assignTicket,
       isPending: false,
     });
+    mocks.useSubscription.mockReturnValue({ data: undefined, isError: true });
+    mocks.useExperienceProfile.mockReturnValue({ data: undefined, isError: true });
   });
 
   it('shows the setup block reason and keeps the only get-ticket action in CurrentTicketCard', () => {

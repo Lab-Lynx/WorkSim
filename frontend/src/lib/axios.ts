@@ -46,7 +46,15 @@ export function getSessionExpiredCallback(): (() => void) | null {
   return onSessionExpiredCallback;
 }
 
+function clearLegacyAuthStorage(): void {
+  for (const storage of [localStorage, sessionStorage]) {
+    storage.removeItem('accessToken');
+    storage.removeItem('refreshToken');
+  }
+}
+
 export function defaultOnSessionExpired(): void {
+  clearLegacyAuthStorage();
   const location = router.state?.location;
   const currentPath = location
     ? location.pathname + location.search + location.hash
@@ -57,6 +65,7 @@ export function defaultOnSessionExpired(): void {
     state: { notice: 'session_expired' },
   });
 
+  queryClient.removeQueries({ queryKey: queryKeys.me });
   queryClient.clear();
   useAuthStore.getState().clearAuth();
 }

@@ -3,6 +3,7 @@ import { AxiosError } from 'axios';
 import { QueryClient } from '@tanstack/react-query';
 import { queryClient, shouldRetryQuery, handleGlobalApiError } from '@/lib/queryClient';
 import { getSessionExpiredCallback } from '@/lib/axios';
+import { apiRequest } from '@/lib/api/client';
 import '@/App';
 import { queryKeys } from '@/lib/query-keys';
 import { useAuthStore } from '@/store/auth.store';
@@ -157,6 +158,16 @@ describe('QueryClient defaults and App wiring', () => {
         })
       );
       expect(clearSpy).toHaveBeenCalled();
+    });
+
+    it('configures apiRequest from @/lib/api/client so it does not throw unconfigured error', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(JSON.stringify({ statusCode: 200, success: true, message: 'OK', data: {} }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      );
+      await expect(apiRequest('GET', '/test')).resolves.toBeDefined();
     });
   });
 });
