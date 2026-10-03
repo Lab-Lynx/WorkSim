@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { processUpcomingRenewals } from '../../src/services/subscription-renewal.service';
+import { logger } from '../../src/lib/logger';
+import {
+  runRenewalJob,
+  startRenewalScheduler,
+  stopRenewalScheduler,
+} from '../../src/jobs/renewal.job';
 
 vi.mock('../../src/services/subscription-renewal.service', () => ({
   processUpcomingRenewals: vi.fn(),
@@ -8,13 +15,7 @@ vi.mock('../../src/lib/logger', () => ({
   logger: { info: vi.fn(), error: vi.fn() },
 }));
 
-import { processUpcomingRenewals } from '../../src/services/subscription-renewal.service';
-import { logger } from '../../src/lib/logger';
-import {
-  runRenewalJob,
-  startRenewalScheduler,
-  stopRenewalScheduler,
-} from '../../src/jobs/renewal.job';
+
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -54,21 +55,21 @@ describe('runRenewalJob', () => {
     );
   });
 
-  it('gives each run its own distinct job id', async () => {
-    (processUpcomingRenewals as any).mockResolvedValue({
-      remindersSent: 0,
-      chargesAttempted: 0,
-      chargesSucceeded: 0,
-      chargesFailed: 0,
-    });
-
-    await runRenewalJob();
-    await runRenewalJob();
-
-    const idA = (logger.info as any).mock.calls[0][0].jobId;
-    const idB = (logger.info as any).mock.calls[1][0].jobId;
-    expect(idA).not.toBe(idB);
+it('gives each run its own distinct job id', async () => {
+  (processUpcomingRenewals as any).mockResolvedValue({
+    remindersSent: 0,
+    chargesAttempted: 0,
+    chargesSucceeded: 0,
+    chargesFailed: 0,
   });
+
+  await runRenewalJob();
+  await runRenewalJob();
+
+  const idA = (logger.info as any).mock.calls[0][0].jobId; // run 1's "started" log
+  const idB = (logger.info as any).mock.calls[2][0].jobId; // run 2's "started" log
+  expect(idA).not.toBe(idB);
+});
 });
 
 describe('startRenewalScheduler / stopRenewalScheduler', () => {

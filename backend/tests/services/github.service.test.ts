@@ -63,6 +63,7 @@ beforeEach(() => {
   process.env.GITHUB_OAUTH_CLIENT_ID = 'client-id';
   process.env.GITHUB_WEBHOOK_URL = 'https://api.example.com/webhooks/github';
   process.env.GITHUB_WEBHOOK_SECRET = 'whsecret';
+  (verifyOAuthState as any).mockImplementation(() => {}); // succeeds by default
 });
 
 describe('createGitHubAuthorizeUrl', () => {
