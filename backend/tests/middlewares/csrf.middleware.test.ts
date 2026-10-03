@@ -49,4 +49,24 @@ describe('csrfMiddleware', () => {
 
     expect(next).toHaveBeenCalledWith();
   });
+
+  it.each(['POST', 'PUT', 'PATCH', 'DELETE'])(
+    'checks the configured origin for authenticated %s requests',
+    (method) => {
+      const next = vi.fn<NextFunction>();
+      const req = createRequest({
+        method,
+        get: vi.fn((header: string) => (header === 'origin' ? 'https://evil.example' : undefined)),
+      });
+
+      csrfMiddleware(req, {} as Response, next);
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 403,
+          message: 'Untrusted request origin',
+        }),
+      );
+    },
+  );
 });
