@@ -61,7 +61,15 @@ export function isSessionExpiredGuardActive(): boolean {
   return sessionExpiredGuard;
 }
 
+function clearLegacyAuthStorage(): void {
+  for (const storage of [localStorage, sessionStorage]) {
+    storage.removeItem('accessToken');
+    storage.removeItem('refreshToken');
+  }
+}
+
 function handleSessionExpired(): void {
+  clearLegacyAuthStorage();
   if (sessionExpiredGuard) {
     return;
   }

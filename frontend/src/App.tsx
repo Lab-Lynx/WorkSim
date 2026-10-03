@@ -8,9 +8,19 @@ import { configureApiClient as configureLegacyApiClient } from '@/lib/axios';
 import { env } from '@/config/env';
 import { queryKeys } from '@/lib/query-keys';
 import { buildLoginRedirect } from '@/lib/navigation';
-import ThemeToggle from '@/components/common/ThemeToggle';
+import { ApplyStoredTheme } from '@/components/common/ThemeToggle';
+import { Assistant } from '@/components/Assistant';
+
+function clearLegacyAuthStorage(): void {
+  for (const storage of [localStorage, sessionStorage]) {
+    storage.removeItem('accessToken');
+    storage.removeItem('refreshToken');
+  }
+}
 
 function onSessionExpired(): void {
+  clearLegacyAuthStorage();
+
   if (!queryClient.getQueryData(queryKeys.me)) {
     return;
   }
@@ -25,6 +35,7 @@ function onSessionExpired(): void {
     state: { notice: 'session_expired' },
   });
 
+  queryClient.removeQueries({ queryKey: queryKeys.me });
   queryClient.clear();
 }
 
@@ -42,8 +53,9 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ThemeToggle />
+        <ApplyStoredTheme />
         <RouterProvider router={router} />
+        <Assistant />
       </QueryClientProvider>
     </ErrorBoundary>
   );

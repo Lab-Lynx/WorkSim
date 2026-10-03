@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Check, CreditCard, Loader2 } from 'lucide-react';
 import { useSubscription } from '@/hooks/billing/useSubscription';
 import { usePayments } from '@/hooks/billing/usePayments';
 import { useStartCheckout } from '@/hooks/billing/useStartCheckout';
@@ -10,6 +10,21 @@ import ErrorState from '@/components/common/ErrorState';
 import SubscriptionCard from '@/components/billing/SubscriptionCard';
 import PaymentHistory from '@/components/billing/PaymentHistory';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+
+const planFeatures = [
+  'Unlimited assigned tickets each month',
+  'Full AI mentor access with guided hints',
+  'Rubric-scored feedback on every submission',
+  'Experience profile with public work history',
+];
 
 export function BillingPage() {
   useDocumentTitle('Billing');
@@ -51,16 +66,47 @@ export function BillingPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="font-heading text-2xl font-medium tracking-tight">Billing</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage your subscription and view payment history.
+        </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <section aria-labelledby="subscription-heading" className="flex flex-col gap-3">
-          <h2 id="subscription-heading" className="text-lg font-semibold">Subscription</h2>
+      <Card>
+        <CardHeader className="flex-row items-start justify-between gap-4">
+          <div className="flex flex-col gap-1.5">
+            <CardTitle className="font-heading text-lg font-medium">Practitioner plan</CardTitle>
+            <CardDescription>450 ETB / month · billed via Chapa</CardDescription>
+          </div>
+          <span className="font-heading text-3xl font-medium tracking-tight text-nowrap">450 ETB</span>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-5 border-t border-border" />
+          <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {planFeatures.map((feature) => (
+              <li key={feature} className="flex items-start gap-2.5 text-sm">
+                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span className="text-muted-foreground text-pretty">{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-heading text-base font-medium">Subscription</CardTitle>
+          <CardDescription>Current access and renewal status</CardDescription>
+        </CardHeader>
+        <CardContent>
           {subscription.isLoading ? (
-            <div role="status" aria-label="Loading subscription" className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+            <div
+              role="status"
+              aria-label="Loading subscription"
+              className="flex items-center gap-2 py-6 text-sm text-muted-foreground"
+            >
               <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Loading subscription…
             </div>
           ) : subscription.isError || !subscription.data ? (
@@ -81,12 +127,40 @@ export function BillingPage() {
               }}
             />
           )}
-        </section>
+        </CardContent>
+      </Card>
 
-        <section aria-labelledby="payments-heading" className="flex flex-col gap-3">
-          <h2 id="payments-heading" className="text-lg font-semibold">Payment history</h2>
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <div className="flex flex-col gap-1">
+            <CardTitle className="font-heading text-base font-medium">Payment method</CardTitle>
+            <CardDescription>Billed via Chapa</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" type="button" disabled>
+            <CreditCard data-icon="inline-start" />
+            Update
+          </Button>
+        </CardHeader>
+        <CardContent className="flex items-center gap-3 rounded-lg bg-muted px-4 py-3">
+          <CreditCard className="size-5 text-muted-foreground" />
+          <div className="flex flex-col">
+            <span className="text-sm font-medium">Telebirr · via Chapa</span>
+            <span className="text-xs text-muted-foreground">Managed on Chapa checkout</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-heading text-base font-medium">Payment history</CardTitle>
+        </CardHeader>
+        <CardContent>
           {payments.isLoading ? (
-            <div role="status" aria-label="Loading payment history" className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+            <div
+              role="status"
+              aria-label="Loading payment history"
+              className="flex items-center gap-2 py-6 text-sm text-muted-foreground"
+            >
               <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Loading payments…
             </div>
           ) : payments.isError ? (
@@ -98,8 +172,8 @@ export function BillingPage() {
           ) : (
             <PaymentHistory payments={payments.data ?? []} />
           )}
-        </section>
-      </div>
+        </CardContent>
+      </Card>
 
       <ConfirmDialog
         open={isConfirmOpen}
