@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ApiError from '../../src/utils/ApiError.js';
 import { HTTP_STATUS } from '../../src/constants/index.js';
+import { encryptGitHubToken } from '../../src/lib/crypto/github-token.js';
 
 const gitHubConnectionFindUnique = vi.fn();
 const starterRepoFindUnique = vi.fn();
@@ -45,8 +46,9 @@ describe('github.service', () => {
   });
 
   it('createTicketBranch delegates to the integration', async () => {
+    const encryptedToken = encryptGitHubToken('github-token');
     gitHubConnectionFindUnique.mockResolvedValue({
-      accessTokenEncrypted: 'enc',
+      accessTokenEncrypted: encryptedToken,
     });
     starterRepoFindUnique.mockResolvedValue({
       fullName: 'ada/starter',
@@ -61,13 +63,14 @@ describe('github.service', () => {
       repo: 'starter',
       branchName: 'ticket/x',
       baseBranch: 'main',
-      accessToken: 'enc',
+      accessToken: 'github-token',
     });
   });
 
   it('createTicketBranch maps unknown errors to 502', async () => {
+    const encryptedToken = encryptGitHubToken('github-token');
     gitHubConnectionFindUnique.mockResolvedValue({
-      accessTokenEncrypted: 'enc',
+      accessTokenEncrypted: encryptedToken,
     });
     starterRepoFindUnique.mockResolvedValue({
       fullName: 'ada/starter',

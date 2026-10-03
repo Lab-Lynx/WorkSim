@@ -3,6 +3,7 @@ import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import type { GitHubSubmissionState } from '../types/domain.js';
 import * as githubApi from '../integrations/github.js';
+import { decryptGitHubToken } from '../lib/crypto/github-token.js';
 
 const GITHUB_NOT_CONNECTED = 'GitHub is not connected. Connect GitHub to continue';
 const BRANCH_CREATE_FAILED =
@@ -66,12 +67,13 @@ export const createTicketBranch = async (
   }
 
   try {
+    const accessToken = decryptGitHubToken(connection.accessTokenEncrypted);
     await githubApi.createBranch({
       owner,
       repo: repoName,
       branchName,
       baseBranch: baseBranch || repo.defaultBranch,
-      accessToken: connection.accessTokenEncrypted,
+      accessToken,
     });
   } catch (err) {
     if (err instanceof ApiError) throw err;

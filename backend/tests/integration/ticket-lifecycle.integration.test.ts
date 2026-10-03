@@ -19,6 +19,7 @@ import {
 } from '@prisma/client';
 import type { Express } from 'express';
 import type { TicketTemplate } from '../../src/types/domain.js';
+import { encryptGitHubToken } from '../../src/lib/crypto/github-token.js';
 
 /**
  * Doc 9 §9.3.10 — ticket lifecycle over real Postgres + Express routes.
@@ -158,7 +159,7 @@ describeDb('ticket-lifecycle (Doc 9 §9.3.10)', () => {
         userId: user.id,
         githubUserId: `gh-${user.id}`,
         githubLogin: 'ada',
-        accessTokenEncrypted: 'enc-token',
+        accessTokenEncrypted: encryptGitHubToken('enc-token'),
         scope: 'repo',
       },
     });
@@ -365,7 +366,7 @@ describeDb('ticket-lifecycle (Doc 9 §9.3.10)', () => {
         userId: user.id,
         githubUserId: `gh-${user.id}`,
         githubLogin: 'ada',
-        accessTokenEncrypted: 'enc',
+        accessTokenEncrypted: encryptGitHubToken('enc'),
         scope: 'repo',
       },
     });
