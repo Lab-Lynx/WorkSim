@@ -48,6 +48,7 @@ describe('loadEnv', () => {
     expect(result.SUBMISSION_CI_TIMEOUT_MS).toBe(600000);
     expect(result.GITHUB_REQUESTED_SCOPE).toBe('repo,write:repo_hook');
     expect(result.BRANCH_NAME_PREFIX).toBe('ticket/');
+    expect(result.DIFF_MAX_BYTES).toBe(1_048_576);
   });
 
   it('keeps unresolved product values configurable and pending', () => {

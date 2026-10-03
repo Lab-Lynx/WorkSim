@@ -54,6 +54,7 @@ const envSchema = z.object({
   // Pending team decision (Q-13): submission timeout values remain configurable.
   SUBMISSION_CI_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
   SUBMISSION_EVALUATOR_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+  DIFF_MAX_BYTES: z.coerce.number().int().positive().default(1_048_576),
   AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
   // Pending team decision: branch naming convention remains configurable.
   BRANCH_NAME_PREFIX: z.string().min(1).optional(),

@@ -104,6 +104,8 @@ describe('Groq Integration Adapter (Doc 8 §8.10, Doc 9 §9.2.10)', () => {
       const userMessage = messages.find((m) => m.role === 'user')?.content || '';
       expect(userMessage).toContain(mockAttempt1Input.ticketContent.title);
       expect(userMessage).toContain(mockAttempt1Input.diff);
+      expect(userMessage).toContain('<UNTRUSTED_DIFF>');
+      expect(userMessage).toContain('</UNTRUSTED_DIFF>');
       expect(userMessage).toContain('PASSED');
       expect(userMessage).toContain('Attempt 1');
 
@@ -148,6 +150,8 @@ describe('Groq Integration Adapter (Doc 8 §8.10, Doc 9 §9.2.10)', () => {
       expect(messagesText).toContain('Attempt 2');
       expect(messagesText).toContain(mockTranscript[0].content);
       expect(messagesText).toContain(mockTranscript[1].content);
+      expect(messagesText).toContain('<UNTRUSTED_MENTOR_TRANSCRIPT>');
+      expect(messagesText).toContain('</UNTRUSTED_MENTOR_TRANSCRIPT>');
 
       expect(result.feedback).toBe('Excellent final submission. Problem-solving was methodical.');
       expect(result.scores).toEqual({
