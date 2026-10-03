@@ -4,7 +4,6 @@ import { createBrowserRouter, Outlet, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import RequireAuth from './RequireAuth';
 import PublicOnly from './PublicOnly';
-import RootRedirect from './RootRedirect';
 import AppLayout from '@/components/layout/AppLayout';
 import AuthLayout from '@/components/layout/AuthLayout';
 import { ROUTES } from '@/constants';
@@ -23,6 +22,7 @@ const GitHubSetupPage = lazy(() => import('@/pages/github/GitHubSetupPage'));
 const TicketPage = lazy(() => import('@/pages/tickets/TicketPage'));
 const ProfilePage = lazy(() => import('@/pages/profile/ExperienceProfilePage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
+const SubmissionsPage = lazy(() => import('@/pages/submissions/SubmissionsPage'));
 
 function TicketRoute() {
   const { ticketId } = useParams();
@@ -81,6 +81,7 @@ const router = createBrowserRouter([
           { path: ROUTES.GITHUB, element: withSuspense(<GitHubSetupPage />) },
           { path: ROUTES.TICKET, element: <TicketRoute /> },
           { path: ROUTES.PROFILE, element: withSuspense(<ProfilePage />) },
+          { path: ROUTES.SUBMISSIONS, element: withSuspense(<SubmissionsPage />) },
           { path: ROUTES.SETTINGS, element: withSuspense(<SettingsPage />) },
         ],
       },

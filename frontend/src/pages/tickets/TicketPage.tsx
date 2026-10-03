@@ -213,25 +213,36 @@ export default function TicketPage(): React.JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <TicketHeader ticket={ticket} phase={phase} />
+    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <TicketHeader ticket={ticket} phase={phase} />
+        <TicketActionBar
+          phase={phase}
+          hasAccess={hasAccess}
+          pendingAction={pendingAction}
+          error={actionError}
+          onAction={(action) => void handleAction(action)}
+        />
+      </div>
+
       {ticket.status === 'abandoned' && (
-        <div role="status" className="border-y border-border py-3 text-sm">This ticket was abandoned.</div>
-      )}
-      {!hasAccess && (
-        <div role="alert" className="border-y border-destructive/20 py-3 text-sm text-destructive">
-          An active subscription is required. <Link to="/billing" className="underline">Go to billing</Link>
+        <div role="status" className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
+          This ticket was abandoned.
         </div>
       )}
-      <TicketActionBar
-        phase={phase}
-        hasAccess={hasAccess}
-        pendingAction={pendingAction}
-        error={actionError}
-        onAction={(action) => void handleAction(action)}
-      />
+      {!hasAccess && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          An active subscription is required.{' '}
+          <Link to="/billing" className="underline">
+            Go to billing
+          </Link>
+        </div>
+      )}
 
-      <div role="tablist" aria-label="Ticket workspace" className="flex gap-4 border-b border-border">
+      <div role="tablist" aria-label="Ticket workspace" className="flex gap-1 border-b border-border">
         {tabs.map((tab) => (
           <button
             key={tab}
@@ -239,7 +250,11 @@ export default function TicketPage(): React.JSX.Element {
             role="tab"
             aria-selected={activeTab === tab}
             onClick={() => setTab(tab)}
-            className={`border-b-2 px-2 py-2 text-sm capitalize ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+            className={`border-b-2 px-3 py-2 text-sm capitalize transition-colors ${
+              activeTab === tab
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
           >
             {tab}
           </button>
@@ -247,31 +262,57 @@ export default function TicketPage(): React.JSX.Element {
       </div>
 
       {activeTab === 'ticket' && (
-        <div className="space-y-6">
-          <TicketDetails ticket={ticket} />
-          <BranchInstructions repoFullName={ticket.repo.fullName} branchName={ticket.branchName} />
-          {phase.canAbandon && (
-            <div className="flex justify-end border-t border-border pt-4">
-              <Button type="button" variant="destructive" disabled={!hasAccess} onClick={() => setIsAbandonOpen(true)}>
-                Abandon ticket
-              </Button>
+        <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-5">
+          <div className="flex flex-col gap-6 rounded-xl bg-card p-4 ring-1 ring-foreground/10 lg:col-span-3">
+            <TicketDetails ticket={ticket} />
+            <BranchInstructions repoFullName={ticket.repo.fullName} branchName={ticket.branchName} />
+            {phase.canAbandon && (
+              <div className="flex justify-end border-t border-border pt-4">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={!hasAccess}
+                  onClick={() => setIsAbandonOpen(true)}
+                >
+                  Abandon ticket
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="flex min-h-[520px] flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 lg:col-span-2">
+            <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-4">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">Mentor</span>
+                <span className="text-xs text-muted-foreground">Ask for direction, not the answer</span>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">
+                <span className="size-1.5 rounded-full bg-primary" />
+                Online
+              </span>
             </div>
-          )}
+            <div className="min-h-0 flex-1 p-4">
+              <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasAccess} />
+            </div>
+          </div>
         </div>
       )}
       {activeTab === 'mentor' && (
-        <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasAccess} />
+        <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+          <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasAccess} />
+        </div>
       )}
       {activeTab === 'submissions' && (
-        <SubmissionsPanel
-          ticketId={ticket.id}
-          submissions={submissions}
-          phase={phase}
-          hasAccess={hasAccess}
-          retryingAttempt={retry.isPending ? phase.retryAttempt : null}
-          onRetry={() => void handleAction('retry')}
-          onSettled={handleSettled}
-        />
+        <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+          <SubmissionsPanel
+            ticketId={ticket.id}
+            submissions={submissions}
+            phase={phase}
+            hasAccess={hasAccess}
+            retryingAttempt={retry.isPending ? phase.retryAttempt : null}
+            onRetry={() => void handleAction('retry')}
+            onSettled={handleSettled}
+          />
+        </div>
       )}
 
       <ConfirmDialog

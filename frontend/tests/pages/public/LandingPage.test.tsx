@@ -32,10 +32,14 @@ describe('LandingPage', () => {
     }
   });
 
-  it('exposes how-it-works and features sections', () => {
+  it('exposes how-it-works, pricing, features, and testimonials sections', () => {
     renderLanding();
 
     expect(document.getElementById('how-it-works')).toBeTruthy();
+    expect(document.getElementById('pricing')).toBeTruthy();
     expect(document.getElementById('features')).toBeTruthy();
+    expect(document.getElementById('testimonials')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /plans for your practice/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /what people notice/i })).toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type Theme = 'light' | 'dark';
 
@@ -8,7 +9,23 @@ function getInitialTheme(): Theme {
   return window.localStorage.getItem('worksim-theme') === 'dark' ? 'dark' : 'light';
 }
 
-export default function ThemeToggle(): React.JSX.Element {
+/** Applies the stored theme on app boot (no UI). */
+export function ApplyStoredTheme(): null {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', getInitialTheme());
+  }, []);
+  return null;
+}
+
+type ThemeToggleProps = {
+  className?: string;
+  collapsed?: boolean;
+};
+
+export default function ThemeToggle({
+  className,
+  collapsed = false,
+}: ThemeToggleProps): React.JSX.Element {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
@@ -21,14 +38,24 @@ export default function ThemeToggle(): React.JSX.Element {
   return (
     <Button
       type="button"
-      variant="outline"
-      size="icon"
-      className="fixed bottom-4 right-4 z-60 shadow-sm"
+      variant="ghost"
+      size={collapsed ? 'icon' : 'default'}
+      className={cn(
+        'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+        !collapsed && 'w-full justify-start gap-3 rounded-2xl px-3',
+        collapsed && 'size-8',
+        className,
+      )}
       onClick={() => setTheme(nextTheme)}
       aria-label={`Switch to ${nextTheme} mode`}
       title={`Switch to ${nextTheme} mode`}
     >
-      {theme === 'dark' ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+      {theme === 'dark' ? (
+        <Sun className="size-4 shrink-0" aria-hidden="true" />
+      ) : (
+        <Moon className="size-4 shrink-0" aria-hidden="true" />
+      )}
+      {!collapsed && <span className="text-sm font-medium">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
     </Button>
   );
 }

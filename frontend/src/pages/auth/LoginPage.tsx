@@ -66,18 +66,21 @@ export default function LoginPage(): React.JSX.Element {
       {noticeMessage && (
         <div
           role="status"
-          className="mb-4 rounded-md border border-primary/20 bg-primary/10 p-3 text-sm text-primary font-medium"
+          className="mb-4 rounded-md border border-border bg-muted p-3 text-sm font-medium text-foreground"
         >
           {noticeMessage}
         </div>
       )}
 
-      <h1
-        tabIndex={-1}
-        className="text-xl font-semibold tracking-tight text-foreground outline-none mb-6"
-      >
-        Log in
-      </h1>
+      <div className="mb-7">
+        <h1
+          tabIndex={-1}
+          className="text-xl font-semibold tracking-tight text-foreground outline-none"
+        >
+          Welcome back
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">Please enter your details.</p>
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
@@ -117,31 +120,31 @@ export default function LoginPage(): React.JSX.Element {
           )}
         </div>
 
+        <div className="flex justify-end">
+          <Link
+            to={ROUTES.FORGOT_PASSWORD}
+            className="text-sm text-foreground underline underline-offset-4 hover:text-foreground/80"
+          >
+            Forgot Password?
+          </Link>
+        </div>
+
         <FormRootError message={errors.root?.message} />
 
         <SubmitButton
           isPending={login.isPending}
           pendingLabel="Logging in…"
-          className="w-full mt-2"
+          className="mt-1 h-10 w-full rounded-lg bg-foreground text-background hover:bg-foreground/90"
         >
           Log in
         </SubmitButton>
       </form>
 
-      <div className="text-center mt-4">
-        <Link
-          to={ROUTES.FORGOT_PASSWORD}
-          className="text-sm text-primary underline underline-offset-4 hover:text-primary/90"
-        >
-          Forgot your password?
-        </Link>
-      </div>
-
-      <p className="text-center text-sm text-muted-foreground mt-4">
+      <p className="mt-6 text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
         <Link
           to={ROUTES.REGISTER}
-          className="text-primary underline underline-offset-4 hover:text-primary/90"
+          className="font-semibold text-foreground underline underline-offset-4 hover:text-foreground/80"
         >
           Create an account
         </Link>
