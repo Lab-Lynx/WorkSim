@@ -6,6 +6,10 @@ import mentorRouter from './mentor.routes.js';
 import submissionRouter from './submission.routes.js';
 import profileRouter from './profile.routes.js';
 
+import subscriptionRouter from './subscription.routes.js';
+import paymentRouter from './payment.routes.js';
+import githubRouter from './github.routes.js';
+
 const router = Router();
 
 // Doc 7 §7.9 Phase 9 Item 80 — Route registrations under /api/v1 prefix:
@@ -16,11 +20,11 @@ router.use('/tickets', ticketRouter);
 router.use('/tickets', mentorRouter);
 router.use('/tickets', submissionRouter);
 router.use('/profile', profileRouter);
+router.use('/subscriptions', subscriptionRouter);
+router.use('/payments', paymentRouter);
+router.use('/github', githubRouter);
 
 // Pending/deferred routers (to be mounted as their feature branches land):
-// router.use('/subscriptions', subscriptionRouter);
-// router.use('/payments', paymentRouter);
-// router.use('/github', githubRouter);
 // router.use('/webhooks', webhookRouter);
 
 export default router;
