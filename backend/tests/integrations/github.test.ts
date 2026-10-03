@@ -4,14 +4,14 @@ const mockRepos = { createUsingTemplate: vi.fn(), createWebhook: vi.fn() };
 const mockGit = { getRef: vi.fn(), createRef: vi.fn() };
 const mockPulls = { list: vi.fn(), create: vi.fn(), get: vi.fn() };
 
-vi.mock('@octokit/rest', () => ({
-  Octokit: vi.fn().mockImplementation(() => ({
-    repos: mockRepos,
-    git: mockGit,
-    pulls: mockPulls,
-  })),
-}));
-
+vi.mock('@octokit/rest', () => {
+  class MockOctokit {
+    repos = mockRepos;
+    git = mockGit;
+    pulls = mockPulls;
+  }
+  return { Octokit: MockOctokit };
+});
 import {
   exchangeCodeForToken,
   createRepoFromTemplate,
