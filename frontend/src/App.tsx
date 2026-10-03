@@ -11,7 +11,16 @@ import { buildLoginRedirect } from '@/lib/navigation';
 import { ApplyStoredTheme } from '@/components/common/ThemeToggle';
 import { Assistant } from '@/components/Assistant';
 
+function clearLegacyAuthStorage(): void {
+  for (const storage of [localStorage, sessionStorage]) {
+    storage.removeItem('accessToken');
+    storage.removeItem('refreshToken');
+  }
+}
+
 function onSessionExpired(): void {
+  clearLegacyAuthStorage();
+
   if (!queryClient.getQueryData(queryKeys.me)) {
     return;
   }
@@ -26,6 +35,7 @@ function onSessionExpired(): void {
     state: { notice: 'session_expired' },
   });
 
+  queryClient.removeQueries({ queryKey: queryKeys.me });
   queryClient.clear();
 }
 
