@@ -38,3 +38,37 @@ export const authLimiter = rateLimit({
       );
   },
 });
+
+const costLimiter = (max: number, windowMs: number, message: string) =>
+  rateLimit({
+    windowMs,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req, res) =>
+      res
+        .status(HTTP_STATUS.TOO_MANY_REQUESTS)
+        .json(new ErrorResponse(HTTP_STATUS.TOO_MANY_REQUESTS, message, [])),
+  });
+
+// These limits are deliberately server-side and protect provider/AI spend.
+export const registrationLimiter = costLimiter(
+  20,
+  60 * 60 * 1000,
+  'Too many registration attempts, please try again later.',
+);
+export const ticketAssignmentLimiter = costLimiter(
+  10,
+  15 * 60 * 1000,
+  'Too many ticket assignment attempts, please try again later.',
+);
+export const submissionLimiter = costLimiter(
+  10,
+  15 * 60 * 1000,
+  'Too many submission attempts, please try again later.',
+);
+export const mentorRequestLimiter = costLimiter(
+  20,
+  15 * 60 * 1000,
+  'Too many mentor requests, please try again later.',
+);

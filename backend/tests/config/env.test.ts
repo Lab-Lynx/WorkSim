@@ -56,8 +56,9 @@ describe('loadEnv', () => {
     const result = loadEnv(requiredEnvironment);
 
     expect(result.CHAPA_PRICE).toBeUndefined();
-    expect(result.MENTOR_MESSAGE_MAX_CHARS).toBeUndefined();
-    expect(result.MENTOR_MESSAGES_PER_TICKET).toBeUndefined();
+    expect(result.MENTOR_MESSAGE_MAX_CHARS).toBe(4_000);
+    expect(result.MENTOR_MESSAGES_PER_TICKET).toBe(20);
+    expect(result.MENTOR_MESSAGE_WINDOW_MS).toBe(86_400_000);
     expect(result.SUBMISSION_CI_TIMEOUT_MS).toBeUndefined();
   });
 

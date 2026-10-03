@@ -44,10 +44,9 @@ const envSchema = z.object({
   GEMINI_MODEL: z.string().min(1).optional(),
   GROQ_MODEL: z.string().min(1).optional(),
 
-  // Pending team decision (Q-10): mentor limits remain unset until product decides them.
-  MENTOR_MESSAGE_MAX_CHARS: z.coerce.number().int().positive().optional(),
-  MENTOR_MESSAGES_PER_TICKET: z.coerce.number().int().positive().optional(),
-  MENTOR_MESSAGE_WINDOW_MS: z.coerce.number().int().positive().optional(),
+  MENTOR_MESSAGE_MAX_CHARS: z.coerce.number().int().positive().default(4_000),
+  MENTOR_MESSAGES_PER_TICKET: z.coerce.number().int().positive().default(20),
+  MENTOR_MESSAGE_WINDOW_MS: z.coerce.number().int().positive().default(86_400_000),
   VERIFICATION_TOKEN_EXPIRES_IN: z.string().min(1).optional(),
   PASSWORD_RESET_TOKEN_EXPIRES_IN: z.string().min(1).optional(),
   // Pending team decision (Q-13): submission timeout values remain configurable.
