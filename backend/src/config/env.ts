@@ -41,8 +41,10 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().min(1),
   GROQ_API_KEY: z.string().min(1),
   // Pending team decision: provider model names remain deployment-configurable.
-  GEMINI_MODEL: z.string().min(1).optional(),
-  GROQ_MODEL: z.string().min(1).optional(),
+  GEMINI_MODEL: z.string().min(1).default('gemini-1.5-flash'),
+  GROQ_MODEL: z.string().min(1).default('llama-3.3-70b-versatile'),
+  GEMINI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
+  GROQ_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
 
   MENTOR_MESSAGE_MAX_CHARS: z.coerce.number().int().positive().default(4_000),
   MENTOR_MESSAGES_PER_TICKET: z.coerce.number().int().positive().default(20),
@@ -53,7 +55,16 @@ const envSchema = z.object({
   SUBMISSION_CI_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
   SUBMISSION_EVALUATOR_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
   DIFF_MAX_BYTES: z.coerce.number().int().positive().default(1_048_576),
+  AI_TICKET_MAX_INPUT_BYTES: z.coerce.number().int().positive().default(2_000_000),
   AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+  DEFAULT_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
+  DEFAULT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+  REGISTRATION_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(3_600_000),
+  REGISTRATION_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+  COST_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
+  COST_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+  MENTOR_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
   // Pending team decision: branch naming convention remains configurable.
   BRANCH_NAME_PREFIX: z.string().min(1).optional(),
 

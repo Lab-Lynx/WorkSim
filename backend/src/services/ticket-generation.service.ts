@@ -58,6 +58,11 @@ export const selectNextTicketTemplate = async (
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === 'string');
 
+const MAX_GENERATED_TITLE_CHARS = 240;
+const MAX_GENERATED_SCENARIO_CHARS = 4_000;
+const MAX_GENERATED_ITEM_CHARS = 1_000;
+const MAX_GENERATED_ITEMS = 30;
+
 const validateTicketContent = (
   content: unknown,
   template: TicketTemplate,
@@ -98,6 +103,20 @@ const validateTicketContent = (
     !isStringArray(raw.touchedFiles) ||
     !isStringArray(raw.acceptanceCriteria) ||
     !isStringArray(raw.testChecklist)
+  ) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_GATEWAY,
+      'Could not generate a ticket, please try again',
+    );
+  }
+
+  if (
+    raw.title.length > MAX_GENERATED_TITLE_CHARS ||
+    raw.scenario.length > MAX_GENERATED_SCENARIO_CHARS ||
+    raw.acceptanceCriteria.length > MAX_GENERATED_ITEMS ||
+    raw.testChecklist.length > MAX_GENERATED_ITEMS ||
+    raw.acceptanceCriteria.some((item) => item.length > MAX_GENERATED_ITEM_CHARS) ||
+    raw.testChecklist.some((item) => item.length > MAX_GENERATED_ITEM_CHARS)
   ) {
     throw new ApiError(
       HTTP_STATUS.BAD_GATEWAY,

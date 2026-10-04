@@ -50,6 +50,7 @@ describe('loadEnv', () => {
     expect(result.GITHUB_REQUESTED_SCOPE).toBe('write:repo_hook');
     expect(result.BRANCH_NAME_PREFIX).toBe('ticket/');
     expect(result.DIFF_MAX_BYTES).toBe(1_048_576);
+    expect(result.AI_TICKET_MAX_INPUT_BYTES).toBe(2_000_000);
   });
 
   it('keeps unresolved product values configurable and pending', () => {
