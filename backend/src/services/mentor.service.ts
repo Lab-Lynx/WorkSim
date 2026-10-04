@@ -226,6 +226,9 @@ export const getMentorMessages = async (
 
   return prisma.mentorMessage.findMany({
     where: { ticketId },
-    orderBy: { createdAt: 'asc' },
-  });
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  }).then((messages) =>
+    messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+  );
 };

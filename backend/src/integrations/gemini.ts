@@ -179,6 +179,7 @@ async function executeGeminiRequest(payload: GeminiRequestPayload): Promise<stri
  * Returns plain-text mentor response.
  */
 export async function callMentorModel(input: MentorModelInput): Promise<string> {
+  const startedAt = performance.now();
   const systemPrompt = [
     'You are an expert engineering mentor assisting a software engineer working on a ticket.',
     `Ticket Title: ${input.ticketContent.title}`,
@@ -215,7 +216,14 @@ export async function callMentorModel(input: MentorModelInput): Promise<string> 
     contents,
   };
 
-  return executeGeminiRequest(payload);
+  try {
+    return await executeGeminiRequest(payload);
+  } finally {
+    logger.info(
+      { operation: 'mentor', durationMs: Math.round(performance.now() - startedAt) },
+      'AI provider timing',
+    );
+  }
 }
 
 /**

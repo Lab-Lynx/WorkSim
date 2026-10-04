@@ -182,6 +182,7 @@ function isValidCategoryScore(score: unknown): score is number {
  * Output is parsed and structurally validated before returning (Doc 8 §8.19).
  */
 export async function callEvaluatorModel(input: EvaluationInput): Promise<EvaluatorOutput> {
+  const startedAt = performance.now();
   const systemPrompt = [
     'You are an expert technical lead evaluating a software engineering simulation ticket submission.',
     'Evaluation Rubric:',
@@ -233,7 +234,15 @@ export async function callEvaluatorModel(input: EvaluationInput): Promise<Evalua
     { role: 'user', content: userPromptLines.join('\n') },
   ];
 
-  const rawResponse = await executeGroqRequest(messages);
+  let rawResponse: string;
+  try {
+    rawResponse = await executeGroqRequest(messages);
+  } finally {
+    logger.info(
+      { operation: 'evaluator', durationMs: Math.round(performance.now() - startedAt) },
+      'AI provider timing',
+    );
+  }
 
   let parsed: unknown;
   try {
