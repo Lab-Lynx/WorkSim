@@ -11,12 +11,14 @@ export type ApiErrorKind = 'api' | 'network' | 'timeout' | 'unexpected_response'
 export class ApiError extends Error {
   status: number;
   kind: ApiErrorKind;
+  errors?: unknown;
 
-  constructor(status: number, message: string, kind: ApiErrorKind) {
+  constructor(status: number, message: string, kind: ApiErrorKind, errors?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.kind = kind;
+    this.errors = errors;
     Object.setPrototypeOf(this, ApiError.prototype);
   }
 }
@@ -291,7 +293,7 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok || !envelope.success || status < 200 || status >= 300) {
-    throw new ApiError(status, envelope.message, 'api');
+    throw new ApiError(status, envelope.message, 'api', envelope.errors);
   }
 
   return {

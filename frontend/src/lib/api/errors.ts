@@ -8,15 +8,16 @@ export type ApiErrorKind = 'api' | 'network' | 'timeout' | 'unexpected_response'
 export class ApiError extends Error {
   status: number; // HTTP or envelope status; 0 when no response arrived
   kind: ApiErrorKind;
+  errors?: unknown;
 
-  constructor(status: number, message: string, kind: ApiErrorKind) {
+  constructor(status: number, message: string, kind: ApiErrorKind, errors?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.kind = kind;
+    this.errors = errors;
     Object.setPrototypeOf(this, ApiError.prototype);
   }
-
 }
 
 export class ClientConfigurationError extends Error {
@@ -42,6 +43,7 @@ export interface UiError {
   action: UiErrorAction;
   isNotFound: boolean;
   isTimeout: boolean;
+  errors?: unknown;
 }
 
 export type FormErrorContext = 'register' | 'changePassword' | 'resetPassword';
@@ -110,6 +112,8 @@ export function mapApiError(error: unknown): UiError {
   const kind = (error.kind as ApiErrorKind) || 'api';
   const isTimeout = kind === 'timeout';
 
+  const errors = isApiErrorLike(error) ? (error as ApiError).errors : undefined;
+
   if (kind !== 'api') {
     return {
       status,
@@ -118,6 +122,7 @@ export function mapApiError(error: unknown): UiError {
       action: 'retry',
       isNotFound: false,
       isTimeout,
+      errors,
     };
   }
 
@@ -148,6 +153,7 @@ export function mapApiError(error: unknown): UiError {
     action,
     isNotFound,
     isTimeout: false,
+    errors,
   };
 }
 
@@ -187,10 +193,32 @@ export function applyServerErrorToForm<TFieldValues extends FieldValues = FieldV
     return uiError;
   }
 
-  form.setError('root', {
-    type: 'server',
-    message: uiError.message,
-  });
+  let assignedField = false;
+  if (Array.isArray(uiError.errors)) {
+    for (const errItem of uiError.errors) {
+      if (typeof errItem === 'string') {
+        const colonIdx = errItem.indexOf(':');
+        if (colonIdx > 0) {
+          const rawPath = errItem.slice(0, colonIdx).trim().replace(/^(body|query|params)\./, '');
+          const msg = errItem.slice(colonIdx + 1).trim();
+          if (rawPath && msg) {
+            form.setError(rawPath as Path<TFieldValues>, {
+              type: 'server',
+              message: msg,
+            });
+            assignedField = true;
+          }
+        }
+      }
+    }
+  }
+
+  if (!assignedField) {
+    form.setError('root', {
+      type: 'server',
+      message: uiError.message,
+    });
+  }
 
   return uiError;
 }
