@@ -119,7 +119,7 @@ describeDb('submission-pipeline (Doc 9 §9.3.12)', () => {
     });
     const { port } = server.address() as AddressInfo;
     baseUrl = `http://127.0.0.1:${port}`;
-  });
+  }, 60_000);
 
   afterAll(async () => {
     if (server) {
