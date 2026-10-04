@@ -87,4 +87,17 @@ describe('ResetPasswordPage', () => {
 
         expect(await screen.findByRole('heading', { name: /invalid or expired link/i })).toBeInTheDocument();
     });
+
+    it('displays invalid link view when submission returns a 400 Invalid reset link error', async () => {
+        const error400 = new ApiError(400, 'Invalid reset link', 'api');
+        mockMutateAsync.mockRejectedValueOnce(error400);
+
+        renderComponent();
+
+        fireEvent.change(screen.getByLabelText(/^new password/i), { target: { value: 'newPassword123' } });
+        fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
+
+        expect(await screen.findByRole('heading', { name: /invalid or expired link/i })).toBeInTheDocument();
+        expect(screen.getByText(/this password reset link is invalid or has expired/i)).toBeInTheDocument();
+    });
 });

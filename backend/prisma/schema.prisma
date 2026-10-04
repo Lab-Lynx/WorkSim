@@ -47,6 +47,11 @@ enum MentorMessageRole {
   mentor
 }
 
+enum WebhookProvider {
+  chapa
+  github
+}
+
 // --- Models ---
 
 /// Extends the built User placeholder with Doc 4 fields (name, emailVerifiedAt).
@@ -66,10 +71,23 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   githubConnection        GitHubConnection?
+  githubOAuthStates       GitHubOAuthState[]
   starterRepo             StarterRepo?
   subscriptions           Subscription[]
   payments                Payment[]
   tickets                 Ticket[]
+}
+
+model GitHubOAuthState {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stateHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 /// One row per issued refresh token (as built — unchanged).
@@ -162,7 +180,19 @@ model Payment {
   paidAt         DateTime?
   createdAt      DateTime      @default(now())
 
+  @@index([subscriptionId])
   @@index([userId, createdAt])
+}
+
+model WebhookEvent {
+  id          String          @id @default(uuid())
+  provider    WebhookProvider
+  eventKey    String
+  receivedAt  DateTime        @default(now())
+  processedAt DateTime?
+
+  @@unique([provider, eventKey])
+  @@index([provider, receivedAt])
 }
 
 model Ticket {

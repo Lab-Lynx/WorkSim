@@ -36,9 +36,9 @@ export const requireGitHubConnection = async (
       );
     }
 
-    next();
+    return next();
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };
 
@@ -69,8 +69,8 @@ export const requireStarterRepo = async (
       );
     }
 
-    next();
+    return next();
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };

@@ -19,6 +19,7 @@ import { HTTP_STATUS } from './constants/index.js';
 
 // Middlewares & Routes
 import { defaultLimiter } from './middlewares/rateLimiter.middleware.js';
+import csrfMiddleware from './middlewares/csrf.middleware.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 import router from './routes/index.js';
 
@@ -56,8 +57,7 @@ app.use(defaultLimiter);
 // Webhook routes (EP-14: Chapa, EP-33: GitHub) must receive the raw request body
 // ahead of express.json() so cryptographic signature verification (HMAC-SHA256)
 // operates on the untouched byte stream.
-// Note: Webhook domain controllers/routes are tracked in BE-033 and pending implementation;
-// mounting this raw-body parser ahead of express.json() ensures the untouched buffer is preserved.
+// Webhook controllers receive the preserved bytes for signature verification.
 export const WEBHOOK_PATHS = [
   '/api/v1/webhooks/chapa',
   '/api/v1/webhooks/github',
@@ -87,6 +87,7 @@ app.use(
 );
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
+app.use(csrfMiddleware);
 
 // 🚀 Core Application Routing Paths
 app.use('/api/v1', router);

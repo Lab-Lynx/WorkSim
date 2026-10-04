@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BillingPage } from '@/pages/billing/BillingPage';
 import { useSubscription } from '@/hooks/billing/useSubscription';
@@ -132,7 +132,7 @@ describe('BillingPage', () => {
         expect(screen.getByRole('button', { name: /opening chapa/i })).toBeDisabled();
     });
 
-    it('renders "Cancel Subscription" button when subscription is active', () => {
+    it('renders "Cancel Subscription" button when subscription is active', async () => {
         mockUseSubscription.mockReturnValue({
             data: {
                 subscription: {
@@ -165,7 +165,12 @@ describe('BillingPage', () => {
         mockMutateCancel.mockResolvedValueOnce({});
         fireEvent.click(confirmBtn);
 
-        expect(mockMutateCancel).toHaveBeenCalledOnce();
+        await waitFor(() => {
+            expect(mockMutateCancel).toHaveBeenCalledOnce();
+        });
+        await waitFor(() => {
+            expect(screen.queryByText('Cancel Subscription?')).not.toBeInTheDocument();
+        });
     });
 
     it('renders warning banner for past_due or canceled status', () => {

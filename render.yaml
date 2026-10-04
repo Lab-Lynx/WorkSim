@@ -26,7 +26,7 @@ services:
       - key: BCRYPT_SALT_ROUNDS
         value: 10
       - key: GITHUB_REQUESTED_SCOPE
-        value: repo,write:repo_hook
+        value: write:repo_hook
       # Sensitive secrets (marked sync: false — set via Render Dashboard)
       - key: DATABASE_URL
         sync: false
@@ -59,8 +59,8 @@ services:
       #   sync: false
       # - key: CHAPA_CURRENCY
       #   sync: false
-      # - key: GITHUB_WEBHOOK_SECRET
-      #   sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
       # - key: GEMINI_MODEL
       #   sync: false
       # - key: GROQ_MODEL

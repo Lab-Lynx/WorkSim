@@ -12,6 +12,7 @@ import {
   submitParamsSchema,
 } from '../validators/submission.validators.js';
 import * as submissionController from '../controllers/submission.controller.js';
+import { submissionLimiter } from '../middlewares/rateLimiter.middleware.js';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.post(
   requirePaidAccess,
   requireGitHubConnection,
   requireStarterRepo,
+  submissionLimiter,
   validate(submitParamsSchema),
   submissionController.submit,
 );
@@ -39,6 +41,7 @@ router.post(
   '/:ticketId/submissions/:attempt/retry',
   authMiddleware,
   requirePaidAccess,
+  submissionLimiter,
   validate(retrySubmissionParamsSchema),
   submissionController.retry,
 );

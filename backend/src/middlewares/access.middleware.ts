@@ -19,9 +19,9 @@ export const requirePaidAccess = async (
     if (!ok) {
       throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
     }
-    next();
+    return next();
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };
 
@@ -43,9 +43,9 @@ export const requireGitHubConnection = async (
         'GitHub is not connected. Connect GitHub to continue',
       );
     }
-    next();
+    return next();
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };
 
@@ -65,8 +65,8 @@ export const requireStarterRepo = async (
         'Create your starter repository before requesting a ticket',
       );
     }
-    next();
+    return next();
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };

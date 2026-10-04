@@ -12,6 +12,7 @@ import {
   startTicketParamsSchema,
 } from '../validators/ticket.validators.js';
 import * as ticketController from '../controllers/ticket.controller.js';
+import { ticketAssignmentLimiter } from '../middlewares/rateLimiter.middleware.js';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.post(
   requirePaidAccess,
   requireGitHubConnection,
   requireStarterRepo,
+  ticketAssignmentLimiter,
   ticketController.assignTicket,
 );
 

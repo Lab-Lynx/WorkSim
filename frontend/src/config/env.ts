@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ClientConfigurationError } from '@/lib/api/errors';
 
 const envSchema = z.object({
   VITE_API_URL: z.string().url(),
@@ -10,7 +11,7 @@ const parsed = envSchema.safeParse(import.meta.env);
 
 if (!parsed.success) {
   console.error('Invalid env:', parsed.error.flatten().fieldErrors);
-  throw new Error('Invalid environment variables');
+  throw new ClientConfigurationError('Invalid environment variables');
 }
 
 export const env = parsed.data;

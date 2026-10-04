@@ -12,10 +12,12 @@ import {
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { encryptGitHubToken } from '../../src/lib/crypto/github-token.js';
 
 /**
  * Doc 9 §9.3.7 — proves hand-written SQL (DR-01–DR-04) and related DB rules.
- * Needs a migrated Postgres. Skips when DATABASE_URL is unset (CI gap D-33).
+ * Needs a migrated Postgres. Skips when DATABASE_URL is unset; CI provisions
+ * PostgreSQL and runs migrations before the integration suite.
  */
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -379,7 +381,7 @@ describeDb('db-constraints (Doc 9 §9.3.7)', () => {
         userId: user.id,
         githubUserId: '1',
         githubLogin: 'alice',
-        accessTokenEncrypted: 'enc',
+        accessTokenEncrypted: encryptGitHubToken('enc'),
         scope: 'repo',
       },
     });
@@ -389,7 +391,7 @@ describeDb('db-constraints (Doc 9 §9.3.7)', () => {
           userId: user.id,
           githubUserId: '2',
           githubLogin: 'bob',
-          accessTokenEncrypted: 'enc2',
+          accessTokenEncrypted: encryptGitHubToken('enc2'),
           scope: 'repo',
         },
       }),

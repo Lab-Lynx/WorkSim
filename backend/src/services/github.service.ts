@@ -1,19 +1,18 @@
+import { randomBytes } from 'node:crypto';
 import { prisma } from '../config/db.js';
+import { env } from '../config/env.js';
+import { StarterTemplate } from '@prisma/client';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
-import type { GitHubSubmissionState } from '../types/domain.js';
-import * as githubApi from '../integrations/github.js';
+import type {
+  GitHubConnectionSummary,
+  GitHubSubmissionState,
+  RepoSummary,
+} from '../types/domain.js';
+import * as githubIntegration from '../integrations/github.js';
+import { decryptGitHubToken, encryptGitHubToken } from '../lib/crypto/github-token.js';
+import { hashToken } from '../lib/crypto/token-hash.js';
 import { hasPaidAccess } from './subscription.service.js';
-import {
-  createOAuthState,
-  verifyOAuthState,
-  OAuthStateError,
-} from '../lib/github/oauth-state.js';
-import {
-  encryptGitHubToken,
-  decryptGitHubToken,
-} from '../lib/encryption/github-token.js';
-import { StarterTemplate } from '@prisma/client';
 
 const GITHUB_NOT_CONNECTED = 'GitHub is not connected. Connect GitHub to continue';
 const BRANCH_CREATE_FAILED =
@@ -21,13 +20,7 @@ const BRANCH_CREATE_FAILED =
 const PR_READ_FAILED =
   'Could not read your pull request from GitHub, please try again';
 
-const REQUESTED_SCOPES = ['repo', 'write:repo_hook'];
-
-const TEMPLATE_REPO_MAP: Record<string, { owner: string; repo: string }> = {
-  react: { owner: 'Lab-Lynx', repo: 'react-starter' },
-  node_express: { owner: 'Lab-Lynx', repo: 'node-express-starter' },
-  django: { owner: 'Lab-Lynx', repo: 'django-practice-starter' },
-};
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
 export type GitHubCallbackFailure = 'state_invalid' | 'scope_invalid' | 'exchange_failed';
 
@@ -38,6 +31,89 @@ export class GitHubCallbackError extends Error {
   ) {
     super(message);
     this.name = 'GitHubCallbackError';
+  }
+}
+
+const frontendOAuthRedirect = (status: 'connected' | 'error', reason?: string): string => {
+  const url = new URL('/github', env.CLIENT_URL);
+  url.searchParams.set('github', status);
+  if (reason) url.searchParams.set('reason', reason);
+  return url.toString();
+};
+
+export const createGitHubAuthorization = async (userId: string): Promise<string> => {
+  const state = randomBytes(32).toString('base64url');
+  await prisma.gitHubOAuthState.create({
+    data: {
+      userId,
+      stateHash: hashToken(state),
+      expiresAt: new Date(Date.now() + OAUTH_STATE_TTL_MS),
+    },
+  });
+  const url = new URL('https://github.com/login/oauth/authorize');
+  url.searchParams.set('client_id', env.GITHUB_CLIENT_ID);
+  url.searchParams.set('redirect_uri', env.GITHUB_CALLBACK_URL);
+  url.searchParams.set('scope', env.GITHUB_REQUESTED_SCOPE);
+  url.searchParams.set('state', state);
+  return url.toString();
+};
+
+export const createGitHubAuthorizeUrl = createGitHubAuthorization;
+
+export const completeGitHubAuthorization = async (
+  state: string | undefined,
+  code: string | undefined,
+): Promise<string> => {
+  if (!state || !code) return frontendOAuthRedirect('error', 'state_invalid');
+  const claimed = await prisma.gitHubOAuthState.updateMany({
+    where: {
+      stateHash: hashToken(state),
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    data: { usedAt: new Date() },
+  });
+  if (claimed.count !== 1) return frontendOAuthRedirect('error', 'state_invalid');
+
+  try {
+    const oauthState = await prisma.gitHubOAuthState.findUniqueOrThrow({
+      where: { stateHash: hashToken(state) },
+      select: { userId: true },
+    });
+    const identity = await githubIntegration.exchangeOAuthCode(code);
+    await prisma.gitHubConnection.upsert({
+      where: { userId: oauthState.userId },
+      create: {
+        userId: oauthState.userId,
+        githubUserId: identity.githubUserId,
+        githubLogin: identity.githubLogin,
+        accessTokenEncrypted: encryptGitHubToken(identity.accessToken),
+        scope: identity.scope,
+      },
+      update: {
+        githubUserId: identity.githubUserId,
+        githubLogin: identity.githubLogin,
+        accessTokenEncrypted: encryptGitHubToken(identity.accessToken),
+        scope: identity.scope,
+      },
+    });
+    return frontendOAuthRedirect('connected');
+  } catch (error) {
+    if (error instanceof ApiError && error.message.includes('scope')) {
+      return frontendOAuthRedirect('error', 'scope_invalid');
+    }
+    return frontendOAuthRedirect('error', 'exchange_failed');
+  }
+};
+
+export async function handleGitHubCallback(
+  _userId: string,
+  code: string,
+  state: string,
+): Promise<void> {
+  const result = await completeGitHubAuthorization(state, code);
+  if (result.includes('error')) {
+    throw new GitHubCallbackError('exchange_failed', 'GitHub OAuth callback failed');
   }
 }
 
@@ -70,135 +146,74 @@ export const getStarterRepoSummary = async (
 };
 
 /**
- * EP-18: create GitHub OAuth authorization URL
+ * Return connection status and existing starter repo (EP-20 / Doc 8 getGitHubConnection).
  */
-export async function createGitHubAuthorizeUrl(userId: string): Promise<string> {
-  if (!(await hasPaidAccess(userId))) {
-    throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
-  }
-
-  const clientId = process.env.GITHUB_CLIENT_ID || process.env.GITHUB_OAUTH_CLIENT_ID || '';
-  const state = createOAuthState(userId);
-  const url = new URL('https://github.com/login/oauth/authorize');
-  url.searchParams.set('client_id', clientId);
-  url.searchParams.set('scope', REQUESTED_SCOPES.join(' '));
-  url.searchParams.set('state', state);
-  return url.toString();
-}
-
-/**
- * EP-19: handle GitHub OAuth callback
- */
-export async function handleGitHubCallback(
+export const getGitHubConnection = async (
   userId: string,
-  code: string,
-  state: string,
-): Promise<void> {
-  try {
-    verifyOAuthState(state, userId);
-  } catch (err) {
-    if (err instanceof OAuthStateError) {
-      throw new GitHubCallbackError('state_invalid', 'Invalid or expired OAuth state');
-    }
-    throw err;
-  }
-
-  let tokenResult: { accessToken: string; scope: string };
-  try {
-    tokenResult = await githubApi.exchangeCodeForToken(code);
-  } catch {
-    throw new GitHubCallbackError('exchange_failed', 'Failed to exchange code for token');
-  }
-
-  const grantedScopes = new Set(tokenResult.scope.split(/[, ]+/).filter(Boolean));
-  const requestedScopes = new Set(REQUESTED_SCOPES);
-  const hasExtraScope = [...grantedScopes].some((s) => !requestedScopes.has(s));
-  if (hasExtraScope) {
-    throw new GitHubCallbackError('scope_invalid', 'Granted scope exceeds requested scope');
-  }
-
-  const identity = await githubApi.getAuthenticatedUser(tokenResult.accessToken);
-  const encryptedToken = encryptGitHubToken(tokenResult.accessToken);
-
-  await prisma.gitHubConnection.upsert({
-    where: { userId },
-    update: {
-      accessTokenEncrypted: encryptedToken,
-      scope: tokenResult.scope,
-      githubLogin: identity.login,
-      githubUserId: String(identity.id),
-    },
-    create: {
-      userId,
-      accessTokenEncrypted: encryptedToken,
-      scope: tokenResult.scope,
-      githubLogin: identity.login,
-      githubUserId: String(identity.id),
-    },
-  });
-}
-
-/**
- * EP-20: read GitHub connection and starter repo
- */
-export async function getGitHubConnection(userId: string): Promise<{
-  connected: boolean;
-  githubLogin: string | null;
-  repo: { fullName: string; starterTemplate: string; defaultBranch: string } | null;
-}> {
-  const connection = await prisma.gitHubConnection.findUnique({ where: { userId } });
-  const repo = await prisma.starterRepo.findUnique({ where: { userId } });
+): Promise<GitHubConnectionSummary> => {
+  const [connection, starterRepo] = await Promise.all([
+    prisma.gitHubConnection.findUnique({
+      where: { userId },
+      select: { githubLogin: true },
+    }),
+    prisma.starterRepo.findUnique({
+      where: { userId },
+      select: {
+        fullName: true,
+        starterTemplate: true,
+        defaultBranch: true,
+      },
+    }),
+  ]);
 
   return {
-    connected: !!connection,
+    connected: connection !== null,
     githubLogin: connection?.githubLogin ?? null,
-    repo: repo
+    repo: starterRepo
       ? {
-          fullName: repo.fullName,
-          starterTemplate: repo.starterTemplate,
-          defaultBranch: repo.defaultBranch,
+          fullName: starterRepo.fullName,
+          starterTemplate: starterRepo.starterTemplate,
+          defaultBranch: starterRepo.defaultBranch,
         }
       : null,
   };
-}
+};
 
 /**
- * EP-21: disconnect GitHub
+ * Disconnect GitHub by deleting the platform's GitHubConnection row (EP-21 / Doc 8 disconnectGitHub).
  */
-export async function disconnectGitHub(userId: string): Promise<void> {
-  const connection = await prisma.gitHubConnection.findUnique({ where: { userId } });
+export const disconnectGitHub = async (userId: string): Promise<void> => {
+  const connection = await prisma.gitHubConnection.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+
   if (!connection) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, 'GitHub is not connected');
   }
-  await prisma.gitHubConnection.delete({ where: { userId } });
-}
 
-function isNameCollision(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false;
-  const errorObj = err as { status?: number; message?: string; cause?: { status?: number } };
-  return (
-    errorObj.status === 422 ||
-    errorObj.message?.includes('already exists') === true ||
-    errorObj.cause?.status === 422
-  );
-}
+  await prisma.gitHubConnection.delete({ where: { userId } });
+};
 
 /**
- * EP-22: create starter repository from template
+ * Create starter repository from template in user's GitHub account (EP-22 / Doc 8 createStarterRepo).
  */
-export async function createStarterRepo(
+export const createStarterRepo = async (
   userId: string,
-  starterTemplate: string,
-  repoName = 'work-simulator',
-): Promise<{ fullName: string; starterTemplate: string; defaultBranch: string }> {
-  if (!TEMPLATE_REPO_MAP[starterTemplate]) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Unsupported starter template');
-  }
+  starterTemplate: StarterTemplate | string,
+  repoName: string = 'work-simulator',
+): Promise<RepoSummary> => {
   if (!(await hasPaidAccess(userId))) {
-    throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
+    throw new ApiError(
+      HTTP_STATUS.PAYMENT_REQUIRED,
+      'An active subscription is required',
+    );
   }
 
-  const connection = await prisma.gitHubConnection.findUnique({ where: { userId } });
+  const connection = await prisma.gitHubConnection.findUnique({
+    where: { userId },
+  });
+
   if (!connection) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
@@ -206,73 +221,63 @@ export async function createStarterRepo(
     );
   }
 
-  const existingRepo = await prisma.starterRepo.findUnique({ where: { userId } });
+  const existingRepo = await prisma.starterRepo.findUnique({
+    where: { userId },
+  });
   if (existingRepo) {
-    throw new ApiError(HTTP_STATUS.CONFLICT, 'You already have a starter repository');
+    throw new ApiError(
+      HTTP_STATUS.CONFLICT,
+      'You already have a starter repository',
+    );
   }
 
   const accessToken = decryptGitHubToken(connection.accessTokenEncrypted);
-  const template = TEMPLATE_REPO_MAP[starterTemplate];
+  const webhookUrl = `${env.CLIENT_URL.replace(/\/+$/, '')}/api/v1/webhooks/github`;
 
-  let created: { repoId: string; fullName: string; defaultBranch: string };
+  let repoResult;
   try {
-    created = await githubApi.createRepoFromTemplate({
+    repoResult = await githubIntegration.createStarterRepository({
+      starterTemplate,
+      repoName: repoName || 'work-simulator',
       accessToken,
-      templateOwner: template.owner,
-      templateRepo: template.repo,
-      name: repoName,
+      webhookUrl,
+      webhookSecret: env.GITHUB_WEBHOOK_SECRET,
     });
-  } catch (err) {
-    if (err instanceof githubApi.GitHubTokenInvalidError) {
-      await prisma.gitHubConnection.delete({ where: { userId } });
+  } catch (err: unknown) {
+    if (err instanceof ApiError && err.statusCode === HTTP_STATUS.FORBIDDEN) {
+      await prisma.gitHubConnection.delete({ where: { userId } }).catch(() => {});
       throw new ApiError(
         HTTP_STATUS.FORBIDDEN,
         'Your GitHub connection is no longer valid. Reconnect GitHub to continue',
       );
     }
-    if (isNameCollision(err)) {
-      throw new ApiError(
-        HTTP_STATUS.CONFLICT,
-        `A repository named '${repoName}' already exists in your GitHub account. Choose another name or delete it, then try again`,
-      );
-    }
+    throw err;
+  }
+
+  try {
+    const created = await prisma.starterRepo.create({
+      data: {
+        userId,
+        starterTemplate: starterTemplate as StarterTemplate,
+        githubRepoId: repoResult.githubRepoId,
+        fullName: repoResult.fullName,
+        defaultBranch: repoResult.defaultBranch,
+      },
+    });
+
+    return {
+      fullName: created.fullName,
+      starterTemplate: created.starterTemplate,
+      defaultBranch: created.defaultBranch,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
     throw new ApiError(
       HTTP_STATUS.BAD_GATEWAY,
       'GitHub could not create the repository, please try again',
     );
   }
-
-  const [owner] = created.fullName.split('/');
-  const webhookUrl = process.env.GITHUB_WEBHOOK_URL;
-  const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
-
-  if (webhookUrl && webhookSecret) {
-    try {
-      await githubApi.registerWorkflowWebhook({
-        accessToken,
-        owner,
-        repo: repoName,
-        webhookUrl,
-        webhookSecret,
-      });
-    } catch {
-      throw new ApiError(
-        HTTP_STATUS.BAD_GATEWAY,
-        'GitHub could not finish setting up the repository, please try again',
-      );
-    }
-  }
-
-  return prisma.starterRepo.create({
-    data: {
-      userId,
-      starterTemplate: starterTemplate as StarterTemplate,
-      githubRepoId: created.repoId,
-      fullName: created.fullName,
-      defaultBranch: created.defaultBranch,
-    },
-  });
-}
+};
 
 /**
  * Create the ticket branch on the user's starter repo (Doc 8 createTicketBranch).
@@ -302,12 +307,13 @@ export const createTicketBranch = async (
   }
 
   try {
-    await githubApi.createBranch({
+    const accessToken = decryptGitHubToken(connection.accessTokenEncrypted);
+    await githubIntegration.createBranch({
       owner,
       repo: repoName,
       branchName,
       baseBranch: baseBranch || repo.defaultBranch,
-      accessToken: connection.accessTokenEncrypted,
+      accessToken,
     });
   } catch (err) {
     if (err instanceof ApiError) throw err;
@@ -335,55 +341,39 @@ export const getBranchSubmissionState = async (
     );
   }
 
-  const accessToken = decryptGitHubToken(connection.accessTokenEncrypted);
   const [owner, repoName] = repo.fullName.split('/');
+  if (!owner || !repoName) {
+    throw new ApiError(HTTP_STATUS.BAD_GATEWAY, PR_READ_FAILED);
+  }
 
-  let pr: { prNumber: number; prUrl: string; headSha: string };
+  const accessToken = decryptGitHubToken(connection.accessTokenEncrypted);
+  let prResult;
   try {
-    pr = await githubApi.findOrCreatePullRequest({
-      accessToken,
+    prResult = await githubIntegration.getPullRequestAndDiff({
       owner,
       repo: repoName,
       branchName,
-      baseBranch: repo.defaultBranch,
+      defaultBranch: repo.defaultBranch,
+      accessToken,
     });
-  } catch (err) {
-    if (err instanceof githubApi.GitHubTokenInvalidError) {
-      await prisma.gitHubConnection.delete({ where: { userId } });
+  } catch (err: unknown) {
+    if (err instanceof ApiError && err.statusCode === HTTP_STATUS.FORBIDDEN) {
+      await prisma.gitHubConnection.delete({ where: { userId } }).catch(() => {});
       throw new ApiError(
         HTTP_STATUS.FORBIDDEN,
         'Your GitHub connection is no longer valid. Reconnect GitHub to continue',
       );
     }
-    throw new ApiError(HTTP_STATUS.BAD_GATEWAY, PR_READ_FAILED);
-  }
-
-  let diff: string;
-  try {
-    diff = await githubApi.getPullRequestDiff({
-      accessToken,
-      owner,
-      repo: repoName,
-      prNumber: pr.prNumber,
-    });
-  } catch {
-    throw new ApiError(HTTP_STATUS.BAD_GATEWAY, PR_READ_FAILED);
-  }
-
-  if (!diff || diff.trim().length === 0) {
-    throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
-      `No commits found on branch '${branchName}'. Push your work before submitting`,
-    );
+    throw err;
   }
 
   return {
     fullName: repo.fullName,
     branchName,
     defaultBranch: repo.defaultBranch,
-    prNumber: pr.prNumber,
-    prUrl: pr.prUrl,
-    headSha: pr.headSha,
-    diff,
+    prNumber: prResult.prNumber,
+    prUrl: prResult.prUrl,
+    headSha: prResult.headSha,
+    diff: prResult.diff,
   };
 };

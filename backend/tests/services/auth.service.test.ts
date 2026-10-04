@@ -13,10 +13,12 @@ const userUpdate = vi.fn();
 const emailTokenFindUnique = vi.fn();
 const emailTokenCreate = vi.fn();
 const emailTokenUpdate = vi.fn();
+const emailTokenUpdateMany = vi.fn();
 
 const passwordResetTokenFindUnique = vi.fn();
 const passwordResetTokenCreate = vi.fn();
 const passwordResetTokenUpdate = vi.fn();
+const passwordResetTokenUpdateMany = vi.fn();
 
 const refreshTokenFindUnique = vi.fn();
 const refreshTokenCreate = vi.fn();
@@ -38,11 +40,13 @@ vi.mock('../../src/config/db.js', () => ({
       findUnique: emailTokenFindUnique,
       create: emailTokenCreate,
       update: emailTokenUpdate,
+      updateMany: emailTokenUpdateMany,
     },
     passwordResetToken: {
       findUnique: passwordResetTokenFindUnique,
       create: passwordResetTokenCreate,
       update: passwordResetTokenUpdate,
+      updateMany: passwordResetTokenUpdateMany,
     },
     refreshToken: {
       findUnique: refreshTokenFindUnique,
@@ -111,14 +115,24 @@ const allLoggerCalls = () => [
 describe('auth.service (doc 9 §9.2.1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    emailTokenUpdateMany.mockResolvedValue({ count: 1 });
+    passwordResetTokenUpdateMany.mockResolvedValue({ count: 1 });
 
     // Default $transaction behavior: if given callback, run it with tx; if given array, resolve it.
     transaction.mockImplementation(async (arg: unknown) => {
       if (typeof arg === 'function') {
         const tx = {
           user: { create: userCreate, update: userUpdate, findUnique: userFindUnique },
-          emailVerificationToken: { create: emailTokenCreate, update: emailTokenUpdate },
-          passwordResetToken: { create: passwordResetTokenCreate, update: passwordResetTokenUpdate },
+          emailVerificationToken: {
+            create: emailTokenCreate,
+            update: emailTokenUpdate,
+            updateMany: emailTokenUpdateMany,
+          },
+          passwordResetToken: {
+            create: passwordResetTokenCreate,
+            update: passwordResetTokenUpdate,
+            updateMany: passwordResetTokenUpdateMany,
+          },
           refreshToken: { updateMany: refreshTokenUpdateMany },
         };
         return arg(tx);
@@ -387,7 +401,7 @@ describe('auth.service (doc 9 §9.2.1)', () => {
         user: { id: 'user-123', emailVerifiedAt: null },
       });
 
-      emailTokenUpdate.mockResolvedValue({ id: 'token-row-1' });
+      emailTokenUpdateMany.mockResolvedValue({ count: 1 });
       userUpdate.mockResolvedValue({ id: 'user-123' });
 
       const result = await verifyEmail(rawToken);
@@ -398,9 +412,9 @@ describe('auth.service (doc 9 §9.2.1)', () => {
       });
 
       expect(transaction).toHaveBeenCalled();
-      expect(emailTokenUpdate).toHaveBeenCalledWith(
+      expect(emailTokenUpdateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'token-row-1' },
+          where: { id: 'token-row-1', usedAt: null },
           data: { usedAt: expect.any(Date) },
         }),
       );
@@ -475,6 +489,23 @@ describe('auth.service (doc 9 §9.2.1)', () => {
       transaction.mockRejectedValue(new Error('Transaction rollback'));
 
       await expect(verifyEmail(rawToken)).rejects.toThrow('Transaction rollback');
+    });
+
+    it('verifyEmail — concurrent token claimant gets D-11 soft success', async () => {
+      emailTokenFindUnique.mockResolvedValue({
+        id: 'token-row-1',
+        userId: 'user-123',
+        tokenHash: hashed,
+        expiresAt: new Date(Date.now() + 3600000),
+        usedAt: null,
+        user: { id: 'user-123', emailVerifiedAt: null },
+      });
+      emailTokenUpdateMany.mockResolvedValue({ count: 0 });
+
+      const result = await verifyEmail(rawToken);
+
+      expect(result.alreadyVerified).toBe(true);
+      expect(userUpdate).not.toHaveBeenCalled();
     });
 
     it('verifyEmail — double click: first marks verified, second returns soft 200', async () => {
@@ -707,9 +738,9 @@ describe('auth.service (doc 9 §9.2.1)', () => {
       });
 
       expect(transaction).toHaveBeenCalled();
-      expect(passwordResetTokenUpdate).toHaveBeenCalledWith(
+      expect(passwordResetTokenUpdateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'pr-token-1' },
+          where: { id: 'pr-token-1', usedAt: null },
           data: { usedAt: expect.any(Date) },
         }),
       );
@@ -784,7 +815,7 @@ describe('auth.service (doc 9 §9.2.1)', () => {
         message: expect.stringMatching(/at least 8 characters/i),
       });
       expect(userUpdate).not.toHaveBeenCalled();
-      expect(passwordResetTokenUpdate).not.toHaveBeenCalled();
+      expect(passwordResetTokenUpdateMany).not.toHaveBeenCalled();
     });
 
     it('resetPassword — double submit: second call throws 410', async () => {
@@ -810,6 +841,24 @@ describe('auth.service (doc 9 §9.2.1)', () => {
         statusCode: HTTP_STATUS.GONE,
         message: 'This reset link has already been used',
       });
+    });
+
+    it('resetPassword — concurrent token claimant cannot update the password', async () => {
+      passwordResetTokenFindUnique.mockResolvedValue({
+        id: 'pr-token-1',
+        userId: 'user-123',
+        tokenHash: hashed,
+        expiresAt: new Date(Date.now() + 3600000),
+        usedAt: null,
+      });
+      passwordResetTokenUpdateMany.mockResolvedValue({ count: 0 });
+
+      await expect(resetPassword(rawToken, 'newpass123')).rejects.toMatchObject({
+        statusCode: HTTP_STATUS.GONE,
+        message: 'This reset link has already been used',
+      });
+      expect(userUpdate).not.toHaveBeenCalled();
+      expect(refreshTokenUpdateMany).not.toHaveBeenCalled();
     });
 
     it('resetPassword — secrets never logged', async () => {

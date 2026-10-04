@@ -5,7 +5,7 @@ import * as subscriptionController from '../controllers/subscription.controller.
 const router = Router();
 
 // EP-13: start a checkout
-router.post('/checkout', authMiddleware, subscriptionController.createCheckout);
+router.post('/checkout', authMiddleware, subscriptionController.startCheckout);
 
 // EP-15: read-only status check
 router.get('/me', authMiddleware, subscriptionController.getSubscription);

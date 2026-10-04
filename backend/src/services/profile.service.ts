@@ -21,6 +21,7 @@ export const getExperienceProfile = async (userId: string): Promise<ProfileItem[
   const tickets = await prisma.ticket.findMany({
     where: { userId, status: TicketStatus.done },
     orderBy: { completedAt: 'desc' },
+    take: 100,
     include: {
       submissions: {
         where: { attempt: 2 },

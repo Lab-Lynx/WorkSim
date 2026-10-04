@@ -19,6 +19,7 @@ import {
 } from '@prisma/client';
 import type { Express } from 'express';
 import type { TicketTemplate } from '../../src/types/domain.js';
+import { encryptGitHubToken } from '../../src/lib/crypto/github-token.js';
 
 /**
  * Doc 9 §9.3.10 — ticket lifecycle over real Postgres + Express routes.
@@ -158,7 +159,7 @@ describeDb('ticket-lifecycle (Doc 9 §9.3.10)', () => {
         userId: user.id,
         githubUserId: `gh-${user.id}`,
         githubLogin: 'ada',
-        accessTokenEncrypted: 'enc-token',
+        accessTokenEncrypted: encryptGitHubToken('enc-token'),
         scope: 'repo',
       },
     });
@@ -324,8 +325,24 @@ describeDb('ticket-lifecycle (Doc 9 §9.3.10)', () => {
   it('Ownership — other user gets 404 on get/start/abandon', async () => {
     const owner = await seedReadyUser();
     const other = await seedReadyUser();
-    const assigned = await api('POST', '/tickets', { userId: owner.id });
-    const ticketId = (assigned.json.data as { ticket: { id: string } }).ticket.id;
+    const ticket = await prisma.ticket.create({
+      data: {
+        userId: owner.id,
+        templateKey: 'ownership-fixture',
+        status: TicketStatus.assigned,
+        content: {
+          title: 'Ownership fixture',
+          scenario: 'Used to verify ticket ownership guards',
+          category: 'frontend',
+          difficulty: 'easy',
+          touchedFiles: [],
+          acceptanceCriteria: [],
+          testChecklist: [],
+        },
+        branchName: `ownership-fixture-${randomUUID()}`,
+      },
+    });
+    const ticketId = ticket.id;
     const randomId = randomUUID();
 
     for (const path of [
@@ -365,7 +382,7 @@ describeDb('ticket-lifecycle (Doc 9 §9.3.10)', () => {
         userId: user.id,
         githubUserId: `gh-${user.id}`,
         githubLogin: 'ada',
-        accessTokenEncrypted: 'enc',
+        accessTokenEncrypted: encryptGitHubToken('enc'),
         scope: 'repo',
       },
     });

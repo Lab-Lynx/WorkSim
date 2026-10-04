@@ -1,8 +1,10 @@
+import type { PaymentStatus, Prisma } from '@prisma/client';
+
 export interface PaymentDbRecord {
   id: string;
-  amount: unknown;
+  amount: Prisma.Decimal | number | string | unknown;
   currency: string;
-  status: string;
+  status: PaymentStatus | string;
   paidAt: Date | string | null;
   createdAt: Date | string;
   [key: string]: unknown;
@@ -12,10 +14,12 @@ export interface SerializedPayment {
   id: string;
   amount: string;
   currency: string;
-  status: string;
+  status: PaymentStatus | string;
   paidAt: Date | string | null;
   createdAt: Date | string;
 }
+
+export type SerializePaymentInput = PaymentDbRecord;
 
 export function serializePayment(payment: PaymentDbRecord): SerializedPayment {
   return {

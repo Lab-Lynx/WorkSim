@@ -7,6 +7,7 @@ import {
   sendMentorMessageSchema,
 } from '../validators/mentor.validators.js';
 import * as mentorController from '../controllers/mentor.controller.js';
+import { mentorRequestLimiter } from '../middlewares/rateLimiter.middleware.js';
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.post(
   '/:ticketId/mentor/messages',
   authMiddleware,
   requirePaidAccess,
+  mentorRequestLimiter,
   validate(sendMentorMessageSchema),
   mentorController.sendMessage,
 );

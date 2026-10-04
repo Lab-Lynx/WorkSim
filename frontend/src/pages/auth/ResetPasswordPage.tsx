@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { resetPasswordSchema, type ResetPasswordInput } from '@/schemas/auth.schemas';
 import { useResetPassword } from '@/hooks/auth/useResetPassword';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { applyServerErrorToForm } from '@/lib/api/errors';
+import { applyServerErrorToForm, SERVER_MESSAGES } from '@/lib/api/errors';
 import { ROUTES } from '@/constants';
 import { Label } from '@/components/ui/label';
 import PasswordInput from '@/components/common/PasswordInput';
@@ -51,8 +51,12 @@ export default function ResetPasswordPage(): React.JSX.Element {
                 state: { notice: 'password_reset' },
             });
         } catch (err: unknown) {
-            const ui = applyServerErrorToForm(err, { setError });
-            if (ui.status === 410 || ui.action === 'request_new_link') {
+            const ui = applyServerErrorToForm(err, { setError }, 'resetPassword');
+            if (
+                ui.status === 410 ||
+                ui.action === 'request_new_link' ||
+                (ui.status === 400 && ui.message === SERVER_MESSAGES.invalidResetLink)
+            ) {
                 setIsTokenInvalid(true);
             }
         }

@@ -29,8 +29,8 @@ export const requirePaidAccess = async (
       );
     }
 
-    next();
+    return next();
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };

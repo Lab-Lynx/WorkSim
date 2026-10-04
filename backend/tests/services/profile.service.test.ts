@@ -103,6 +103,7 @@ describe('profile.service (doc 9 §9.2.14)', () => {
     expect(ticketFindMany).toHaveBeenCalledWith({
       where: { userId, status: TicketStatus.done },
       orderBy: { completedAt: 'desc' },
+      take: 100,
       include: {
         submissions: {
           where: { attempt: 2 },

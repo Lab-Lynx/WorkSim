@@ -20,6 +20,7 @@ import {
   type PrismaClient,
 } from '@prisma/client';
 import type { Express } from 'express';
+import { encryptGitHubToken } from '../../src/lib/crypto/github-token.js';
 
 /**
  * Doc 9 §9.3.14 & Doc 8 §8.19: security.integration.test.ts
@@ -375,7 +376,7 @@ describeDb('Doc 9 §9.3.14 & Doc 8 §8.19 Security Integration Tests', () => {
         userId: user.id,
         githubUserId: `gh-${user.id}`,
         githubLogin: 'adalovelace',
-        accessTokenEncrypted: `${SENTINEL_ACCESS_TOKEN_ENCRYPTED}_${user.id}`,
+        accessTokenEncrypted: encryptGitHubToken(`${SENTINEL_ACCESS_TOKEN_ENCRYPTED}_${user.id}`),
         scope: 'repo',
       },
     });
