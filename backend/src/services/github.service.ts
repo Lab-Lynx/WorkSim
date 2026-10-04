@@ -14,11 +14,27 @@ import {
   verifyOAuthState,
   OAuthStateError,
 } from '../lib/github/oauth-state.js';
-import {
-  encryptGitHubToken,
-  decryptGitHubToken,
-} from '../lib/encryption/github-token.js';
 import { StarterTemplate } from '@prisma/client';
+
+const REQUESTED_SCOPES = ['repo', 'write:repo_hook'];
+
+const TEMPLATE_REPO_MAP: Record<string, { owner: string; repo: string }> = {
+  react: { owner: 'Lab-Lynx', repo: 'react-starter' },
+  node_express: { owner: 'Lab-Lynx', repo: 'node-express-starter' },
+  django: { owner: 'Lab-Lynx', repo: 'django-practice-starter' },
+};
+
+export type GitHubCallbackFailure = 'state_invalid' | 'scope_invalid' | 'exchange_failed';
+
+export class GitHubCallbackError extends Error {
+  constructor(
+    readonly category: GitHubCallbackFailure,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'GitHubCallbackError';
+  }
+}
 
 const GITHUB_NOT_CONNECTED = 'GitHub is not connected. Connect GitHub to continue';
 const BRANCH_CREATE_FAILED =
