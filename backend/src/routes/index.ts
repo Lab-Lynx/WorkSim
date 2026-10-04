@@ -8,6 +8,10 @@ import profileRouter from './profile.routes.js';
 import webhookRouter from './webhook.routes.js';
 import githubRouter from './github.routes.js';
 
+import subscriptionRouter from './subscription.routes.js';
+import paymentRouter from './payment.routes.js';
+import githubRouter from './github.routes.js';
+
 const router = Router();
 
 // Doc 7 §7.9 Phase 9 Item 80 — Route registrations under /api/v1 prefix:

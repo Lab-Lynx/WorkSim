@@ -101,8 +101,100 @@ export const createBranch = async (input: {
   repo: string;
   branchName: string;
   baseBranch: string;
+}): Promise<{ prNumber: number; prUrl: string; headSha: string }> {
+  try {
+    const listRes = await fetch(
+      `https://api.github.com/repos/${params.owner}/${params.repo}/pulls?head=${params.owner}:${params.branchName}&state=open`,
+      {
+        headers: {
+          Authorization: `Bearer ${params.accessToken}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'WorkSim',
+        },
+      },
+    );
+
+    if (listRes.status === 401) throw new GitHubTokenInvalidError();
+
+    const listData = (await listRes.json().catch(() => null)) as Array<{
+      number: number;
+      html_url: string;
+      head: { sha: string };
+    }> | null;
+
+    if (listData && listData.length > 0) {
+      const existing = listData[0];
+      return {
+        prNumber: existing.number,
+        prUrl: existing.html_url,
+        headSha: existing.head.sha,
+      };
+    }
+
+    const createRes = await fetch(
+      `https://api.github.com/repos/${params.owner}/${params.repo}/pulls`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${params.accessToken}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'WorkSim',
+        },
+        body: JSON.stringify({
+          head: params.branchName,
+          base: params.baseBranch,
+          title: `Ticket work: ${params.branchName}`,
+        }),
+      },
+    );
+
+    if (createRes.status === 401) throw new GitHubTokenInvalidError();
+
+    const created = (await createRes.json().catch(() => null)) as {
+      number: number;
+      html_url: string;
+      head: { sha: string };
+    } | null;
+
+    if (!createRes.ok || !created) {
+      throw new GitHubProviderError('Failed to create pull request');
+    }
+
+    return {
+      prNumber: created.number,
+      prUrl: created.html_url,
+      headSha: created.head.sha,
+    };
+  } catch (err) {
+    if (err instanceof GitHubTokenInvalidError) throw err;
+    throw new GitHubProviderError('Failed to manage pull request', err);
+  }
+}
+
+export async function getPullRequestDiff(params: {
   accessToken: string;
-}): Promise<void> => {
-  void input;
-  // Intentionally empty until the GitHub integration epic wires Octokit.
-};
+  owner: string;
+  repo: string;
+  prNumber: number;
+}): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${params.owner}/${params.repo}/pulls/${params.prNumber}`,
+      {
+        headers: {
+          Authorization: `Bearer ${params.accessToken}`,
+          Accept: 'application/vnd.github.v3.diff',
+          'User-Agent': 'WorkSim',
+        },
+      },
+    );
+
+    if (res.status === 401) throw new GitHubTokenInvalidError();
+
+    return await res.text();
+  } catch (err) {
+    if (err instanceof GitHubTokenInvalidError) throw err;
+    throw new GitHubProviderError('Failed to get pull request diff', err);
+  }
+}
