@@ -71,10 +71,23 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   githubConnection        GitHubConnection?
+  githubOAuthStates       GitHubOAuthState[]
   starterRepo             StarterRepo?
   subscriptions           Subscription[]
   payments                Payment[]
   tickets                 Ticket[]
+}
+
+model GitHubOAuthState {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stateHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 /// One row per issued refresh token (as built — unchanged).

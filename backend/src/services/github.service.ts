@@ -1,15 +1,91 @@
+import { randomBytes } from 'node:crypto';
 import { prisma } from '../config/db.js';
+import { env } from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import type { GitHubSubmissionState } from '../types/domain.js';
 import * as githubApi from '../integrations/github.js';
-import { decryptGitHubToken } from '../lib/crypto/github-token.js';
+import { decryptGitHubToken, encryptGitHubToken } from '../lib/crypto/github-token.js';
+import { hashToken } from '../lib/crypto/token-hash.js';
+import * as githubIntegration from '../integrations/github.js';
 
 const GITHUB_NOT_CONNECTED = 'GitHub is not connected. Connect GitHub to continue';
 const BRANCH_CREATE_FAILED =
   'Could not create the ticket branch on GitHub, please try again';
 const PR_READ_FAILED =
   'Could not read your pull request from GitHub, please try again';
+
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+const frontendOAuthRedirect = (status: 'connected' | 'error', reason?: string): string => {
+  const url = new URL('/github', env.CLIENT_URL);
+  url.searchParams.set('github', status);
+  if (reason) url.searchParams.set('reason', reason);
+  return url.toString();
+};
+
+export const createGitHubAuthorization = async (userId: string): Promise<string> => {
+  const state = randomBytes(32).toString('base64url');
+  await prisma.gitHubOAuthState.create({
+    data: {
+      userId,
+      stateHash: hashToken(state),
+      expiresAt: new Date(Date.now() + OAUTH_STATE_TTL_MS),
+    },
+  });
+  const url = new URL('https://github.com/login/oauth/authorize');
+  url.searchParams.set('client_id', env.GITHUB_CLIENT_ID);
+  url.searchParams.set('redirect_uri', env.GITHUB_CALLBACK_URL);
+  url.searchParams.set('scope', env.GITHUB_REQUESTED_SCOPE);
+  url.searchParams.set('state', state);
+  return url.toString();
+};
+
+export const completeGitHubAuthorization = async (
+  state: string | undefined,
+  code: string | undefined,
+): Promise<string> => {
+  if (!state || !code) return frontendOAuthRedirect('error', 'state_invalid');
+  const claimed = await prisma.gitHubOAuthState.updateMany({
+    where: {
+      stateHash: hashToken(state),
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    data: { usedAt: new Date() },
+  });
+  if (claimed.count !== 1) return frontendOAuthRedirect('error', 'state_invalid');
+
+  try {
+    const oauthState = await prisma.gitHubOAuthState.findUniqueOrThrow({
+      where: { stateHash: hashToken(state) },
+      select: { userId: true },
+    });
+    const identity = await githubIntegration.exchangeOAuthCode(code);
+    await prisma.gitHubConnection.upsert({
+      where: { userId: oauthState.userId },
+      create: {
+        userId: oauthState.userId,
+        githubUserId: identity.githubUserId,
+        githubLogin: identity.githubLogin,
+        accessTokenEncrypted: encryptGitHubToken(identity.accessToken),
+        scope: identity.scope,
+      },
+      update: {
+        githubUserId: identity.githubUserId,
+        githubLogin: identity.githubLogin,
+        accessTokenEncrypted: encryptGitHubToken(identity.accessToken),
+        scope: identity.scope,
+      },
+    });
+    return frontendOAuthRedirect('connected');
+  } catch (error) {
+    if (error instanceof ApiError && error.message.includes('scope')) {
+      return frontendOAuthRedirect('error', 'scope_invalid');
+    }
+    return frontendOAuthRedirect('error', 'exchange_failed');
+  }
+};
 
 export const assertGitHubConnected = async (userId: string): Promise<void> => {
   const connection = await prisma.gitHubConnection.findUnique({ where: { userId } });
