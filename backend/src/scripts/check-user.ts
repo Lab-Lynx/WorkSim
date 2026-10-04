@@ -12,7 +12,7 @@ async function main() {
 
   // Check templates available
   const template = ticketGeneration.loadTicketTemplate('react-add-button');
-  console.log('Template loaded:', template.title);
+  console.log('Template loaded:', template.key);
 
   // Check current ticket
   const current = await ticketService.getCurrentTicket(user.id);
