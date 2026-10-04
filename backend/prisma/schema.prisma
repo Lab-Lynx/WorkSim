@@ -228,3 +228,12 @@ model Evaluation {
   totalScore             Decimal?   @db.Decimal(5, 2)
   createdAt              DateTime   @default(now())
 }
+model Experience {
+  id         String    @id @default(uuid())
+  authorName String?   @db.VarChar(80)
+  content    String    @db.VarChar(2000)
+  hiddenAt   DateTime? // moderation soft-delete — null = visible
+  createdAt  DateTime  @default(now())
+
+  @@index([createdAt])
+}
