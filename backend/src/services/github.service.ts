@@ -1,13 +1,19 @@
 import { randomBytes } from 'node:crypto';
 import { prisma } from '../config/db.js';
 import { env } from '../config/env.js';
+import type { StarterTemplate } from '@prisma/client';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
-import type { GitHubSubmissionState } from '../types/domain.js';
+import type {
+  GitHubConnectionSummary,
+  GitHubSubmissionState,
+  RepoSummary,
+} from '../types/domain.js';
 import * as githubApi from '../integrations/github.js';
 import { decryptGitHubToken, encryptGitHubToken } from '../lib/crypto/github-token.js';
 import { hashToken } from '../lib/crypto/token-hash.js';
 import * as githubIntegration from '../integrations/github.js';
+import { hasPaidAccess } from './subscription.service.js';
 
 const GITHUB_NOT_CONNECTED = 'GitHub is not connected. Connect GitHub to continue';
 const BRANCH_CREATE_FAILED =
@@ -116,6 +122,139 @@ export const getStarterRepoSummary = async (
 };
 
 /**
+ * Return connection status and existing starter repo (EP-20 / Doc 8 getGitHubConnection).
+ */
+export const getGitHubConnection = async (
+  userId: string,
+): Promise<GitHubConnectionSummary> => {
+  const [connection, starterRepo] = await Promise.all([
+    prisma.gitHubConnection.findUnique({
+      where: { userId },
+      select: { githubLogin: true },
+    }),
+    prisma.starterRepo.findUnique({
+      where: { userId },
+      select: {
+        fullName: true,
+        starterTemplate: true,
+        defaultBranch: true,
+      },
+    }),
+  ]);
+
+  return {
+    connected: connection !== null,
+    githubLogin: connection?.githubLogin ?? null,
+    repo: starterRepo
+      ? {
+          fullName: starterRepo.fullName,
+          starterTemplate: starterRepo.starterTemplate,
+          defaultBranch: starterRepo.defaultBranch,
+        }
+      : null,
+  };
+};
+
+/**
+ * Disconnect GitHub by deleting the platform's GitHubConnection row (EP-21 / Doc 8 disconnectGitHub).
+ */
+export const disconnectGitHub = async (userId: string): Promise<void> => {
+  const connection = await prisma.gitHubConnection.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+
+  if (!connection) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'GitHub is not connected');
+  }
+
+  await prisma.gitHubConnection.delete({ where: { userId } });
+};
+
+/**
+ * Create starter repository from template in user's GitHub account (EP-22 / Doc 8 createStarterRepo).
+ */
+export const createStarterRepo = async (
+  userId: string,
+  starterTemplate: StarterTemplate,
+  repoName: string = 'work-simulator',
+): Promise<RepoSummary> => {
+  if (!(await hasPaidAccess(userId))) {
+    throw new ApiError(
+      HTTP_STATUS.PAYMENT_REQUIRED,
+      'An active subscription is required',
+    );
+  }
+
+  const connection = await prisma.gitHubConnection.findUnique({
+    where: { userId },
+  });
+  if (!connection) {
+    throw new ApiError(
+      HTTP_STATUS.FORBIDDEN,
+      'GitHub is not connected. Connect GitHub to continue',
+    );
+  }
+
+  const existingRepo = await prisma.starterRepo.findUnique({
+    where: { userId },
+  });
+  if (existingRepo) {
+    throw new ApiError(
+      HTTP_STATUS.CONFLICT,
+      'You already have a starter repository',
+    );
+  }
+
+  const accessToken = decryptGitHubToken(connection.accessTokenEncrypted);
+  const webhookUrl = `${env.CLIENT_URL.replace(/\/+$/, '')}/api/v1/webhooks/github`;
+
+  let repoResult;
+  try {
+    repoResult = await githubIntegration.createStarterRepository({
+      starterTemplate,
+      repoName: repoName || 'work-simulator',
+      accessToken,
+      webhookUrl,
+      webhookSecret: env.GITHUB_WEBHOOK_SECRET,
+    });
+  } catch (err: unknown) {
+    if (err instanceof ApiError && err.statusCode === HTTP_STATUS.FORBIDDEN) {
+      await prisma.gitHubConnection.delete({ where: { userId } }).catch(() => {});
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        'Your GitHub connection is no longer valid. Reconnect GitHub to continue',
+      );
+    }
+    throw err;
+  }
+
+  try {
+    const created = await prisma.starterRepo.create({
+      data: {
+        userId,
+        starterTemplate,
+        githubRepoId: repoResult.githubRepoId,
+        fullName: repoResult.fullName,
+        defaultBranch: repoResult.defaultBranch,
+      },
+    });
+
+    return {
+      fullName: created.fullName,
+      starterTemplate: created.starterTemplate,
+      defaultBranch: created.defaultBranch,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(
+      HTTP_STATUS.BAD_GATEWAY,
+      'GitHub could not create the repository, please try again',
+    );
+  }
+};
+
+/**
  * Create the ticket branch on the user's starter repo (Doc 8 createTicketBranch).
  * Looks up connection + repo; delegates the API call to integrations/github.
  */
@@ -159,13 +298,58 @@ export const createTicketBranch = async (
 
 /**
  * Read branch/PR/diff for submitWork (Doc 8 getBranchSubmissionState).
- * Real Octokit wiring lands with the GitHub epic — callers mock this in tests.
  */
 export const getBranchSubmissionState = async (
   userId: string,
   branchName: string,
 ): Promise<GitHubSubmissionState> => {
-  void userId;
-  void branchName;
-  throw new ApiError(HTTP_STATUS.BAD_GATEWAY, PR_READ_FAILED);
+  const connection = await prisma.gitHubConnection.findUnique({ where: { userId } });
+  if (!connection) {
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, GITHUB_NOT_CONNECTED);
+  }
+
+  const repo = await prisma.starterRepo.findUnique({ where: { userId } });
+  if (!repo) {
+    throw new ApiError(
+      HTTP_STATUS.CONFLICT,
+      'Create your starter repository before requesting a ticket',
+    );
+  }
+
+  const [owner, repoName] = repo.fullName.split('/');
+  if (!owner || !repoName) {
+    throw new ApiError(HTTP_STATUS.BAD_GATEWAY, PR_READ_FAILED);
+  }
+
+  const accessToken = decryptGitHubToken(connection.accessTokenEncrypted);
+  let prResult;
+  try {
+    prResult = await githubIntegration.getPullRequestAndDiff({
+      owner,
+      repo: repoName,
+      branchName,
+      defaultBranch: repo.defaultBranch,
+      accessToken,
+    });
+  } catch (err: unknown) {
+    if (err instanceof ApiError && err.statusCode === HTTP_STATUS.FORBIDDEN) {
+      await prisma.gitHubConnection.delete({ where: { userId } }).catch(() => {});
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        'Your GitHub connection is no longer valid. Reconnect GitHub to continue',
+      );
+    }
+    throw err;
+  }
+
+  return {
+    fullName: repo.fullName,
+    branchName,
+    defaultBranch: repo.defaultBranch,
+    prNumber: prResult.prNumber,
+    prUrl: prResult.prUrl,
+    headSha: prResult.headSha,
+    diff: prResult.diff,
+  };
 };
+
