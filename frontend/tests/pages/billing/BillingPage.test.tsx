@@ -214,4 +214,18 @@ describe('BillingPage', () => {
         expect(screen.getAllByText('29.99 USD')).toHaveLength(2);
         expect(screen.getAllByText('Succeeded')).toHaveLength(2);
     });
+
+    it('sanitizes technical route not found error messages', () => {
+        mockUseSubscription.mockReturnValueOnce({
+            isLoading: false,
+            isError: true,
+            error: { message: 'Route GET /api/v1/subscriptions/me not found' } as ApiError,
+            refetch: mockRefetchSub,
+        } as unknown as UseQueryResult<SubscriptionStatusResponse, ApiError>);
+
+        render(<BillingPage />);
+
+        expect(screen.queryByText(/Route GET/)).not.toBeInTheDocument();
+        expect(screen.getByText('Failed to load subscription information.')).toBeInTheDocument();
+    });
 });
