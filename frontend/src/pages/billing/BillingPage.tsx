@@ -26,6 +26,14 @@ const planFeatures = [
   'Experience profile with public work history',
 ];
 
+function sanitizeErrorMessage(message: string | undefined, fallback: string): string {
+  if (!message) return fallback;
+  if (/^Route\s+[A-Z]+\s+\//i.test(message) || message.includes('/api/')) {
+    return fallback;
+  }
+  return message;
+}
+
 export function BillingPage() {
   useDocumentTitle('Billing');
 
@@ -46,7 +54,11 @@ export function BillingPage() {
       window.location.assign(checkoutUrl);
     } catch (error: unknown) {
       setIsRedirecting(false);
-      setSubscribeError(mapApiError(error));
+      const mapped = mapApiError(error);
+      if (mapped.message && (/^Route\s+[A-Z]+\s+\//i.test(mapped.message) || mapped.message.includes('/api/'))) {
+        mapped.message = 'Failed to start checkout. Please try again.';
+      }
+      setSubscribeError(mapped);
     }
   };
 
@@ -60,7 +72,7 @@ export function BillingPage() {
       if (mappedError.status === 409) {
         setIsConfirmOpen(false);
       } else {
-        setCancelError(mappedError.message);
+        setCancelError(sanitizeErrorMessage(mappedError.message, 'Failed to cancel subscription. Please try again.'));
       }
     }
   };
@@ -111,7 +123,7 @@ export function BillingPage() {
             </div>
           ) : subscription.isError || !subscription.data ? (
             <ErrorState
-              message={subscription.error?.message || 'Failed to load subscription information.'}
+              message={sanitizeErrorMessage(subscription.error?.message, 'Failed to load subscription information.')}
               onRetry={() => void subscription.refetch()}
               retryLabel="Retry subscription"
             />
@@ -165,7 +177,7 @@ export function BillingPage() {
             </div>
           ) : payments.isError ? (
             <ErrorState
-              message={payments.error?.message || 'Failed to load payment history.'}
+              message={sanitizeErrorMessage(payments.error?.message, 'Failed to load payment history.')}
               onRetry={() => void payments.refetch()}
               retryLabel="Retry payments"
             />

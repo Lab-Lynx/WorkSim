@@ -1,24 +1,29 @@
 import type { SubscriptionStatus } from '@prisma/client';
 
-export type SerializedSubscription = {
+export interface SubscriptionDbRecord {
   id: string;
-  status: SubscriptionStatus;
-  currentPeriodEnd: string;
-  canceledAt: string | null;
-};
+  status: SubscriptionStatus | string;
+  currentPeriodEnd: Date | string;
+  canceledAt: Date | string | null;
+  [key: string]: unknown;
+}
 
-export type SerializeSubscriptionInput = {
+export interface SerializedSubscription {
   id: string;
-  status: SubscriptionStatus;
-  currentPeriodEnd: Date;
-  canceledAt: Date | null;
-};
+  status: SubscriptionStatus | string;
+  currentPeriodEnd: Date | string;
+  canceledAt: Date | string | null;
+}
 
-export const serializeSubscription = (
-  sub: SerializeSubscriptionInput,
-): SerializedSubscription => ({
-  id: sub.id,
-  status: sub.status,
-  currentPeriodEnd: sub.currentPeriodEnd.toISOString(),
-  canceledAt: sub.canceledAt ? sub.canceledAt.toISOString() : null,
-});
+export type SerializeSubscriptionInput = SubscriptionDbRecord;
+
+export function serializeSubscription(
+  subscription: SubscriptionDbRecord,
+): SerializedSubscription {
+  return {
+    id: subscription.id,
+    status: subscription.status,
+    currentPeriodEnd: subscription.currentPeriodEnd,
+    canceledAt: subscription.canceledAt,
+  };
+}

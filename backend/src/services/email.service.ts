@@ -46,6 +46,13 @@ export interface EmailProvider {
 export const emailProvider: EmailProvider = {
   send: async (payload: EmailPayload): Promise<void> => {
     logger.debug({ to: payload.to, subject: payload.subject }, 'Email sent via default provider');
+    if (env.NODE_ENV === 'development') {
+      const linkMatch = payload.text.match(/https?:\/\/[^\s]+/);
+      if (linkMatch) {
+        // eslint-disable-next-line no-console
+        console.log(`\n📧 [DEV EMAIL] To: ${payload.to}\n🔗 Action Link: ${linkMatch[0]}\n`);
+      }
+    }
   },
 };
 

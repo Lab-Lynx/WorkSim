@@ -10,15 +10,19 @@ const repoNameSchema = z
   })
   .optional();
 
-/** EP-22 — POST /github/repo */
-export const createRepoSchema = z.object({
-  body: z.object({
-    starterTemplate: z.enum(['react', 'node_express', 'django'], {
-      message: 'Choose a starter template (react, node_express, or django)',
-    }),
-    repoName: z.preprocess(
-      (val) => (typeof val === 'string' ? val.trim() || undefined : val),
-      repoNameSchema,
-    ),
+export const createStarterRepoBodySchema = z.object({
+  starterTemplate: z.enum(['react', 'node_express', 'django'], {
+    message: 'starterTemplate must be one of: react, node_express, django',
   }),
+  repoName: z
+    .preprocess((val) => (typeof val === 'string' ? val.trim() || undefined : val), repoNameSchema)
+    .default('work-simulator'),
 });
+
+export const createStarterRepoSchema = z.object({
+  body: createStarterRepoBodySchema,
+});
+
+export const createRepoSchema = createStarterRepoSchema;
+
+export type CreateStarterRepoInput = z.infer<typeof createStarterRepoBodySchema>;

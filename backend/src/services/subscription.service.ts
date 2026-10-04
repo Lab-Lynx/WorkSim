@@ -5,20 +5,17 @@ import { HTTP_STATUS } from '../constants/index.js';
 import ApiError from '../utils/ApiError.js';
 import { PaymentStatus, SubscriptionStatus } from '@prisma/client';
 import * as chapaIntegration from '../integrations/chapa.js';
-import {
-  serializeSubscription,
-  type SerializedSubscription,
-} from '../serializers/subscription.serializer.js';
-import {
-  serializePayment,
-  type SerializedPayment,
-} from '../serializers/payment.serializer.js';
+import type { SerializedSubscription } from '../serializers/subscription.serializer.js';
+import type { SerializedPayment } from '../serializers/payment.serializer.js';
 
 /**
  * Shared subscription gate (Doc 8 / FR-15).
  * Access when any subscription has currentPeriodEnd in the future, regardless of status.
  */
-export const hasPaidAccess = async (userId: string, now: Date = new Date()): Promise<boolean> => {
+export const hasPaidAccess = async (
+  userId: string,
+  now: Date = new Date(),
+): Promise<boolean> => {
   const live = await prisma.subscription.findFirst({
     where: {
       userId,
@@ -41,6 +38,7 @@ export const createCheckout = async (userId: string): Promise<{ checkoutUrl: str
     where: { id: userId },
     select: { email: true, name: true },
   });
+
   if (!user) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
   }
@@ -93,7 +91,20 @@ export const getSubscriptionStatus = async (
   const hasAccess = await hasPaidAccess(userId);
 
   return {
-    subscription: subscription ? serializeSubscription(subscription) : null,
+    subscription: subscription
+      ? {
+          id: subscription.id,
+          status: subscription.status,
+          currentPeriodEnd:
+            subscription.currentPeriodEnd instanceof Date
+              ? subscription.currentPeriodEnd.toISOString()
+              : String(subscription.currentPeriodEnd),
+          canceledAt:
+            subscription.canceledAt instanceof Date
+              ? subscription.canceledAt.toISOString()
+              : (subscription.canceledAt ?? null),
+        }
+      : null,
     hasAccess,
   };
 };
@@ -105,7 +116,7 @@ export const cancelSubscription = async (userId: string): Promise<SerializedSubs
   const subscription = await prisma.subscription.findFirst({
     where: {
       userId,
-      status: SubscriptionStatus.active,
+      status: { in: [SubscriptionStatus.active, SubscriptionStatus.past_due] },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -122,7 +133,18 @@ export const cancelSubscription = async (userId: string): Promise<SerializedSubs
     },
   });
 
-  return serializeSubscription(updated);
+  return {
+    id: updated.id,
+    status: updated.status,
+    currentPeriodEnd:
+      updated.currentPeriodEnd instanceof Date
+        ? updated.currentPeriodEnd.toISOString()
+        : String(updated.currentPeriodEnd),
+    canceledAt:
+      updated.canceledAt instanceof Date
+        ? updated.canceledAt.toISOString()
+        : (updated.canceledAt ?? null),
+  };
 };
 
 /**
@@ -134,5 +156,15 @@ export const listPayments = async (userId: string): Promise<SerializedPayment[]>
     orderBy: { createdAt: 'desc' },
   });
 
-  return payments.map(serializePayment);
+  return payments.map((p) => ({
+    id: p.id,
+    amount:
+      typeof p.amount === 'object' && p.amount !== null && 'toString' in p.amount
+        ? (p.amount as { toString(): string }).toString()
+        : String(p.amount ?? '0.00'),
+    currency: p.currency,
+    status: p.status,
+    paidAt: p.paidAt instanceof Date ? p.paidAt.toISOString() : (p.paidAt ?? null),
+    createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt),
+  }));
 };

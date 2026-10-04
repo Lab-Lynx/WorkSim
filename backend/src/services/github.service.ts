@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { prisma } from '../config/db.js';
 import { env } from '../config/env.js';
-import type { StarterTemplate } from '@prisma/client';
+import { StarterTemplate } from '@prisma/client';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import type {
@@ -9,10 +9,9 @@ import type {
   GitHubSubmissionState,
   RepoSummary,
 } from '../types/domain.js';
-import * as githubApi from '../integrations/github.js';
+import * as githubIntegration from '../integrations/github.js';
 import { decryptGitHubToken, encryptGitHubToken } from '../lib/crypto/github-token.js';
 import { hashToken } from '../lib/crypto/token-hash.js';
-import * as githubIntegration from '../integrations/github.js';
 import { hasPaidAccess } from './subscription.service.js';
 
 const GITHUB_NOT_CONNECTED = 'GitHub is not connected. Connect GitHub to continue';
@@ -22,6 +21,18 @@ const PR_READ_FAILED =
   'Could not read your pull request from GitHub, please try again';
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+export type GitHubCallbackFailure = 'state_invalid' | 'scope_invalid' | 'exchange_failed';
+
+export class GitHubCallbackError extends Error {
+  constructor(
+    readonly category: GitHubCallbackFailure,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'GitHubCallbackError';
+  }
+}
 
 const frontendOAuthRedirect = (status: 'connected' | 'error', reason?: string): string => {
   const url = new URL('/github', env.CLIENT_URL);
@@ -46,6 +57,8 @@ export const createGitHubAuthorization = async (userId: string): Promise<string>
   url.searchParams.set('state', state);
   return url.toString();
 };
+
+export const createGitHubAuthorizeUrl = createGitHubAuthorization;
 
 export const completeGitHubAuthorization = async (
   state: string | undefined,
@@ -92,6 +105,17 @@ export const completeGitHubAuthorization = async (
     return frontendOAuthRedirect('error', 'exchange_failed');
   }
 };
+
+export async function handleGitHubCallback(
+  _userId: string,
+  code: string,
+  state: string,
+): Promise<void> {
+  const result = await completeGitHubAuthorization(state, code);
+  if (result.includes('error')) {
+    throw new GitHubCallbackError('exchange_failed', 'GitHub OAuth callback failed');
+  }
+}
 
 export const assertGitHubConnected = async (userId: string): Promise<void> => {
   const connection = await prisma.gitHubConnection.findUnique({ where: { userId } });
@@ -176,7 +200,7 @@ export const disconnectGitHub = async (userId: string): Promise<void> => {
  */
 export const createStarterRepo = async (
   userId: string,
-  starterTemplate: StarterTemplate,
+  starterTemplate: StarterTemplate | string,
   repoName: string = 'work-simulator',
 ): Promise<RepoSummary> => {
   if (!(await hasPaidAccess(userId))) {
@@ -189,6 +213,7 @@ export const createStarterRepo = async (
   const connection = await prisma.gitHubConnection.findUnique({
     where: { userId },
   });
+
   if (!connection) {
     throw new ApiError(
       HTTP_STATUS.FORBIDDEN,
@@ -233,7 +258,7 @@ export const createStarterRepo = async (
     const created = await prisma.starterRepo.create({
       data: {
         userId,
-        starterTemplate,
+        starterTemplate: starterTemplate as StarterTemplate,
         githubRepoId: repoResult.githubRepoId,
         fullName: repoResult.fullName,
         defaultBranch: repoResult.defaultBranch,
@@ -283,7 +308,7 @@ export const createTicketBranch = async (
 
   try {
     const accessToken = decryptGitHubToken(connection.accessTokenEncrypted);
-    await githubApi.createBranch({
+    await githubIntegration.createBranch({
       owner,
       repo: repoName,
       branchName,
@@ -352,4 +377,3 @@ export const getBranchSubmissionState = async (
     diff: prResult.diff,
   };
 };
-

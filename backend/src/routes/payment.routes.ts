@@ -4,6 +4,7 @@ import * as paymentController from '../controllers/payment.controller.js';
 
 const router = Router();
 
+// EP-17: payment history
 router.get('/', authMiddleware, paymentController.getPayments);
 
 export default router;

@@ -1,30 +1,36 @@
 import type { PaymentStatus, Prisma } from '@prisma/client';
 
-export type SerializedPayment = {
+export interface PaymentDbRecord {
+  id: string;
+  amount: Prisma.Decimal | number | string | unknown;
+  currency: string;
+  status: PaymentStatus | string;
+  paidAt: Date | string | null;
+  createdAt: Date | string;
+  [key: string]: unknown;
+}
+
+export interface SerializedPayment {
   id: string;
   amount: string;
   currency: string;
-  status: PaymentStatus;
-  paidAt: string | null;
-  createdAt: string;
-};
+  status: PaymentStatus | string;
+  paidAt: Date | string | null;
+  createdAt: Date | string;
+}
 
-export type SerializePaymentInput = {
-  id: string;
-  amount: Prisma.Decimal | number | string;
-  currency: string;
-  status: PaymentStatus;
-  paidAt: Date | null;
-  createdAt: Date;
-};
+export type SerializePaymentInput = PaymentDbRecord;
 
-export const serializePayment = (
-  payment: SerializePaymentInput,
-): SerializedPayment => ({
-  id: payment.id,
-  amount: payment.amount.toString(),
-  currency: payment.currency,
-  status: payment.status,
-  paidAt: payment.paidAt ? payment.paidAt.toISOString() : null,
-  createdAt: payment.createdAt.toISOString(),
-});
+export function serializePayment(payment: PaymentDbRecord): SerializedPayment {
+  return {
+    id: payment.id,
+    amount:
+      typeof payment.amount === 'object' && payment.amount !== null && 'toString' in payment.amount
+        ? (payment.amount as { toString(): string }).toString()
+        : String(payment.amount ?? '0.00'),
+    currency: payment.currency,
+    status: payment.status,
+    paidAt: payment.paidAt,
+    createdAt: payment.createdAt,
+  };
+}

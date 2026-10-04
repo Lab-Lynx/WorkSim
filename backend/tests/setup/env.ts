@@ -1,5 +1,4 @@
 process.env.NODE_ENV ??= 'test';
-process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@localhost:5432/worksim_test';
 process.env.ACCESS_TOKEN_SECRET ??= 'test_access_token_secret_placeholder_at_least_32_chars';
 process.env.REFRESH_TOKEN_SECRET ??= 'test_refresh_token_secret_placeholder_at_least_32_chars';
 process.env.CLIENT_URL ??= 'http://localhost:5173';
@@ -14,4 +13,3 @@ process.env.GITHUB_WEBHOOK_SECRET ??= 'test_github_webhook_secret_here';
 process.env.GITHUB_REQUESTED_SCOPE = 'write:repo_hook';
 process.env.GEMINI_API_KEY ??= 'test_gemini_api_key';
 process.env.GROQ_API_KEY ??= 'test_groq_api_key';
-
