@@ -1,5 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { env } from '../../config/env.js';
+import ApiError from '../../utils/ApiError.js';
+import { HTTP_STATUS } from '../../constants/index.js';
 
 const ALGORITHM = 'aes-256-gcm';
 const VERSION = 'v1';
@@ -8,9 +10,17 @@ const IV_LENGTH = 12;
 const getKey = (): Buffer =>
   createHash('sha256').update(env.GITHUB_TOKEN_ENCRYPTION_KEY, 'utf8').digest();
 
+const decodeBase64Url = (value: string): Buffer => {
+  const decoded = Buffer.from(value, 'base64url');
+  if (decoded.toString('base64url') !== value) {
+    throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Invalid encrypted GitHub access token');
+  }
+  return decoded;
+};
+
 export const encryptGitHubToken = (token: string): string => {
   if (!token) {
-    throw new Error('GitHub access token must not be empty');
+    throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'GitHub access token must not be empty');
   }
 
   const iv = randomBytes(IV_LENGTH);
@@ -34,21 +44,21 @@ export const decryptGitHubToken = (encryptedToken: string): string => {
     !encodedAuthTag ||
     !encodedCiphertext
   ) {
-    throw new Error('Invalid encrypted GitHub access token');
+    throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Invalid encrypted GitHub access token');
   }
 
   try {
     const decipher = createDecipheriv(
       ALGORITHM,
       getKey(),
-      Buffer.from(encodedIv, 'base64url'),
+      decodeBase64Url(encodedIv),
     );
-    decipher.setAuthTag(Buffer.from(encodedAuthTag, 'base64url'));
+    decipher.setAuthTag(decodeBase64Url(encodedAuthTag));
     return Buffer.concat([
-      decipher.update(Buffer.from(encodedCiphertext, 'base64url')),
+      decipher.update(decodeBase64Url(encodedCiphertext)),
       decipher.final(),
     ]).toString('utf8');
   } catch {
-    throw new Error('Invalid encrypted GitHub access token');
+    throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Invalid encrypted GitHub access token');
   }
 };

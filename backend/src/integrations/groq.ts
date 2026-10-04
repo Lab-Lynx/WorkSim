@@ -75,7 +75,10 @@ interface GroqChatCompletionPayload {
 async function executeGroqRequest(messages: GroqChatMessage[]): Promise<string> {
   const apiKey = env.GROQ_API_KEY;
   const model = env.GROQ_MODEL;
-  const timeoutMs = env.SUBMISSION_EVALUATOR_TIMEOUT_MS ?? env.AI_REQUEST_TIMEOUT_MS ?? 15_000;
+  const timeoutMs =
+    env.SUBMISSION_EVALUATOR_TIMEOUT_MS ??
+    env.AI_REQUEST_TIMEOUT_MS ??
+    env.GROQ_REQUEST_TIMEOUT_MS;
 
   const url = 'https://api.groq.com/openai/v1/chat/completions';
 

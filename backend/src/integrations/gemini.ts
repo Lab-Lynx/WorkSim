@@ -97,7 +97,7 @@ interface RawTicketJson {
 async function executeGeminiRequest(payload: GeminiRequestPayload): Promise<string> {
   const apiKey = env.GEMINI_API_KEY;
   const model = env.GEMINI_MODEL;
-  const timeoutMs = env.AI_REQUEST_TIMEOUT_MS ?? 10_000;
+  const timeoutMs = env.AI_REQUEST_TIMEOUT_MS ?? env.GEMINI_REQUEST_TIMEOUT_MS;
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 

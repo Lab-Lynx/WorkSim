@@ -4,6 +4,7 @@ import {
   REQUEST_TIMEOUT_LONG_MS,
 } from '@/config/app.config';
 import type { ApiEnvelope, ApiResult } from '@/types';
+import { ClientConfigurationError } from './errors';
 
 export type ApiErrorKind = 'api' | 'network' | 'timeout' | 'unexpected_response';
 
@@ -151,7 +152,7 @@ export async function apiRequest<T>(
   options?: RequestOptions
 ): Promise<ApiResult<T>> {
   if (!clientConfig) {
-    throw new Error('API client is not configured');
+    throw new ClientConfigurationError('API client is not configured');
   }
 
   const cleanPath = path.split('?')[0];

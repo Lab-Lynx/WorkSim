@@ -3,6 +3,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+class EnvironmentConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EnvironmentConfigurationError';
+    Object.setPrototypeOf(this, EnvironmentConfigurationError.prototype);
+  }
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('3000'),
@@ -45,6 +53,8 @@ const envSchema = z.object({
   GROQ_MODEL: z.string().min(1).default('llama-3.3-70b-versatile'),
   GEMINI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
   GROQ_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
+  GEMINI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  GROQ_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
 
   MENTOR_MESSAGE_MAX_CHARS: z.coerce.number().int().positive().default(4_000),
   MENTOR_MESSAGES_PER_TICKET: z.coerce.number().int().positive().default(20),
@@ -81,7 +91,7 @@ export function loadEnv(source: Record<string, unknown>): Environment {
 
   if (!parsed.success) {
     const fields = Object.keys(parsed.error.flatten().fieldErrors).join(', ');
-    throw new Error(`Invalid environment variables: ${fields}`);
+    throw new EnvironmentConfigurationError(`Invalid environment variables: ${fields}`);
   }
 
   return parsed.data;

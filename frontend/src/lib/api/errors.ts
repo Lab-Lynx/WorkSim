@@ -16,6 +16,15 @@ export class ApiError extends Error {
     this.kind = kind;
     Object.setPrototypeOf(this, ApiError.prototype);
   }
+
+}
+
+export class ClientConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ClientConfigurationError';
+    Object.setPrototypeOf(this, ClientConfigurationError.prototype);
+  }
 }
 
 export type UiErrorAction =
