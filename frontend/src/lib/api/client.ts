@@ -62,6 +62,10 @@ export function isSessionExpiredGuardActive(): boolean {
   return sessionExpiredGuard;
 }
 
+export function getSessionExpiredCallback(): (() => void) | null {
+  return clientConfig?.onSessionExpired ?? null;
+}
+
 function clearLegacyAuthStorage(): void {
   for (const storage of [localStorage, sessionStorage]) {
     storage.removeItem('accessToken');

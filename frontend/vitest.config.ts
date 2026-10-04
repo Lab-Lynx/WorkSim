@@ -14,6 +14,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './tests/setup.ts',
+    pool: 'vmThreads',
     maxWorkers: 2,
     testTimeout: 15000,
     exclude: [...configDefaults.exclude, '**/V0 code/**'],

@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import { buildLoginRedirect } from '@/lib/navigation';
-import { isSessionExpiredGuardActive } from '@/lib/axios';
+import { isSessionExpiredGuardActive } from '@/lib/api/client';
 
 export default function ProtectedRoute() {
   const user = useAuthStore((s) => s.user);
