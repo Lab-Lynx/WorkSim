@@ -167,6 +167,7 @@ model Payment {
   paidAt         DateTime?
   createdAt      DateTime      @default(now())
 
+  @@index([subscriptionId])
   @@index([userId, createdAt])
 }
 
