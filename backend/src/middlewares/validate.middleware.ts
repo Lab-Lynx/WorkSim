@@ -15,7 +15,11 @@ const validate = <T>(schema: ZodSchema<T>) => {
       });
 
       // Asserting type context locally to safely re-assign back to Express request parameters
-      const data = parsedData as any;
+      const data = parsedData as {
+        body?: unknown;
+        params?: Record<string, string>;
+        query?: Record<string, unknown>;
+      };
       if (data.body) req.body = data.body;
       if (data.params) req.params = data.params;
       // Express 5: req.query is a getter-only property on the request

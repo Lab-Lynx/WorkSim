@@ -24,6 +24,7 @@ describe('CopyButton', () => {
 
     const button = screen.getByRole('button', { name: 'Copy git command' });
     expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute('type', 'button');
   });
 
   it('copies text and announces Copied for COPY_FEEDBACK_MS upon successful copy', async () => {

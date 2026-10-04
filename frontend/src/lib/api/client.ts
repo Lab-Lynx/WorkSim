@@ -61,7 +61,15 @@ export function isSessionExpiredGuardActive(): boolean {
   return sessionExpiredGuard;
 }
 
+function clearLegacyAuthStorage(): void {
+  for (const storage of [localStorage, sessionStorage]) {
+    storage.removeItem('accessToken');
+    storage.removeItem('refreshToken');
+  }
+}
+
 function handleSessionExpired(): void {
+  clearLegacyAuthStorage();
   if (sessionExpiredGuard) {
     return;
   }
@@ -115,6 +123,10 @@ function buildRequestUrl(baseUrl: string, path: string, query?: RequestOptions['
 }
 
 export async function refreshSessionOnce(): Promise<void> {
+  if (sessionExpiredGuard) {
+    throw new ApiError(401, 'Session expired', 'api');
+  }
+
   if (refreshInFlight) {
     return refreshInFlight;
   }

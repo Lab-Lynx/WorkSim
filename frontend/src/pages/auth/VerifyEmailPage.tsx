@@ -80,7 +80,9 @@ export function VerifyEmailPage() {
                         Your email address has been verified successfully. You can now access all features.
                     </p>
                     <Button asChild className="w-full mt-4">
-                        <Link to="/dashboard">Go to Dashboard</Link>
+                        <Link to={meUser ? '/dashboard' : '/login'}>
+                            {meUser ? 'Go to Dashboard' : 'Go to Login'}
+                        </Link>
                     </Button>
                 </div>
             )}

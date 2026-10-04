@@ -49,7 +49,7 @@ export function CopyButton({ text, label }: CopyButtonProps) {
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={handleCopy} aria-label={label}>
+    <Button type="button" variant="outline" size="sm" onClick={handleCopy} aria-label={label}>
       <div role="status" aria-live="polite" className="sr-only">
         {status === 'success' && 'Copied'}
         {status === 'error' && 'Failed to copy'}

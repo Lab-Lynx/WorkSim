@@ -4,7 +4,7 @@ import { ErrorResponse } from '../utils/ApiResponse.js'; // 🟢 Using the dedic
 import logger from '../utils/logger.js';
 import { env } from '../config/env.js';
 
-const errorMiddleware = (err: Error, req: Request, res: Response, next: NextFunction) => {
+const errorMiddleware = (err: Error, req: Request, res: Response, _next: NextFunction) => {
   // 1. Log the full Error Object (Pino captures the full stack trace cleanly)
   logger.error(err, `[${req.method}] ${req.path}`);
 

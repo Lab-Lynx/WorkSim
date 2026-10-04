@@ -18,12 +18,20 @@ let currentTicketState: CurrentTicketState;
 
 const mockLogoutMutate = vi.fn();
 
-vi.mock('@/hooks/useLogout', () => ({
+vi.mock('@/hooks/auth/useLogout', () => ({
   useLogout: () => logoutState,
 }));
 
-vi.mock('@/hooks/useCurrentTicket', () => ({
+vi.mock('@/hooks/tickets/useCurrentTicket', () => ({
   useCurrentTicket: () => currentTicketState,
+}));
+
+vi.mock('@/components/layout/EmailVerificationBanner', () => ({
+  EmailVerificationBanner: () => <div data-testid="email-verification-banner-component" />,
+}));
+
+vi.mock('@/components/layout/SubscriptionBanner', () => ({
+  SubscriptionBanner: () => <div data-testid="subscription-banner-component" />,
 }));
 
 describe('AppLayout', () => {
@@ -54,9 +62,43 @@ describe('AppLayout', () => {
 
     expect(screen.getByTestId('test-content')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument();
+    expect(screen.getByTestId('email-verification-banner-component')).toBeInTheDocument();
+    expect(screen.getByTestId('subscription-banner-component')).toBeInTheDocument();
   });
 
-  it('shows current-ticket link when a current ticket exists', () => {
+  it('collapses and expands the desktop sidebar', () => {
+    render(
+      <MemoryRouter>
+        <AppLayout><div>Content</div></AppLayout>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /collapse sidebar/i }));
+    expect(screen.getByRole('button', { name: /expand sidebar/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /expand sidebar/i }));
+    expect(screen.getByRole('button', { name: /collapse sidebar/i })).toBeInTheDocument();
+  });
+
+  it('always shows Current Ticket in the sidebar', () => {
+    currentTicketState = {
+      data: null,
+      isLoading: false,
+      isError: false,
+      error: null,
+    };
+
+    render(
+      <MemoryRouter>
+        <AppLayout>
+          <div>Content</div>
+        </AppLayout>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('link', { name: /current ticket/i })).toBeInTheDocument();
+  });
+
+  it('points Current Ticket at the active ticket when one exists', () => {
     currentTicketState = {
       data: { id: 'ticket-123', code: 'A12' },
       isLoading: false,
@@ -72,7 +114,53 @@ describe('AppLayout', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('link', { name: /current ticket/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /current ticket/i })).toHaveAttribute(
+      'href',
+      '/tickets/ticket-123',
+    );
+  });
+
+  it('keeps Current Ticket linked to the open ticket when the query errors', () => {
+    currentTicketState = {
+      data: null,
+      isLoading: false,
+      isError: true,
+      error: new Error('Request failed'),
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/tickets/ticket-abc']}>
+        <AppLayout>
+          <div>Ticket Content</div>
+        </AppLayout>
+      </MemoryRouter>
+    );
+
+    const link = screen.getByRole('link', { name: /current ticket/i });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/tickets/ticket-abc');
+  });
+
+  it('falls back Current Ticket to the dashboard when there is no active ticket', () => {
+    currentTicketState = {
+      data: null,
+      isLoading: false,
+      isError: true,
+      error: new Error('Request failed'),
+    };
+
+    render(
+      <MemoryRouter>
+        <AppLayout>
+          <div>Content</div>
+        </AppLayout>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('link', { name: /current ticket/i })).toHaveAttribute(
+      'href',
+      '/dashboard',
+    );
   });
 
   it('invokes useLogout and updates state on logout click', async () => {

@@ -10,6 +10,12 @@ export interface RequireAuthProps {
 }
 
 /**
+ * TEMP: set to `false` before shipping — skips auth so UI work can hit
+ * /dashboard, /billing, etc. without a session.
+ */
+export const BYPASS_AUTH_FOR_UI = false;
+
+/**
  * FE-064: Protected route guard for PG-06 through PG-12 (doc 10 §10.14).
  * Only useMe decides whether a user is authenticated (no direct cookie reads).
  * - Pending: FullPageLoader
@@ -20,6 +26,10 @@ export interface RequireAuthProps {
 export default function RequireAuth({ children }: RequireAuthProps) {
     const { data: user, isPending, error, refetch } = useMe();
     const location = useLocation();
+
+    if (BYPASS_AUTH_FOR_UI) {
+        return <>{children ?? <Outlet />}</>;
+    }
 
     if (isPending) {
         return <FullPageLoader />;
