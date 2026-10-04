@@ -16,7 +16,8 @@ import { encryptGitHubToken } from '../../src/lib/crypto/github-token.js';
 
 /**
  * Doc 9 §9.3.7 — proves hand-written SQL (DR-01–DR-04) and related DB rules.
- * Needs a migrated Postgres. Skips when DATABASE_URL is unset (CI gap D-33).
+ * Needs a migrated Postgres. Skips when DATABASE_URL is unset; CI provisions
+ * PostgreSQL and runs migrations before the integration suite.
  */
 
 const databaseUrl = process.env.DATABASE_URL;
