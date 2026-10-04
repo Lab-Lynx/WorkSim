@@ -7,6 +7,8 @@ import submissionRouter from './submission.routes.js';
 import profileRouter from './profile.routes.js';
 import webhookRouter from './webhook.routes.js';
 import githubRouter from './github.routes.js';
+import subscriptionRouter from './subscription.routes.js';
+import paymentRouter from './payment.routes.js';
 
 const router = Router();
 
@@ -20,9 +22,8 @@ router.use('/tickets', submissionRouter);
 router.use('/profile', profileRouter);
 router.use('/webhooks', webhookRouter);
 router.use('/github', githubRouter);
-
-// Pending/deferred routers (to be mounted as their feature branches land):
-// router.use('/subscriptions', subscriptionRouter);
-// router.use('/payments', paymentRouter);
+router.use('/subscriptions', subscriptionRouter);
+router.use('/payments', paymentRouter);
 
 export default router;
+
