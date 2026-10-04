@@ -52,7 +52,7 @@ describe('Voxide Assistant integration (Assistant.tsx)', () => {
   });
 
   it('initializes VoxideClient with publishable key', () => {
-    expect(ai.publicKey).toBe('vox_pub_2d14be0b73b3dd50ee3119872ec40b81354e3f2aee5465e5');
+    expect(ai.publicKey).toBe('vox_pub_fb95760987d4a4566570993f7d6ee30502cc6b30062b0300');
   });
 
   it('renders Assistant widget component', () => {

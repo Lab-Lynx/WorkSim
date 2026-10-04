@@ -73,7 +73,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const ticketPathMatch = location.pathname.match(/^\/tickets\/([^/]+)/);
   const ticketIdFromPath = ticketPathMatch?.[1];
-  const activeTicketId = currentTicket?.id ?? ticketIdFromPath;
+  const activeTicketId =
+    currentTicket?.id ?? (ticketIdFromPath !== 'current' ? ticketIdFromPath : undefined);
 
   const navItems = [
     { label: 'Dashboard', to: ROUTES.DASHBOARD, icon: LayoutGrid },

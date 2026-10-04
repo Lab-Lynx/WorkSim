@@ -1,12 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Outlet, useParams } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import RequireAuth from './RequireAuth';
 import PublicOnly from './PublicOnly';
 import AppLayout from '@/components/layout/AppLayout';
 import AuthLayout from '@/components/layout/AuthLayout';
 import { ROUTES } from '@/constants';
+import { useCurrentTicket } from '@/hooks/tickets/useCurrentTicket';
 
 const LandingPage = lazy(() => import('@/pages/public/LandingPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
@@ -26,6 +27,16 @@ const SubmissionsPage = lazy(() => import('@/pages/submissions/SubmissionsPage')
 
 function TicketRoute() {
   const { ticketId } = useParams();
+  const { data: currentTicket, isLoading } = useCurrentTicket({
+    enabled: ticketId === 'current' || !ticketId,
+  });
+
+  if (ticketId === 'current' || !ticketId) {
+    if (isLoading) return <PageLoader />;
+    if (currentTicket) return <Navigate to={`/tickets/${currentTicket.id}`} replace />;
+    return <Navigate to={ROUTES.DASHBOARD} replace />;
+  }
+
   return withSuspense(<TicketPage key={ticketId} />);
 }
 
@@ -77,6 +88,7 @@ const router = createBrowserRouter([
           { path: ROUTES.BILLING, element: withSuspense(<BillingPage />) },
           { path: ROUTES.BILLING_RETURN, element: withSuspense(<CheckoutReturnPage />) },
           { path: ROUTES.GITHUB, element: withSuspense(<GitHubSetupPage />) },
+          { path: '/tickets', element: <TicketRoute /> },
           { path: ROUTES.TICKET, element: <TicketRoute /> },
           { path: ROUTES.PROFILE, element: withSuspense(<ProfilePage />) },
           { path: ROUTES.SUBMISSIONS, element: withSuspense(<SubmissionsPage />) },
