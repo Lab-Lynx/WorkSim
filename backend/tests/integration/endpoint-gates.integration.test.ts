@@ -10,6 +10,7 @@ import {
   type PrismaClient,
 } from '@prisma/client';
 import type { Express } from 'express';
+import { encryptGitHubToken } from '../../src/lib/crypto/github-token.js';
 
 /**
  * Doc 9 §9.3.13 endpoint-gates.integration.test.ts
@@ -534,7 +535,7 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
         userId: user.id,
         githubUserId: `gh-${user.id}`,
         githubLogin: 'octocat',
-        accessTokenEncrypted: 'enc-token',
+        accessTokenEncrypted: encryptGitHubToken('enc-token'),
         scope: 'repo',
       },
     });
@@ -672,7 +673,7 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
             userId: user.id,
             githubUserId: `gh-${user.id}`,
             githubLogin: 'octocat',
-            accessTokenEncrypted: 'enc-token',
+            accessTokenEncrypted: encryptGitHubToken('enc-token'),
             scope: 'repo',
           },
         });

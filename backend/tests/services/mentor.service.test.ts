@@ -466,7 +466,8 @@ describe('mentor.service (doc 8 §8.8, doc 9 §9.2.9)', () => {
       });
       expect(mentorMessageFindMany).toHaveBeenCalledWith({
         where: { ticketId },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
       });
       expect(messages).toEqual([msg1, msg2, msg3]);
     });

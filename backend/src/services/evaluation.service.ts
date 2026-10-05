@@ -13,6 +13,7 @@ import {
   type RubricScores,
 } from '../lib/scoring/rubric.js';
 import { callEvaluatorModel } from '../integrations/groq.js';
+import { env } from '../config/env.js';
 import type {
   EvaluationInput,
   MentorTranscriptMessage,
@@ -22,6 +23,21 @@ import type {
 export function calculateWeightedScore(scores: RubricScores): number {
   return calculateRubricWeightedScore(scores);
 }
+
+const assertAiBudget = (
+  submission: Submission,
+  ticket: Pick<Ticket, 'content'>,
+  transcript: MentorMessage[] | undefined,
+): void => {
+  const ticketBytes = Buffer.byteLength(JSON.stringify(ticket.content), 'utf8');
+  const diffBytes = Buffer.byteLength(submission.diff, 'utf8');
+  const transcriptBytes = transcript
+    ? transcript.reduce((total, message) => total + Buffer.byteLength(message.content, 'utf8'), 0)
+    : 0;
+  if (ticketBytes + diffBytes + transcriptBytes > env.AI_TICKET_MAX_INPUT_BYTES) {
+    throw new ApiError(HTTP_STATUS.TOO_MANY_REQUESTS, 'AI usage limit reached for this ticket');
+  }
+};
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === 'string');
@@ -129,6 +145,8 @@ export async function evaluateSubmission(submissionId: string): Promise<Evaluati
       orderBy: { createdAt: 'asc' },
     });
   }
+
+  assertAiBudget(submission, submission.ticket, transcript);
 
   const evaluationInput = buildEvaluationInput(
     submission,

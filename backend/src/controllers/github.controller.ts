@@ -1,72 +1,60 @@
-import { Response } from 'express';
+import type { Request, Response } from 'express';
+import { HTTP_STATUS } from '../constants/index.js';
+import ApiError from '../utils/ApiError.js';
 import { AuthRequest } from '../types/index.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { SuccessResponse } from '../utils/ApiResponse.js';
-import { HTTP_STATUS } from '../constants/index.js';
-import ApiError from '../utils/ApiError.js';
 import * as githubService from '../services/github.service.js';
-import { serializeRepo } from '../serializers/repo.serializer.js';
+import { hasPaidAccess } from '../services/subscription.service.js';
+import type { StarterTemplate } from '@prisma/client';
 
-const requireUser = (req: AuthRequest) => {
-  if (!req.user) {
-    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Not authenticated');
-  }
-  return req.user;
-};
-
-/** EP-18: GET /github/connect */
 export const connect = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = requireUser(req);
-  const authorizeUrl = await githubService.createGitHubAuthorizeUrl(user.id);
-  res.status(HTTP_STATUS.OK).json(
-    new SuccessResponse(HTTP_STATUS.OK, 'GitHub authorization URL', {
-      authorizeUrl,
-    }),
-  );
-});
-
-/** EP-19: GET /github/callback */
-export const callback = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-  const { code, state } = req.query as { code?: string; state?: string };
-
-  try {
-    const user = requireUser(req);
-    await githubService.handleGitHubCallback(user.id, code ?? '', state ?? '');
-    res.redirect(`${clientUrl}/github?github=connected`);
-  } catch (err) {
-    const category =
-      err instanceof githubService.GitHubCallbackError ? err.category : 'exchange_failed';
-    res.redirect(`${clientUrl}/github?github=error&reason=${category}`);
+  if (!req.user) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Not authenticated');
+  if (!(await hasPaidAccess(req.user.id))) {
+    throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
   }
+  const authorizeUrl = await githubService.createGitHubAuthorization(req.user.id);
+  res.status(HTTP_STATUS.OK).json(
+    new SuccessResponse(HTTP_STATUS.OK, 'GitHub authorization URL generated', { authorizeUrl }),
+  );
 });
 
-/** EP-20: GET /github/connection */
+export const callback = asyncHandler(async (req: Request, res: Response) => {
+  const redirectUrl = await githubService.completeGitHubAuthorization(
+    typeof req.query.state === 'string' ? req.query.state : undefined,
+    typeof req.query.code === 'string' ? req.query.code : undefined,
+  );
+  res.redirect(redirectUrl);
+});
+
 export const getConnection = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = requireUser(req);
-  const connection = await githubService.getGitHubConnection(user.id);
+  if (!req.user) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Not authenticated');
+  const connection = await githubService.getGitHubConnection(req.user.id);
   res.status(HTTP_STATUS.OK).json(
-    new SuccessResponse(HTTP_STATUS.OK, 'GitHub connection', connection),
+    new SuccessResponse(HTTP_STATUS.OK, 'GitHub connection retrieved', connection),
   );
 });
 
-/** EP-21: DELETE /github/connection */
 export const disconnect = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = requireUser(req);
-  await githubService.disconnectGitHub(user.id);
+  if (!req.user) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Not authenticated');
+  await githubService.disconnectGitHub(req.user.id);
   res.status(HTTP_STATUS.OK).json(
-    new SuccessResponse(HTTP_STATUS.OK, 'GitHub disconnected', null),
+    new SuccessResponse(HTTP_STATUS.OK, 'GitHub disconnected successfully', null),
   );
 });
 
-/** EP-22: POST /github/repo */
 export const createRepo = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = requireUser(req);
-  const { starterTemplate, repoName } = req.body;
-  const repo = await githubService.createStarterRepo(user.id, starterTemplate, repoName);
+  if (!req.user) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Not authenticated');
+  const { starterTemplate, repoName } = req.body as {
+    starterTemplate: StarterTemplate;
+    repoName?: string;
+  };
+  const repo = await githubService.createStarterRepo(
+    req.user.id,
+    starterTemplate,
+    repoName,
+  );
   res.status(HTTP_STATUS.CREATED).json(
-    new SuccessResponse(HTTP_STATUS.CREATED, 'Repository created', {
-      repo: serializeRepo(repo),
-    }),
+    new SuccessResponse(HTTP_STATUS.CREATED, 'Starter repository created', { repo }),
   );
 });

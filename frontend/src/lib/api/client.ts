@@ -4,18 +4,21 @@ import {
   REQUEST_TIMEOUT_LONG_MS,
 } from '@/config/app.config';
 import type { ApiEnvelope, ApiResult } from '@/types';
+import { ClientConfigurationError } from './errors';
 
 export type ApiErrorKind = 'api' | 'network' | 'timeout' | 'unexpected_response';
 
 export class ApiError extends Error {
   status: number;
   kind: ApiErrorKind;
+  errors?: unknown;
 
-  constructor(status: number, message: string, kind: ApiErrorKind) {
+  constructor(status: number, message: string, kind: ApiErrorKind, errors?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.kind = kind;
+    this.errors = errors;
     Object.setPrototypeOf(this, ApiError.prototype);
   }
 }
@@ -59,6 +62,10 @@ export function resetSessionExpiredGuard(): void {
 
 export function isSessionExpiredGuardActive(): boolean {
   return sessionExpiredGuard;
+}
+
+export function getSessionExpiredCallback(): (() => void) | null {
+  return clientConfig?.onSessionExpired ?? null;
 }
 
 function clearLegacyAuthStorage(): void {
@@ -151,7 +158,7 @@ export async function apiRequest<T>(
   options?: RequestOptions
 ): Promise<ApiResult<T>> {
   if (!clientConfig) {
-    throw new Error('API client is not configured');
+    throw new ClientConfigurationError('API client is not configured');
   }
 
   const cleanPath = path.split('?')[0];
@@ -286,7 +293,7 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok || !envelope.success || status < 200 || status >= 300) {
-    throw new ApiError(status, envelope.message, 'api');
+    throw new ApiError(status, envelope.message, 'api', envelope.errors);
   }
 
   return {

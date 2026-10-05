@@ -133,6 +133,7 @@ ai.register({
   assignTicket: {
     description:
       'Assign a new engineering simulation ticket to the user to begin working on.',
+    dangerous: true,
     params: {},
     handler: async () => {
       try {
@@ -167,6 +168,7 @@ ai.register({
   startTicket: {
     description:
       'Start working on an assigned engineering ticket, moving its status to in_progress.',
+    dangerous: true,
     params: {
       ticketId: {
         type: 'string',
@@ -215,6 +217,7 @@ ai.register({
   submitWork: {
     description:
       "Submit the user's completed work on the active engineering ticket for automated CI testing and mentor evaluation.",
+    dangerous: true,
     params: {
       ticketId: {
         type: 'string',
@@ -260,6 +263,7 @@ ai.register({
   askMentor: {
     description:
       'Ask the AI engineering mentor a technical question or for guidance on the current ticket.',
+    dangerous: true,
     params: {
       content: {
         type: 'string',

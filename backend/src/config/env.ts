@@ -3,6 +3,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+class EnvironmentConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EnvironmentConfigurationError';
+    Object.setPrototypeOf(this, EnvironmentConfigurationError.prototype);
+  }
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('3000'),
@@ -35,26 +43,38 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().min(1),
   GITHUB_CALLBACK_URL: z.string().url(),
   GITHUB_TOKEN_ENCRYPTION_KEY: z.string().min(1),
-  GITHUB_REQUESTED_SCOPE: z.string().default('repo,write:repo_hook'),
-  // Pending team decision: this is required when GitHub webhook handling is enabled.
-  GITHUB_WEBHOOK_SECRET: z.string().min(1).optional(),
+  GITHUB_REQUESTED_SCOPE: z.literal('write:repo_hook').default('write:repo_hook'),
+  GITHUB_WEBHOOK_SECRET: z.string().min(1),
 
   GEMINI_API_KEY: z.string().min(1),
   GROQ_API_KEY: z.string().min(1),
   // Pending team decision: provider model names remain deployment-configurable.
-  GEMINI_MODEL: z.string().min(1).optional(),
-  GROQ_MODEL: z.string().min(1).optional(),
+  GEMINI_MODEL: z.string().min(1).default('gemini-1.5-flash'),
+  GROQ_MODEL: z.string().min(1).default('llama-3.3-70b-versatile'),
+  GEMINI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
+  GROQ_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
+  GEMINI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  GROQ_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
 
-  // Pending team decision (Q-10): mentor limits remain unset until product decides them.
-  MENTOR_MESSAGE_MAX_CHARS: z.coerce.number().int().positive().optional(),
-  MENTOR_MESSAGES_PER_TICKET: z.coerce.number().int().positive().optional(),
-  MENTOR_MESSAGE_WINDOW_MS: z.coerce.number().int().positive().optional(),
+  MENTOR_MESSAGE_MAX_CHARS: z.coerce.number().int().positive().default(4_000),
+  MENTOR_MESSAGES_PER_TICKET: z.coerce.number().int().positive().default(20),
+  MENTOR_MESSAGE_WINDOW_MS: z.coerce.number().int().positive().default(86_400_000),
   VERIFICATION_TOKEN_EXPIRES_IN: z.string().min(1).optional(),
   PASSWORD_RESET_TOKEN_EXPIRES_IN: z.string().min(1).optional(),
   // Pending team decision (Q-13): submission timeout values remain configurable.
   SUBMISSION_CI_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
   SUBMISSION_EVALUATOR_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+  DIFF_MAX_BYTES: z.coerce.number().int().positive().default(1_048_576),
+  AI_TICKET_MAX_INPUT_BYTES: z.coerce.number().int().positive().default(2_000_000),
   AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+  DEFAULT_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
+  DEFAULT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+  REGISTRATION_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(3_600_000),
+  REGISTRATION_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+  COST_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
+  COST_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+  MENTOR_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
   // Pending team decision: branch naming convention remains configurable.
   BRANCH_NAME_PREFIX: z.string().min(1).optional(),
 
@@ -71,7 +91,7 @@ export function loadEnv(source: Record<string, unknown>): Environment {
 
   if (!parsed.success) {
     const fields = Object.keys(parsed.error.flatten().fieldErrors).join(', ');
-    throw new Error(`Invalid environment variables: ${fields}`);
+    throw new EnvironmentConfigurationError(`Invalid environment variables: ${fields}`);
   }
 
   return parsed.data;

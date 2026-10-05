@@ -19,6 +19,7 @@ import {
   type PrismaClient,
 } from '@prisma/client';
 import type { Express } from 'express';
+import { encryptGitHubToken } from '../../src/lib/crypto/github-token.js';
 import type { TicketTemplate } from '../../src/types/domain.js';
 
 /**
@@ -119,7 +120,7 @@ describeDb('submission-pipeline (Doc 9 §9.3.12)', () => {
     });
     const { port } = server.address() as AddressInfo;
     baseUrl = `http://127.0.0.1:${port}`;
-  });
+  }, 60_000);
 
   afterAll(async () => {
     if (server) {
@@ -184,7 +185,7 @@ describeDb('submission-pipeline (Doc 9 §9.3.12)', () => {
         userId: user.id,
         githubUserId: `gh-${user.id}`,
         githubLogin: 'ada',
-        accessTokenEncrypted: 'enc-token',
+        accessTokenEncrypted: encryptGitHubToken('enc-token'),
         scope: 'repo',
       },
     });

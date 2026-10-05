@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { prisma } from '../config/db.js';
 import * as ticketService from '../services/ticket.service.js';
 import * as ticketGeneration from '../services/ticket-generation.service.js';

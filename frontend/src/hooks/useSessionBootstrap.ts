@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import api from '@/lib/axios';
+import { apiRequest } from '@/lib/api/client';
 import { useAuthStore } from '@/store/auth.store';
 import type { User } from '@/types';
 
@@ -23,9 +23,14 @@ export function useSessionBootstrap(): boolean {
   useEffect(() => {
     if (isSessionChecked) return;
 
-    api
-      .get<User>('/auth/me')
-      .then(({ data }) => setUser(data))
+    apiRequest<{ user: User }>('GET', '/users/me')
+      .then((res) => {
+        if (res.data?.user) {
+          setUser(res.data.user);
+        } else {
+          clearAuth();
+        }
+      })
       .catch(() => clearAuth())
       .finally(() => markSessionChecked());
     // eslint-disable-next-line react-hooks/exhaustive-deps

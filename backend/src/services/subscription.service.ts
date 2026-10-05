@@ -1,9 +1,12 @@
-import crypto from 'crypto';
+import { randomBytes } from 'node:crypto';
 import { prisma } from '../config/db.js';
-import ApiError from '../utils/ApiError.js';
+import { env } from '../config/env.js';
 import { HTTP_STATUS } from '../constants/index.js';
-import { SubscriptionStatus, PaymentStatus } from '@prisma/client';
-import { initializeCheckout, cancelChapaSubscription } from '../integrations/chapa.js';
+import ApiError from '../utils/ApiError.js';
+import { PaymentStatus, SubscriptionStatus } from '@prisma/client';
+import * as chapaIntegration from '../integrations/chapa.js';
+import type { SerializedSubscription } from '../serializers/subscription.serializer.js';
+import type { SerializedPayment } from '../serializers/payment.serializer.js';
 
 /**
  * Shared subscription gate (Doc 8 / FR-15).
@@ -23,30 +26,26 @@ export const hasPaidAccess = async (
   return live !== null;
 };
 
-// ---- EP-13: create checkout ----
-export async function createCheckout(userId: string): Promise<{ checkoutUrl: string }> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+/**
+ * Start checkout session for subscription (EP-13 / FR-17).
+ */
+export const createCheckout = async (userId: string): Promise<{ checkoutUrl: string }> => {
+  if (await hasPaidAccess(userId)) {
+    throw new ApiError(HTTP_STATUS.CONFLICT, 'You already have an active subscription');
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, name: true },
+  });
+
   if (!user) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
   }
 
-  if (!user.emailVerifiedAt) {
-    throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Verify your email before subscribing');
-  }
-
-  const existing = await prisma.subscription.findFirst({
-    where: {
-      userId,
-      status: { in: [SubscriptionStatus.active, SubscriptionStatus.past_due] },
-    },
-  });
-  if (existing) {
-    throw new ApiError(HTTP_STATUS.CONFLICT, 'You already have an active subscription');
-  }
-
-  const amount = process.env.CHAPA_PRICE || process.env.SUBSCRIPTION_PRICE_AMOUNT || '450';
-  const currency = process.env.CHAPA_CURRENCY || process.env.SUBSCRIPTION_PRICE_CURRENCY || 'ETB';
-  const txRef = `sub-${userId}-${crypto.randomUUID()}`;
+  const amount = env.CHAPA_PRICE ?? 29;
+  const currency = env.CHAPA_CURRENCY ?? 'ETB';
+  const txRef = `chapa-${userId.slice(0, 8)}-${Date.now()}-${randomBytes(4).toString('hex')}`;
 
   await prisma.payment.create({
     data: {
@@ -58,88 +57,114 @@ export async function createCheckout(userId: string): Promise<{ checkoutUrl: str
     },
   });
 
-  try {
-    const returnUrl =
-      process.env.CHAPA_RETURN_URL ||
-      `${process.env.CLIENT_URL || 'http://localhost:5173'}/billing/return`;
-    const callbackUrl =
-      process.env.CHAPA_WEBHOOK_CALLBACK_URL ||
-      `${process.env.CLIENT_URL || 'http://localhost:3000'}/api/v1/webhooks/chapa`;
+  const nameParts = (user.name || '').trim().split(/\s+/);
+  const firstName = nameParts[0] || 'Customer';
+  const lastName = nameParts.slice(1).join(' ') || undefined;
 
-    const { checkoutUrl } = await initializeCheckout({
-      amount: String(amount),
-      currency: String(currency),
-      email: user.email,
-      txRef,
-      callbackUrl,
-      returnUrl,
-    });
-    return { checkoutUrl };
-  } catch (err) {
-    if (err instanceof ApiError) throw err;
-    throw new ApiError(
-      HTTP_STATUS.BAD_GATEWAY,
-      'Could not start checkout with Chapa, please try again',
-    );
-  }
-}
+  const callbackUrl = `${env.CLIENT_URL.replace(/\/+$/, '')}/api/v1/webhooks/chapa`;
+  const returnUrl = env.CHAPA_RETURN_URL;
 
-// ---- EP-15: get status ----
-export async function getSubscriptionStatus(
+  const { checkoutUrl } = await chapaIntegration.initializePayment({
+    amount,
+    currency,
+    email: user.email,
+    firstName,
+    lastName,
+    txRef,
+    callbackUrl,
+    returnUrl,
+  });
+
+  return { checkoutUrl };
+};
+
+/**
+ * Get current subscription status and access flag (EP-15).
+ */
+export const getSubscriptionStatus = async (
   userId: string,
-): Promise<{ subscription: unknown; hasAccess: boolean }> {
+): Promise<{ subscription: SerializedSubscription | null; hasAccess: boolean }> => {
   const subscription = await prisma.subscription.findFirst({
     where: { userId },
     orderBy: { createdAt: 'desc' },
   });
   const hasAccess = await hasPaidAccess(userId);
-  return { subscription, hasAccess };
-}
 
-// ---- EP-16: cancel ----
-export async function cancelSubscription(userId: string) {
+  return {
+    subscription: subscription
+      ? {
+          id: subscription.id,
+          status: subscription.status,
+          currentPeriodEnd:
+            subscription.currentPeriodEnd instanceof Date
+              ? subscription.currentPeriodEnd.toISOString()
+              : String(subscription.currentPeriodEnd),
+          canceledAt:
+            subscription.canceledAt instanceof Date
+              ? subscription.canceledAt.toISOString()
+              : (subscription.canceledAt ?? null),
+        }
+      : null,
+    hasAccess,
+  };
+};
+
+/**
+ * Cancel an active subscription (EP-16).
+ */
+export const cancelSubscription = async (userId: string): Promise<SerializedSubscription> => {
   const subscription = await prisma.subscription.findFirst({
     where: {
       userId,
       status: { in: [SubscriptionStatus.active, SubscriptionStatus.past_due] },
     },
+    orderBy: { createdAt: 'desc' },
   });
+
   if (!subscription) {
-    throw new ApiError(HTTP_STATUS.CONFLICT, 'No active subscription to cancel');
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'No active subscription found to cancel');
   }
 
-  if (subscription.chapaSubscriptionRef) {
-    try {
-      await cancelChapaSubscription(subscription.chapaSubscriptionRef);
-    } catch {
-      throw new ApiError(
-        HTTP_STATUS.BAD_GATEWAY,
-        'Could not cancel with Chapa, please try again',
-      );
-    }
-  }
-
-  return prisma.subscription.update({
+  const updated = await prisma.subscription.update({
     where: { id: subscription.id },
     data: {
       status: SubscriptionStatus.canceled,
       canceledAt: new Date(),
     },
   });
-}
 
-// ---- EP-17: list payments ----
-export async function listPayments(userId: string) {
-  return prisma.payment.findMany({
+  return {
+    id: updated.id,
+    status: updated.status,
+    currentPeriodEnd:
+      updated.currentPeriodEnd instanceof Date
+        ? updated.currentPeriodEnd.toISOString()
+        : String(updated.currentPeriodEnd),
+    canceledAt:
+      updated.canceledAt instanceof Date
+        ? updated.canceledAt.toISOString()
+        : (updated.canceledAt ?? null),
+  };
+};
+
+/**
+ * List payment history for a user (EP-17).
+ */
+export const listPayments = async (userId: string): Promise<SerializedPayment[]> => {
+  const payments = await prisma.payment.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      amount: true,
-      currency: true,
-      status: true,
-      paidAt: true,
-      createdAt: true,
-    },
   });
-}
+
+  return payments.map((p) => ({
+    id: p.id,
+    amount:
+      typeof p.amount === 'object' && p.amount !== null && 'toString' in p.amount
+        ? (p.amount as { toString(): string }).toString()
+        : String(p.amount ?? '0.00'),
+    currency: p.currency,
+    status: p.status,
+    paidAt: p.paidAt instanceof Date ? p.paidAt.toISOString() : (p.paidAt ?? null),
+    createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt),
+  }));
+};

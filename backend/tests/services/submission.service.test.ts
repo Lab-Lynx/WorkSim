@@ -158,6 +158,21 @@ describe('submission.service (doc 9 §9.2.11)', () => {
       expect(startSubmissionPipeline).toHaveBeenCalledWith('sub-1');
     });
 
+    it('rejects diffs over the configured byte limit before changing ticket state', async () => {
+      ticketFindFirst.mockResolvedValue(ticketInProgress);
+      getBranchSubmissionState.mockResolvedValue({
+        ...branchState,
+        diff: 'x'.repeat(1_048_577),
+      });
+
+      await expect(submitWork(userId, ticketId)).rejects.toMatchObject({
+        statusCode: HTTP_STATUS.PAYLOAD_TOO_LARGE,
+        message: 'The GitHub diff exceeds the maximum allowed size',
+      });
+      expect(ticketUpdateMany).not.toHaveBeenCalled();
+      expect(submissionCreate).not.toHaveBeenCalled();
+    });
+
     it('creates attempt 2 reusing PR when attempt 1 is completed', async () => {
       ticketFindFirst.mockResolvedValue({
         ...ticketInProgress,

@@ -14,6 +14,22 @@ const asTicketContent = (value: Prisma.JsonValue): TicketContent => {
   return value as unknown as TicketContent;
 };
 
+const aiInputBytes = (value: string): number => Buffer.byteLength(value, 'utf8');
+
+const assertAiBudget = async (
+  ticketId: string,
+  additionalBytes: number,
+): Promise<void> => {
+  const ticket = await prisma.mentorMessage.findMany({
+    where: { ticketId },
+    select: { content: true },
+  });
+  const usedBytes = ticket.reduce((sum, message) => sum + aiInputBytes(message.content), 0);
+  if (usedBytes + additionalBytes > env.AI_TICKET_MAX_INPUT_BYTES) {
+    throw new ApiError(HTTP_STATUS.TOO_MANY_REQUESTS, 'AI usage limit reached for this ticket');
+  }
+};
+
 /**
  * Derive the progressive hint stage from the stored transcript (Doc 8 §8.8, FR-38).
  * Sequence: ask what was tried -> conceptual hint -> relevant file/function -> specific suggestion.
@@ -126,6 +142,8 @@ export const sendMentorMessage = async (
     );
   }
 
+  await assertAiBudget(ticketId, aiInputBytes(content));
+
   const transcript = await prisma.mentorMessage.findMany({
     where: { ticketId },
     orderBy: { createdAt: 'asc' },
@@ -226,6 +244,9 @@ export const getMentorMessages = async (
 
   return prisma.mentorMessage.findMany({
     where: { ticketId },
-    orderBy: { createdAt: 'asc' },
-  });
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  }).then((messages) =>
+    messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+  );
 };

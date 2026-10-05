@@ -1,6 +1,8 @@
+import type { SubscriptionStatus } from '@prisma/client';
+
 export interface SubscriptionDbRecord {
   id: string;
-  status: string;
+  status: SubscriptionStatus | string;
   currentPeriodEnd: Date | string;
   canceledAt: Date | string | null;
   [key: string]: unknown;
@@ -8,10 +10,12 @@ export interface SubscriptionDbRecord {
 
 export interface SerializedSubscription {
   id: string;
-  status: string;
+  status: SubscriptionStatus | string;
   currentPeriodEnd: Date | string;
   canceledAt: Date | string | null;
 }
+
+export type SerializeSubscriptionInput = SubscriptionDbRecord;
 
 export function serializeSubscription(
   subscription: SubscriptionDbRecord,

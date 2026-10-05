@@ -12,6 +12,7 @@ import { hasPaidAccess } from './subscription.service.js';
 import * as githubService from './github.service.js';
 import { serializeSubmission } from '../serializers/submission.serializer.js';
 import { startSubmissionPipeline } from './submission-pipeline.js';
+import { env } from '../config/env.js';
 
 const WRONG_TICKET_STATE = 'This ticket cannot be submitted in its current state';
 const WAIT_FOR_FEEDBACK =
@@ -90,6 +91,13 @@ export const submitWork = async (
       }
     }
     throw new ApiError(HTTP_STATUS.BAD_GATEWAY, 'Could not read your pull request from GitHub, please try again');
+  }
+
+  if (Buffer.byteLength(branchState.diff, 'utf8') > env.DIFF_MAX_BYTES) {
+    throw new ApiError(
+      HTTP_STATUS.PAYLOAD_TOO_LARGE,
+      'The GitHub diff exceeds the maximum allowed size',
+    );
   }
 
   const expectedStatus =

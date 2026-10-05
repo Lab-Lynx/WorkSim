@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import validate from '../middlewares/validate.middleware.js';
 import authMiddleware from '../middlewares/auth.middleware.js';
-import { authLimiter } from '../middlewares/rateLimiter.middleware.js';
+import { authLimiter, registrationLimiter } from '../middlewares/rateLimiter.middleware.js';
 import {
   registerSchema,
   loginSchema,
@@ -15,7 +15,13 @@ import * as authController from '../controllers/auth.controller.js';
 const router = Router();
 
 // EP-01 – EP-05 (already built — extended in place, not redesigned)
-router.post('/register', authLimiter, validate(registerSchema), authController.register);
+router.post(
+  '/register',
+  registrationLimiter,
+  authLimiter,
+  validate(registerSchema),
+  authController.register,
+);
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authMiddleware, authController.logout);

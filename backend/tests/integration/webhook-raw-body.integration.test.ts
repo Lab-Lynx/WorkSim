@@ -4,7 +4,6 @@ import crypto from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Express } from 'express';
-import { WEBHOOK_PATHS } from '../../src/app.js';
 
 /**
  * Doc 7 §7.2.9, §7.8; Doc 7 §7.9 items 83–84; Doc 9 §9.3.3 & §9.4
@@ -63,9 +62,10 @@ describe('Webhook Raw-Body Parser and Signature Verification (Doc 7 §7.2.9, §7
   let app: Express;
   let server: http.Server;
   let baseUrl: string;
+  let webhookPaths: string[];
 
   beforeAll(async () => {
-    ({ default: app } = await import('../../src/app.js'));
+    ({ default: app, WEBHOOK_PATHS: webhookPaths } = await import('../../src/app.js'));
 
     server = http.createServer(app);
     await new Promise<void>((resolve) => {
@@ -82,10 +82,10 @@ describe('Webhook Raw-Body Parser and Signature Verification (Doc 7 §7.2.9, §7
   });
 
   it('exports expected webhook paths in app.ts', () => {
-    expect(WEBHOOK_PATHS).toContain('/api/v1/webhooks/chapa');
-    expect(WEBHOOK_PATHS).toContain('/api/v1/webhooks/github');
-    expect(WEBHOOK_PATHS).toContain('/webhooks/chapa');
-    expect(WEBHOOK_PATHS).toContain('/webhooks/github');
+    expect(webhookPaths).toContain('/api/v1/webhooks/chapa');
+    expect(webhookPaths).toContain('/api/v1/webhooks/github');
+    expect(webhookPaths).toContain('/webhooks/chapa');
+    expect(webhookPaths).toContain('/webhooks/github');
   });
 
   describe('EP-14 Chapa raw-body signature verification', () => {

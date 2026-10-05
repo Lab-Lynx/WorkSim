@@ -1,36 +1,217 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { HTTP_STATUS } from '../../src/constants/index.js';
+import { SubscriptionStatus, PaymentStatus, Prisma } from '@prisma/client';
 
-const findFirst = vi.fn();
+const subscriptionFindFirst = vi.fn();
+const subscriptionUpdate = vi.fn();
+const userFindUnique = vi.fn();
+const paymentCreate = vi.fn();
+const paymentFindMany = vi.fn();
+const initializePayment = vi.fn();
 
 vi.mock('../../src/config/db.js', () => ({
   prisma: {
-    subscription: { findFirst },
+    subscription: {
+      findFirst: subscriptionFindFirst,
+      update: subscriptionUpdate,
+    },
+    user: {
+      findUnique: userFindUnique,
+    },
+    payment: {
+      create: paymentCreate,
+      findMany: paymentFindMany,
+    },
   },
 }));
 
-const { hasPaidAccess } = await import('../../src/services/subscription.service.js');
+vi.mock('../../src/integrations/chapa.js', () => ({
+  initializePayment,
+}));
 
-describe('subscription.service hasPaidAccess', () => {
+const {
+  hasPaidAccess,
+  createCheckout,
+  getSubscriptionStatus,
+  cancelSubscription,
+  listPayments,
+} = await import('../../src/services/subscription.service.js');
+
+describe('subscription.service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns true when a subscription has currentPeriodEnd in the future', async () => {
-    findFirst.mockResolvedValue({ id: 'sub-1' });
-    const now = new Date('2026-06-01T00:00:00.000Z');
+  describe('hasPaidAccess', () => {
+    it('returns true when a subscription has currentPeriodEnd in the future', async () => {
+      subscriptionFindFirst.mockResolvedValue({ id: 'sub-1' });
+      const now = new Date('2026-06-01T00:00:00.000Z');
 
-    await expect(hasPaidAccess('user-1', now)).resolves.toBe(true);
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        userId: 'user-1',
-        currentPeriodEnd: { gt: now },
-      },
-      select: { id: true },
+      await expect(hasPaidAccess('user-1', now)).resolves.toBe(true);
+      expect(subscriptionFindFirst).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          currentPeriodEnd: { gt: now },
+        },
+        select: { id: true },
+      });
+    });
+
+    it('returns false when no live subscription exists', async () => {
+      subscriptionFindFirst.mockResolvedValue(null);
+      await expect(hasPaidAccess('user-1')).resolves.toBe(false);
     });
   });
 
-  it('returns false when no live subscription exists', async () => {
-    findFirst.mockResolvedValue(null);
-    await expect(hasPaidAccess('user-1')).resolves.toBe(false);
+  describe('createCheckout', () => {
+    it('throws 409 if user already has an active subscription', async () => {
+      subscriptionFindFirst.mockResolvedValue({ id: 'sub-1' });
+
+      await expect(createCheckout('user-1')).rejects.toMatchObject({
+        statusCode: HTTP_STATUS.CONFLICT,
+        message: 'You already have an active subscription',
+      });
+    });
+
+    it('throws 404 if user not found', async () => {
+      subscriptionFindFirst.mockResolvedValue(null);
+      userFindUnique.mockResolvedValue(null);
+
+      await expect(createCheckout('user-1')).rejects.toMatchObject({
+        statusCode: HTTP_STATUS.NOT_FOUND,
+        message: 'User not found',
+      });
+    });
+
+    it('creates pending payment and calls initializePayment', async () => {
+      subscriptionFindFirst.mockResolvedValue(null);
+      userFindUnique.mockResolvedValue({ email: 'ada@example.com', name: 'Ada Lovelace' });
+      paymentCreate.mockResolvedValue({ id: 'pay-1' });
+      initializePayment.mockResolvedValue({ checkoutUrl: 'https://checkout.chapa.co/test' });
+
+      const result = await createCheckout('user-1');
+
+      expect(paymentCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'user-1',
+            status: PaymentStatus.pending,
+          }),
+        }),
+      );
+      expect(initializePayment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'ada@example.com',
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+        }),
+      );
+      expect(result).toEqual({ checkoutUrl: 'https://checkout.chapa.co/test' });
+    });
+  });
+
+  describe('getSubscriptionStatus', () => {
+    it('returns null subscription and hasAccess: false when no subscription exists', async () => {
+      subscriptionFindFirst.mockResolvedValue(null);
+
+      const result = await getSubscriptionStatus('user-1');
+      expect(result).toEqual({
+        subscription: null,
+        hasAccess: false,
+      });
+    });
+
+    it('returns serialized subscription and hasAccess when subscription exists', async () => {
+      const now = new Date();
+      const future = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 30);
+      subscriptionFindFirst.mockResolvedValue({
+        id: 'sub-1',
+        status: SubscriptionStatus.active,
+        currentPeriodEnd: future,
+        canceledAt: null,
+      });
+
+      const result = await getSubscriptionStatus('user-1');
+      expect(result).toEqual({
+        subscription: {
+          id: 'sub-1',
+          status: SubscriptionStatus.active,
+          currentPeriodEnd: future.toISOString(),
+          canceledAt: null,
+        },
+        hasAccess: true,
+      });
+    });
+  });
+
+  describe('cancelSubscription', () => {
+    it('throws 404 if no active subscription exists', async () => {
+      subscriptionFindFirst.mockResolvedValue(null);
+
+      await expect(cancelSubscription('user-1')).rejects.toMatchObject({
+        statusCode: HTTP_STATUS.NOT_FOUND,
+        message: 'No active subscription found to cancel',
+      });
+    });
+
+    it('updates subscription to canceled and returns serialized subscription', async () => {
+      const canceledAt = new Date();
+      const currentPeriodEnd = new Date(Date.now() + 10000);
+      subscriptionFindFirst.mockResolvedValue({
+        id: 'sub-1',
+        status: SubscriptionStatus.active,
+      });
+      subscriptionUpdate.mockResolvedValue({
+        id: 'sub-1',
+        status: SubscriptionStatus.canceled,
+        currentPeriodEnd,
+        canceledAt,
+      });
+
+      const result = await cancelSubscription('user-1');
+
+      expect(subscriptionUpdate).toHaveBeenCalledWith({
+        where: { id: 'sub-1' },
+        data: expect.objectContaining({
+          status: SubscriptionStatus.canceled,
+        }),
+      });
+      expect(result).toEqual({
+        id: 'sub-1',
+        status: SubscriptionStatus.canceled,
+        currentPeriodEnd: currentPeriodEnd.toISOString(),
+        canceledAt: canceledAt.toISOString(),
+      });
+    });
+  });
+
+  describe('listPayments', () => {
+    it('returns serialized list of payments', async () => {
+      const createdAt = new Date('2026-01-01T00:00:00.000Z');
+      const paidAt = new Date('2026-01-01T00:05:00.000Z');
+      paymentFindMany.mockResolvedValue([
+        {
+          id: 'pay-1',
+          amount: new Prisma.Decimal('29.00'),
+          currency: 'ETB',
+          status: PaymentStatus.succeeded,
+          paidAt,
+          createdAt,
+        },
+      ]);
+
+      const result = await listPayments('user-1');
+
+      expect(result).toEqual([
+        {
+          id: 'pay-1',
+          amount: '29',
+          currency: 'ETB',
+          status: PaymentStatus.succeeded,
+          paidAt: paidAt.toISOString(),
+          createdAt: createdAt.toISOString(),
+        },
+      ]);
+    });
   });
 });
