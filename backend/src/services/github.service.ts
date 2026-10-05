@@ -105,7 +105,6 @@ export const completeGitHubAuthorization = async (
     return frontendOAuthRedirect('error', 'exchange_failed');
   }
 };
-
 export async function handleGitHubCallback(
   _userId: string,
   code: string,
