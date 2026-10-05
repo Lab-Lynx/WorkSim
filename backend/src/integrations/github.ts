@@ -122,7 +122,10 @@ export async function exchangeCodeForToken(
     process.env.GITHUB_CLIENT_SECRET || process.env.GITHUB_OAUTH_CLIENT_SECRET || '';
 
   if (!clientId || !clientSecret) {
-    throw new Error('GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET is not set');
+    throw new ApiError(
+      HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      'GitHub OAuth configuration is incomplete',
+    );
   }
 
   let response: Response;
