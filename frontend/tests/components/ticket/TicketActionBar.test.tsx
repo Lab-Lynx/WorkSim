@@ -36,11 +36,12 @@ describe('TicketActionBar (FE-094)', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('enables the action without requiring an active subscription', () => {
+  it('disables the action without access and links to billing', () => {
     render(<MemoryRouter><TicketActionBar phase={phase} hasAccess={false} onAction={vi.fn()} pendingAction={null} error={null} /></MemoryRouter>);
 
-    expect(screen.getByRole('button', { name: /submit for feedback/i })).toBeEnabled();
-    expect(screen.queryByText('An active subscription is required.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /submit for feedback/i })).toBeDisabled();
+    expect(screen.getByText('An active subscription is required.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to billing' })).toHaveAttribute('href', '/billing');
   });
 
   it('renders API guidance links for action errors', () => {

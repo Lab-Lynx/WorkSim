@@ -29,10 +29,11 @@ describe('GitHubConnectionCard (FE-078)', () => {
     expect(screen.getByText(GITHUB_PERMISSIONS_TEXT)).toBeInTheDocument();
   });
 
-  it('enables connect without requiring an active subscription', () => {
-    render(<MemoryRouter><GitHubConnectionCard {...baseProps} /></MemoryRouter>);
-    expect(screen.getByRole('button', { name: /connect github/i })).toBeEnabled();
-    expect(screen.queryByText(/an active subscription is required/i)).not.toBeInTheDocument();
+  it('disables connect without access and links to billing', () => {
+    render(<MemoryRouter><GitHubConnectionCard {...baseProps} hasAccess={false} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: /connect github/i })).toBeDisabled();
+    expect(screen.getByText(/an active subscription is required/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Billing' })).toHaveAttribute('href', '/billing');
   });
 
   it('delegates connect and shows the redirecting state', () => {

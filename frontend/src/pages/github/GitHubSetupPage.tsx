@@ -12,6 +12,7 @@ import { useGitHubConnection } from '@/hooks/github/useGitHubConnection';
 import { useGitHubConnect } from '@/hooks/github/useGitHubConnect';
 import { useDisconnectGitHub } from '@/hooks/github/useDisconnectGitHub';
 import { useCreateRepo } from '@/hooks/github/useCreateRepo';
+import { useSubscription } from '@/hooks/billing/useSubscription';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { parseGitHubOAuthResult } from '@/lib/github';
 import { mapApiError, type UiError } from '@/lib/api/errors';
@@ -85,6 +86,8 @@ export default function GitHubSetupPage(): React.JSX.Element {
     githubLogin: null,
     repo: null,
   };
+  const subscriptionQuery = useSubscription();
+  const hasAccess = Boolean(subscriptionQuery.data?.hasAccess);
   const connectMutation = useGitHubConnect();
   const disconnectMutation = useDisconnectGitHub();
   const createRepoMutation = useCreateRepo();
@@ -155,7 +158,13 @@ export default function GitHubSetupPage(): React.JSX.Element {
         linkTo: '#github-connection',
         linkLabel: 'Connect GitHub',
       }
-    : null;
+    : !hasAccess
+      ? {
+          message: 'An active subscription is required.',
+          linkTo: '/billing',
+          linkLabel: 'Billing',
+        }
+      : null;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -199,6 +208,7 @@ export default function GitHubSetupPage(): React.JSX.Element {
         <CardContent className="pt-0">
           <GitHubConnectionCard
             connection={connection}
+            hasAccess={hasAccess}
             oauthResult={oauthResult}
             onDismissResult={() => setOAuthResult(null)}
             isConnecting={isConnecting || connectMutation.isPending}

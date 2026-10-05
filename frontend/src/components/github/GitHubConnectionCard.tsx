@@ -1,6 +1,8 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ExternalLink } from '@/components/common/ExternalLink';
 import { Button } from '@/components/ui/button';
+import { ROUTES } from '@/constants';
 import { getGitHubOAuthErrorMessage, type GitHubOAuthResult } from '@/lib/github';
 import type { UiError } from '@/lib/api/errors';
 import type { GitHubConnectionSummary } from '@/types';
@@ -10,6 +12,7 @@ export const GITHUB_PERMISSIONS_TEXT =
 
 interface GitHubConnectionCardProps {
     connection: GitHubConnectionSummary;
+    hasAccess: boolean;
     oauthResult: GitHubOAuthResult | null;
     onDismissResult: () => void;
     isConnecting: boolean;
@@ -20,6 +23,7 @@ interface GitHubConnectionCardProps {
 
 export default function GitHubConnectionCard({
     connection,
+    hasAccess,
     oauthResult,
     onDismissResult,
     isConnecting,
@@ -89,9 +93,17 @@ export default function GitHubConnectionCard({
                     </div>
                 ) : (
                     <div className="flex flex-wrap items-center gap-3">
-                        <Button type="button" onClick={onConnect} disabled={isConnecting}>
+                        <Button type="button" onClick={onConnect} disabled={!hasAccess || isConnecting}>
                             {isConnecting ? 'Redirecting to GitHub…' : 'Connect GitHub'}
                         </Button>
+                        {!hasAccess && (
+                            <p className="text-sm text-muted-foreground">
+                                An active subscription is required.{' '}
+                                <Link to={ROUTES.BILLING} className="font-medium text-primary underline">
+                                    Billing
+                                </Link>
+                            </p>
+                        )}
                     </div>
                 )}
             </div>
