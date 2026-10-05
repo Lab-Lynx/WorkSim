@@ -43,7 +43,7 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().min(1),
   GITHUB_CALLBACK_URL: z.string().url(),
   GITHUB_TOKEN_ENCRYPTION_KEY: z.string().min(1),
-  GITHUB_REQUESTED_SCOPE: z.literal('write:repo_hook').default('write:repo_hook'),
+  GITHUB_REQUESTED_SCOPE: z.string().min(1).default('repo,write:repo_hook'),
   GITHUB_WEBHOOK_SECRET: z.string().min(1),
 
   GEMINI_API_KEY: z.string().min(1),

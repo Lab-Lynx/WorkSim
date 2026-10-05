@@ -361,19 +361,9 @@ describeDb('ticket-lifecycle (Doc 9 §9.3.10)', () => {
     }
   });
 
-  it('Gate order — 402 then 403 then 409', async () => {
+  it('Gate order — 403 then 409 (free ticket assignment without subscription)', async () => {
     const user = await createUser();
 
-    const noSub = await api('POST', '/tickets', { userId: user.id });
-    expect(noSub.status).toBe(402);
-
-    await prisma.subscription.create({
-      data: {
-        userId: user.id,
-        status: SubscriptionStatus.active,
-        currentPeriodEnd: new Date(Date.now() + 86400000),
-      },
-    });
     const noGh = await api('POST', '/tickets', { userId: user.id });
     expect(noGh.status).toBe(403);
 

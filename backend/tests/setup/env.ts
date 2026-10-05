@@ -10,6 +10,6 @@ process.env.GITHUB_CLIENT_SECRET ??= 'test_github_client_secret';
 process.env.GITHUB_CALLBACK_URL ??= 'http://localhost:3000/api/v1/github/callback';
 process.env.GITHUB_TOKEN_ENCRYPTION_KEY ??= 'test_encryption_key_placeholder_32_bytes_len!';
 process.env.GITHUB_WEBHOOK_SECRET ??= 'test_github_webhook_secret_here';
-process.env.GITHUB_REQUESTED_SCOPE = 'write:repo_hook';
+process.env.GITHUB_REQUESTED_SCOPE = 'repo,write:repo_hook';
 process.env.GEMINI_API_KEY ??= 'test_gemini_api_key';
 process.env.GROQ_API_KEY ??= 'test_groq_api_key';

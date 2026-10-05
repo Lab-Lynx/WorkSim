@@ -2,7 +2,6 @@ import { Router } from 'express';
 import validate from '../middlewares/validate.middleware.js';
 import authMiddleware from '../middlewares/auth.middleware.js';
 import {
-  requirePaidAccess,
   requireGitHubConnection,
   requireStarterRepo,
 } from '../middlewares/access.middleware.js';
@@ -20,7 +19,6 @@ const router = Router();
 router.post(
   '/',
   authMiddleware,
-  requirePaidAccess,
   requireGitHubConnection,
   requireStarterRepo,
   ticketAssignmentLimiter,
@@ -42,7 +40,6 @@ router.get(
 router.post(
   '/:ticketId/start',
   authMiddleware,
-  requirePaidAccess,
   validate(startTicketParamsSchema),
   ticketController.startTicket,
 );
@@ -51,7 +48,6 @@ router.post(
 router.post(
   '/:ticketId/abandon',
   authMiddleware,
-  requirePaidAccess,
   requireGitHubConnection,
   requireStarterRepo,
   validate(abandonTicketParamsSchema),

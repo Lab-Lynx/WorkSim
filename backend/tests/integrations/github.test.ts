@@ -49,4 +49,47 @@ describe('GitHub OAuth integration', () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('accepts normalized repo scope when repo,write:repo_hook is requested', async () => {
+    vi.stubEnv('GITHUB_REQUESTED_SCOPE', 'repo,write:repo_hook');
+    fetchMock
+      .mockResolvedValueOnce(response({ access_token: 'gho_secret', scope: 'repo' }))
+      .mockResolvedValueOnce(response({ id: 123, login: 'octocat' }));
+
+    await expect(exchangeOAuthCode('code')).resolves.toEqual({
+      accessToken: 'gho_secret',
+      scope: 'repo',
+      githubUserId: '123',
+      githubLogin: 'octocat',
+    });
+    vi.stubEnv('GITHUB_REQUESTED_SCOPE', 'write:repo_hook');
+  });
+
+  it('accepts both repo and write:repo_hook when requested', async () => {
+    vi.stubEnv('GITHUB_REQUESTED_SCOPE', 'repo,write:repo_hook');
+    fetchMock
+      .mockResolvedValueOnce(response({ access_token: 'gho_secret', scope: 'repo,write:repo_hook' }))
+      .mockResolvedValueOnce(response({ id: 123, login: 'octocat' }));
+
+    await expect(exchangeOAuthCode('code')).resolves.toEqual({
+      accessToken: 'gho_secret',
+      scope: 'repo,write:repo_hook',
+      githubUserId: '123',
+      githubLogin: 'octocat',
+    });
+    vi.stubEnv('GITHUB_REQUESTED_SCOPE', 'write:repo_hook');
+  });
+
+  it('rejects when missing repo when repo,write:repo_hook is requested', async () => {
+    vi.stubEnv('GITHUB_REQUESTED_SCOPE', 'repo,write:repo_hook');
+    fetchMock.mockResolvedValueOnce(
+      response({ access_token: 'gho_secret', scope: 'write:repo_hook' }),
+    );
+
+    await expect(exchangeOAuthCode('code')).rejects.toMatchObject({
+      statusCode: 502,
+      message: 'GitHub returned an invalid permission scope',
+    });
+    vi.stubEnv('GITHUB_REQUESTED_SCOPE', 'write:repo_hook');
+  });
 });

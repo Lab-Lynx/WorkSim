@@ -249,11 +249,24 @@ describe('submission.service (doc 9 §9.2.11)', () => {
       expect(submissionCreate).not.toHaveBeenCalled();
     });
 
-    it('throws 402 without paid access', async () => {
-      hasPaidAccess.mockResolvedValue(false);
-      await expect(submitWork(userId, ticketId)).rejects.toMatchObject({
-        statusCode: HTTP_STATUS.PAYMENT_REQUIRED,
+    it('submits work without requiring paid access', async () => {
+      ticketFindFirst.mockResolvedValue(ticketInProgress);
+      submissionCreate.mockResolvedValue({
+        id: 'sub-1',
+        ticketId,
+        attempt: 1,
+        status: SubmissionStatus.awaiting_ci,
+        prNumber: 7,
+        headSha: 'deadbeef',
+        ciPassed: null,
+        ciRunUrl: null,
+        failureReason: null,
+        submittedAt: new Date(),
+        diff: branchState.diff,
       });
+
+      const result = await submitWork(userId, ticketId);
+      expect(result.id).toBe('sub-1');
     });
 
     it('propagates 403 from GitHub connection', async () => {
@@ -501,13 +514,7 @@ describe('submission.service (doc 9 §9.2.11)', () => {
       expect(startSubmissionPipeline).not.toHaveBeenCalled();
     });
 
-    it('throws 402 without paid access and 404 when not owned', async () => {
-      hasPaidAccess.mockResolvedValue(false);
-      await expect(retrySubmission(userId, ticketId, 1)).rejects.toMatchObject({
-        statusCode: HTTP_STATUS.PAYMENT_REQUIRED,
-      });
-
-      hasPaidAccess.mockResolvedValue(true);
+    it('retries submission without requiring paid access and throws 404 when not owned', async () => {
       ticketFindFirst.mockResolvedValue(null);
       await expect(retrySubmission(userId, ticketId, 1)).rejects.toMatchObject({
         statusCode: HTTP_STATUS.NOT_FOUND,
