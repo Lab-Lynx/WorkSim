@@ -5,7 +5,7 @@ import type { TicketPhaseInfo, TicketPrimaryAction } from '@/lib/ticket-phase';
 
 export interface TicketActionBarProps {
 	phase: TicketPhaseInfo;
-	hasAccess: boolean;
+	hasAccess?: boolean;
 	pendingAction: TicketPrimaryAction | null;
 	error: UiError | null;
 	onAction: (action: TicketPrimaryAction) => void;
@@ -34,7 +34,6 @@ const phaseCopy: Record<TicketPhaseInfo['key'], string> = {
 
 export default function TicketActionBar({
 	phase,
-	hasAccess,
 	pendingAction,
 	error,
 	onAction,
@@ -57,17 +56,11 @@ export default function TicketActionBar({
 						type="button"
 						isPending={isPending}
 						pendingLabel={copy.pending}
-						disabled={!hasAccess || (pendingAction !== null && !isPending)}
+						disabled={pendingAction !== null && !isPending}
 						onClick={() => onAction(action)}
 					>
 						{copy.label}
 					</SubmitButton>
-					{!hasAccess && (
-						<p className="text-sm text-muted-foreground">
-							An active subscription is required.{' '}
-							<Link to="/billing" className="font-medium text-primary underline">Go to billing</Link>
-						</p>
-					)}
 					{action === 'submit' && (
 						<p className="basis-full text-xs text-muted-foreground">
 							Your first submission gets feedback only, no score. You can then revise and resubmit once for your final score.

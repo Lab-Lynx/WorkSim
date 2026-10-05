@@ -262,9 +262,22 @@ export default function DashboardPage() {
                 error: currentTicket.error ? mapApiError(currentTicket.error) : null,
                 refetch: () => void currentTicket.refetch(),
               }}
-              canGetTicket={progress.canGetTicket}
+              canGetTicket={
+                progress.canGetTicket ||
+                (progress.steps.find((s) => s.key === 'connect_github')?.status === 'done' &&
+                  progress.steps.find((s) => s.key === 'create_repo')?.status === 'done' &&
+                  currentTicket.data === null)
+              }
               getBlockedReason={
-                progress.setupComplete ? null : 'Finish setup to get a ticket.'
+                currentTicket.data
+                  ? 'Complete or abandon your active ticket before requesting a new one.'
+                  : !progress.setupComplete &&
+                    progress.steps.find((s) => s.key === 'connect_github')?.status === 'done' &&
+                    progress.steps.find((s) => s.key === 'create_repo')?.status === 'done'
+                    ? null
+                    : progress.setupComplete
+                      ? null
+                      : 'Finish setup to get a ticket.'
               }
               isGetting={assignTicket.isPending}
               getError={getError}
