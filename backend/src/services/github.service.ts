@@ -22,18 +22,6 @@ const PR_READ_FAILED =
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
-export type GitHubCallbackFailure = 'state_invalid' | 'scope_invalid' | 'exchange_failed';
-
-export class GitHubCallbackError extends Error {
-  constructor(
-    readonly category: GitHubCallbackFailure,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'GitHubCallbackError';
-  }
-}
-
 const frontendOAuthRedirect = (status: 'connected' | 'error', reason?: string): string => {
   const url = new URL('/github', env.CLIENT_URL);
   url.searchParams.set('github', status);
@@ -64,8 +52,6 @@ export const createGitHubAuthorization = async (userId: string): Promise<string>
   url.searchParams.set('state', state);
   return url.toString();
 };
-
-export const createGitHubAuthorizeUrl = createGitHubAuthorization;
 
 export const completeGitHubAuthorization = async (
   state: string | undefined,
@@ -116,17 +102,6 @@ export const completeGitHubAuthorization = async (
     return frontendOAuthRedirect('error', 'exchange_failed');
   }
 };
-export async function handleGitHubCallback(
-  _userId: string,
-  code: string,
-  state: string,
-): Promise<void> {
-  const result = await completeGitHubAuthorization(state, code);
-  if (result.includes('error')) {
-    throw new GitHubCallbackError('exchange_failed', 'GitHub OAuth callback failed');
-  }
-}
-
 export const assertGitHubConnected = async (userId: string): Promise<void> => {
   const connection = await prisma.gitHubConnection.findUnique({ where: { userId } });
   if (!connection) {
@@ -235,7 +210,9 @@ export const createStarterRepo = async (
   }
 
   const accessToken = decryptGitHubToken(connection.accessTokenEncrypted);
-  const webhookUrl = `${env.CLIENT_URL.replace(/\/+$/, '')}/api/v1/webhooks/github`;
+  // The webhook must reach this API, not the frontend. The OAuth callback URL is
+  // already configured as this API's public address, so reuse its origin.
+  const webhookUrl = new URL('/api/v1/webhooks/github', env.GITHUB_CALLBACK_URL).toString();
 
   let repoResult;
   try {
@@ -323,6 +300,26 @@ export const createTicketBranch = async (
     if (err instanceof ApiError) throw err;
     throw new ApiError(HTTP_STATUS.BAD_GATEWAY, BRANCH_CREATE_FAILED);
   }
+};
+
+/** CI state of a commit on the user's starter repo. */
+export const getCommitCiState = async (
+  userId: string,
+  headSha: string,
+): Promise<githubIntegration.CommitCiState> => {
+  const connection = await prisma.gitHubConnection.findUnique({ where: { userId } });
+  const repo = await prisma.starterRepo.findUnique({ where: { userId } });
+  if (!connection || !repo) return { state: 'none' };
+
+  const [owner, repoName] = repo.fullName.split('/');
+  if (!owner || !repoName) return { state: 'none' };
+
+  return githubIntegration.getCommitCiState({
+    owner,
+    repo: repoName,
+    headSha,
+    accessToken: decryptGitHubToken(connection.accessTokenEncrypted),
+  });
 };
 
 /**

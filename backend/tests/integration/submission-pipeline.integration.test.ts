@@ -50,6 +50,8 @@ const createBranch = vi.fn();
 const generateTicketWording = vi.fn();
 const getBranchSubmissionState = vi.fn();
 const startSubmissionPipeline = vi.fn();
+const applyCiResult = vi.fn();
+const getCommitCiState = vi.fn();
 
 vi.mock('../../src/integrations/github.js', () => ({
   createBranch: (...args: unknown[]) => createBranch(...args),
@@ -64,11 +66,13 @@ vi.mock('../../src/services/github.service.js', async (importOriginal) => {
   return {
     ...actual,
     getBranchSubmissionState: (...args: unknown[]) => getBranchSubmissionState(...args),
+    getCommitCiState: (...args: unknown[]) => getCommitCiState(...args),
   };
 });
 
 vi.mock('../../src/services/submission-pipeline.js', () => ({
   startSubmissionPipeline: (...args: unknown[]) => startSubmissionPipeline(...args),
+  applyCiResult: (...args: unknown[]) => applyCiResult(...args),
 }));
 
 function defaultWording(template: TicketTemplate) {
@@ -142,6 +146,8 @@ describeDb('submission-pipeline (Doc 9 §9.3.12)', () => {
     vi.clearAllMocks();
     createBranch.mockResolvedValue(undefined);
     startSubmissionPipeline.mockResolvedValue(undefined);
+    applyCiResult.mockResolvedValue(undefined);
+    getCommitCiState.mockResolvedValue({ state: 'none' });
     getBranchSubmissionState.mockResolvedValue(branchState);
     generateTicketWording.mockImplementation(async (template: TicketTemplate) =>
       defaultWording(template),
@@ -266,7 +272,8 @@ describeDb('submission-pipeline (Doc 9 §9.3.12)', () => {
       where: { ticketId_attempt: { ticketId, attempt: 1 } },
     });
     expect(row.diff).toBe(branchState.diff);
-    expect(startSubmissionPipeline).toHaveBeenCalledWith(row.id);
+    await vi.waitFor(() => expect(getCommitCiState).toHaveBeenCalledWith(user.id, row.headSha));
+    expect(startSubmissionPipeline).not.toHaveBeenCalled();
   });
 
   it('poll without includeDiff omits diff; with includeDiff=true returns it', async () => {

@@ -10,12 +10,12 @@ const prismaMock = {
   submission: { findFirst: vi.fn(), update: vi.fn() },
   $transaction: vi.fn(),
 };
-const startSubmissionPipeline = vi.fn();
+const applyCiResult = vi.fn();
 const loggerError = vi.fn();
 
 vi.mock('../../src/config/db.js', () => ({ prisma: prismaMock }));
 vi.mock('../../src/services/submission-pipeline.js', () => ({
-  startSubmissionPipeline,
+  applyCiResult,
 }));
 vi.mock('../../src/utils/logger.js', () => ({
   default: { error: loggerError, warn: vi.fn(), info: vi.fn() },
@@ -45,7 +45,7 @@ describe('webhook.service', () => {
     txMock.subscription.findFirst.mockResolvedValue(null);
     txMock.subscription.create.mockResolvedValue({});
     txMock.subscription.updateMany.mockResolvedValue({ count: 1 });
-    startSubmissionPipeline.mockResolvedValue(undefined);
+    applyCiResult.mockResolvedValue(undefined);
   });
 
   describe('processGitHubWebhook', () => {
@@ -105,11 +105,10 @@ describe('webhook.service', () => {
         'workflow_run',
       );
 
-      expect(prismaMock.submission.update).not.toHaveBeenCalled();
-      expect(startSubmissionPipeline).not.toHaveBeenCalled();
+      expect(applyCiResult).not.toHaveBeenCalled();
     });
 
-    it('marks successful workflow completion and starts evaluation', async () => {
+    it('settles a successful workflow run as passed CI', async () => {
       await processGitHubWebhook(
         {
           action: 'completed',
@@ -124,18 +123,13 @@ describe('webhook.service', () => {
         'workflow_run',
       );
 
-      expect(prismaMock.submission.update).toHaveBeenCalledWith({
-        where: { id: 'submission-1' },
-        data: {
-          status: 'evaluating',
-          ciPassed: true,
-          ciRunUrl: 'https://github.com/example/actions/1',
-        },
+      expect(applyCiResult).toHaveBeenCalledWith('submission-1', {
+        passed: true,
+        runUrl: 'https://github.com/example/actions/1',
       });
-      expect(startSubmissionPipeline).toHaveBeenCalledWith('submission-1');
     });
 
-    it('fails the submission with the conclusion when CI does not succeed', async () => {
+    it('settles a failed workflow run with its conclusion', async () => {
       await processGitHubWebhook(
         {
           action: 'completed',
@@ -146,16 +140,11 @@ describe('webhook.service', () => {
         'workflow_run',
       );
 
-      expect(prismaMock.submission.update).toHaveBeenCalledWith({
-        where: { id: 'submission-1' },
-        data: {
-          status: 'failed',
-          ciPassed: false,
-          ciRunUrl: 'https://ci/1',
-          failureReason: 'GitHub Actions completed with conclusion: failure',
-        },
+      expect(applyCiResult).toHaveBeenCalledWith('submission-1', {
+        passed: false,
+        runUrl: 'https://ci/1',
+        conclusion: 'failure',
       });
-      expect(startSubmissionPipeline).not.toHaveBeenCalled();
     });
 
     it('reports an unknown conclusion when GitHub sends none', async () => {
@@ -169,13 +158,11 @@ describe('webhook.service', () => {
         'workflow_run',
       );
 
-      expect(prismaMock.submission.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            failureReason: 'GitHub Actions completed with conclusion: unknown',
-          }),
-        }),
-      );
+      expect(applyCiResult).toHaveBeenCalledWith('submission-1', {
+        passed: false,
+        runUrl: null,
+        conclusion: 'unknown',
+      });
     });
   });
 

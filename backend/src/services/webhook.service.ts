@@ -1,7 +1,7 @@
 import { Prisma, PaymentStatus, SubmissionStatus, SubscriptionStatus, WebhookProvider } from '@prisma/client';
 import { prisma } from '../config/db.js';
 import logger from '../utils/logger.js';
-import { startSubmissionPipeline } from './submission-pipeline.js';
+import { applyCiResult } from './submission-pipeline.js';
 
 type ChapaPayload = {
   event?: string;
@@ -96,27 +96,13 @@ export const processGitHubWebhook = async (
   });
   if (!submission) return;
 
-  if (run.conclusion === 'success') {
-    await prisma.submission.update({
-      where: { id: submission.id },
-      data: {
-        status: SubmissionStatus.evaluating,
-        ciPassed: true,
-        ciRunUrl: run.html_url,
-      },
-    });
-    await startSubmissionPipeline(submission.id);
-  } else {
-    await prisma.submission.update({
-      where: { id: submission.id },
-      data: {
-        status: SubmissionStatus.failed,
-        ciPassed: false,
-        ciRunUrl: run.html_url,
-        failureReason: `GitHub Actions completed with conclusion: ${run.conclusion ?? 'unknown'}`,
-      },
-    });
-  }
+  const runUrl = run.html_url ?? null;
+  await applyCiResult(
+    submission.id,
+    run.conclusion === 'success'
+      ? { passed: true, runUrl }
+      : { passed: false, runUrl, conclusion: run.conclusion ?? 'unknown' },
+  );
 };
 
 export const logWebhookProcessingFailure = (provider: string, error: unknown): void => {
