@@ -25,9 +25,9 @@ import { encryptGitHubToken } from '../../src/lib/crypto/github-token.js';
  * | EP-04, EP-05, EP-10, EP-11, EP-12                 | 401                                | —              | —                    | —               | —                     |
  * | EP-13, EP-15, EP-16, EP-17                        | 401                                | —              | —                    | —               | —                     |
  * | EP-14, EP-33 (webhooks)                           | — (bad signature: 401)             | —              | —                    | —               | —                     |
- * | EP-18                                             | 401                                | 402            | —                    | —               | —                     |
- * | EP-19, EP-20, EP-21                               | 401                                | —              | —                    | —               | —                     |
- * | EP-22                                             | 401                                | 402            | 403                  | —               | —                     |
+ * | EP-18, EP-20, EP-21                               | 401                                | —              | —                    | —               | —                     |
+ * | EP-19 (public, state-validated)                   | —                                  | —              | —                    | —               | —                     |
+ * | EP-22                                             | 401                                | —              | 403                  | —               | —                     |
  * | EP-23                                             | 401                                | 402            | 403                  | 409             | —                     |
  * | EP-24, EP-34                                      | 401                                | —              | —                    | —               | —                     |
  * | EP-25, EP-28, EP-29, EP-31                        | 401                                | —              | —                    | —               | 404                   |
@@ -180,13 +180,13 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     validBody: () => ({ displayName: 'Ada Lovelace' }),
   },
 
-  // EP-13 to EP-17: Subscriptions and Payments (deferred/pending)
+  // EP-13 to EP-17: Subscriptions and Payments
   {
     id: 'EP-13',
     method: 'POST',
     path: '/subscriptions/checkout',
     getPath: () => '/subscriptions/checkout',
-    implemented: false,
+    implemented: true,
     noSessionExpected: 401,
   },
   {
@@ -194,7 +194,7 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     method: 'POST',
     path: '/webhooks/chapa',
     getPath: () => '/webhooks/chapa',
-    implemented: false,
+    implemented: true,
     noSessionExpected: 401,
   },
   {
@@ -202,7 +202,7 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     method: 'GET',
     path: '/subscriptions/me',
     getPath: () => '/subscriptions/me',
-    implemented: false,
+    implemented: true,
     noSessionExpected: 401,
   },
   {
@@ -210,7 +210,7 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     method: 'POST',
     path: '/subscriptions/cancel',
     getPath: () => '/subscriptions/cancel',
-    implemented: false,
+    implemented: true,
     noSessionExpected: 401,
   },
   {
@@ -218,34 +218,33 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     method: 'GET',
     path: '/payments',
     getPath: () => '/payments',
-    implemented: false,
+    implemented: true,
     noSessionExpected: 401,
   },
 
-  // EP-18 to EP-22: GitHub (deferred/pending)
+  // EP-18 to EP-22: GitHub
   {
     id: 'EP-18',
     method: 'GET',
     path: '/github/connect',
     getPath: () => '/github/connect',
-    implemented: false,
+    implemented: true,
     noSessionExpected: 401,
-    noPaidExpected: 402,
   },
   {
+    // Public: GitHub redirects the browser here, and the signed OAuth `state` identifies the user.
     id: 'EP-19',
     method: 'GET',
     path: '/github/callback',
     getPath: () => '/github/callback',
-    implemented: false,
-    noSessionExpected: 401,
+    implemented: true,
   },
   {
     id: 'EP-20',
     method: 'GET',
     path: '/github/connection',
     getPath: () => '/github/connection',
-    implemented: false,
+    implemented: true,
     noSessionExpected: 401,
   },
   {
@@ -253,7 +252,7 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     method: 'DELETE',
     path: '/github/connection',
     getPath: () => '/github/connection',
-    implemented: false,
+    implemented: true,
     noSessionExpected: 401,
   },
   {
@@ -261,10 +260,10 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     method: 'POST',
     path: '/github/repo',
     getPath: () => '/github/repo',
-    implemented: false,
+    implemented: true,
     noSessionExpected: 401,
-    noPaidExpected: 402,
     noGitHubExpected: 403,
+    validBody: () => ({ starterTemplate: 'react' }),
   },
 
   // EP-23 to EP-27: Tickets
@@ -369,13 +368,13 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     otherUserExpected: 404,
   },
 
-  // EP-33: Webhook (deferred/pending)
+  // EP-33: Webhook
   {
     id: 'EP-33',
     method: 'POST',
     path: '/webhooks/github',
     getPath: () => '/webhooks/github',
-    implemented: false,
+    implemented: true,
     noSessionExpected: 401,
   },
 

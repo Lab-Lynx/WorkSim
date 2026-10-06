@@ -6,10 +6,10 @@ import * as githubController from '../controllers/github.controller.js';
 
 const router = Router();
 
-// EP-18: auth + paid access
+// EP-18: auth only (free-trial users connect GitHub too)
 router.get('/connect', authMiddleware, githubController.connect);
 
-// EP-19: OAuth callback
+// EP-19: OAuth callback, public; the signed `state` identifies the user
 router.get('/callback', githubController.callback);
 
 // EP-20: GitHub connection summary

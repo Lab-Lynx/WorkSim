@@ -9,8 +9,10 @@ import type {
 } from '../../src/types/domain.js';
 import logger from '../../src/utils/logger.js';
 import {
+  buildTemplateTicketContent,
   callMentorModel,
   callTicketGenerationModel,
+  generateTicketWording,
   GeminiMalformedResponseError,
   GeminiOutageError,
   GeminiProviderError,
@@ -392,6 +394,58 @@ describe('Gemini Integration Adapter (doc 8 §8.8, §8.7, doc 9 §9.2.10)', () =
       const result = await callTicketGenerationModel(mockTemplate, mockContext);
       expect(result.title).toBe(generatedTicketData.title);
       expect(result.category).toBe(mockTemplate.category);
+    });
+
+    it('generateTicketWording — calls Gemini and returns the generated content', async () => {
+      const generated: TicketContent = {
+        title: 'Generated title',
+        scenario: 'Generated scenario',
+        category: mockTemplate.category,
+        difficulty: mockTemplate.difficulty,
+        touchedFiles: mockTemplate.touchedFiles,
+        acceptanceCriteria: ['Generated criterion'],
+        testChecklist: ['Generated check'],
+      };
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(generated) }], role: 'model' } }],
+        }),
+      } as unknown as Response);
+      globalThis.fetch = fetchMock;
+
+      const result = await generateTicketWording(mockTemplate, mockContext);
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(generated);
+    });
+
+    it('generateTicketWording — propagates a Gemini provider failure', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: async () => ({}),
+      } as unknown as Response);
+
+      await expect(generateTicketWording(mockTemplate, mockContext)).rejects.toBeInstanceOf(
+        GeminiProviderError,
+      );
+    });
+
+    it('buildTemplateTicketContent — builds valid content from the template without a network call', () => {
+      const fetchMock = vi.fn();
+      globalThis.fetch = fetchMock;
+
+      const result = buildTemplateTicketContent(mockTemplate);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(result.category).toBe(mockTemplate.category);
+      expect(result.difficulty).toBe(mockTemplate.difficulty);
+      expect(result.touchedFiles).toEqual(mockTemplate.touchedFiles);
+      expect(result.acceptanceCriteria).toHaveLength(mockTemplate.acceptanceCriteriaStructure.length);
+      expect(result.testChecklist).toHaveLength(mockTemplate.testChecklistStructure.length);
+      expect(result.touchedFiles).not.toBe(mockTemplate.touchedFiles);
     });
 
     it('Gemini — malformed non-JSON output throws GeminiMalformedResponseError', async () => {
