@@ -5,7 +5,6 @@ import { env } from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import type { TicketContent } from '../types/domain.js';
-import { hasPaidAccess } from './subscription.service.js';
 import * as githubService from './github.service.js';
 import * as ticketGeneration from './ticket-generation.service.js';
 
@@ -67,17 +66,32 @@ const findActiveTicket = async (userId: string) =>
  * Assign the next ticket (EP-23 / Doc 8 assignNextTicket).
  * Order: access → connection → repo → active check → template → generate → branch → insert.
  */
-export const assignNextTicket = async (userId: string): Promise<TicketRecord> => {
-  if (!(await hasPaidAccess(userId))) {
-    throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
-  }
-
+export const assignNextTicket = async (
+  userId: string,
+  now: Date = new Date(),
+): Promise<TicketRecord> => {
   await githubService.assertGitHubConnected(userId);
   const repo = await githubService.assertStarterRepo(userId);
 
   const active = await findActiveTicket(userId);
   if (active) {
     throw new ApiError(HTTP_STATUS.CONFLICT, 'You already have an active ticket');
+  }
+
+  const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const completedToday = await prisma.ticket.count({
+    where: {
+      userId,
+      status: TicketStatus.done,
+      completedAt: { gte: startOfDay },
+    },
+  });
+
+  if (completedToday >= 3) {
+    throw new ApiError(
+      HTTP_STATUS.TOO_MANY_REQUESTS,
+      'Daily ticket limit reached. Maximum 3 tickets per day per project',
+    );
   }
 
   const selection = await ticketGeneration.selectNextTicketTemplate(userId);
@@ -224,10 +238,6 @@ export const getTicketById = async (
 };
 
 export const startTicket = async (userId: string, ticketId: string): Promise<TicketRecord> => {
-  if (!(await hasPaidAccess(userId))) {
-    throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
-  }
-
   const existing = await prisma.ticket.findFirst({ where: { id: ticketId, userId } });
   if (!existing) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Ticket not found');
@@ -250,10 +260,6 @@ export const abandonTicket = async (
   userId: string,
   ticketId: string,
 ): Promise<{ abandonedTicketId: string; newTicket: TicketRecord | null }> => {
-  if (!(await hasPaidAccess(userId))) {
-    throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
-  }
-
   await githubService.assertGitHubConnected(userId);
   await githubService.assertStarterRepo(userId);
 
