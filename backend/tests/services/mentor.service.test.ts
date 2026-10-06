@@ -346,16 +346,14 @@ describe('mentor.service (doc 8 §8.8, doc 9 §9.2.9)', () => {
       expect(mentorMessageCreate).not.toHaveBeenCalled();
     });
 
-    it('no paid access throws 402', async () => {
+    it('free-trial user without a subscription can still message the mentor', async () => {
       hasPaidAccess.mockResolvedValue(false);
 
-      await expect(sendMentorMessage(userId, ticketId, 'help')).rejects.toThrow(
-        new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required'),
-      );
+      const result = await sendMentorMessage(userId, ticketId, 'help');
 
-      expect(ticketFindFirst).not.toHaveBeenCalled();
-      expect(callMentorModel).not.toHaveBeenCalled();
-      expect(mentorMessageCreate).not.toHaveBeenCalled();
+      expect(result.mentorMessage.content).toBe('Here is a mentor response');
+      expect(hasPaidAccess).not.toHaveBeenCalled();
+      expect(callMentorModel).toHaveBeenCalledTimes(1);
     });
 
     it('limit reached throws 429 and does not call Gemini', async () => {

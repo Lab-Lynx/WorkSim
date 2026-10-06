@@ -19,21 +19,21 @@ describe('MentorPanel (FE-090)', () => {
   });
 
   it('shows the not-started block reason and disables sending', () => {
-    render(<MentorPanel ticketId="ticket-1" mentor="not_started" hasAccess />);
+    render(<MentorPanel ticketId="ticket-1" mentor="not_started" />);
 
     expect(screen.getByText('Start the ticket to use the mentor.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
   });
 
   it('hides the composer when mentor access is read-only', () => {
-    render(<MentorPanel ticketId="ticket-1" mentor="read_only" hasAccess />);
+    render(<MentorPanel ticketId="ticket-1" mentor="read_only" />);
 
     expect(screen.queryByRole('textbox', { name: 'Message to the mentor' })).not.toBeInTheDocument();
   });
 
   it('shows a pending message while send is unresolved and sends trimmed content once', async () => {
     mocks.send.mockReturnValue(new Promise(() => {}));
-    render(<MentorPanel ticketId="ticket-1" mentor="enabled" hasAccess />);
+    render(<MentorPanel ticketId="ticket-1" mentor="enabled" />);
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Message to the mentor' }), {
       target: { value: '  Check this branch.  ' },

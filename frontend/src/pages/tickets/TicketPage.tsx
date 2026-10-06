@@ -7,7 +7,6 @@ import { useAbandonTicket } from '@/hooks/tickets/useAbandonTicket';
 import { useAssignTicket } from '@/hooks/tickets/useAssignTicket';
 import { useSubmitWork } from '@/hooks/submissions/useSubmitWork';
 import { useRetrySubmission } from '@/hooks/submissions/useRetrySubmission';
-import { useSubscription } from '@/hooks/billing/useSubscription';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useToast } from '@/hooks/useToast';
 import { getTicketPhase, type TicketPrimaryAction, type TicketTab } from '@/lib/ticket-phase';
@@ -34,7 +33,6 @@ export default function TicketPage(): React.JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const ticketQuery = useTicket(ticketId);
-  const subscriptionQuery = useSubscription();
   const data = ticketQuery.data;
   const ticket = data?.ticket;
   const submissions = data?.submissions ?? [];
@@ -45,7 +43,6 @@ export default function TicketPage(): React.JSX.Element {
   const assign = useAssignTicket();
   const submitWork = useSubmitWork(resolvedTicketId);
   const retry = useRetrySubmission(resolvedTicketId, phase?.retryAttempt ?? 1);
-  const hasPaidAccess = Boolean(subscriptionQuery.data?.hasAccess);
   const [pendingAction, setPendingAction] = useState<TicketPrimaryAction | null>(null);
   const [actionError, setActionError] = useState<UiError | null>(null);
   const [isResubmitOpen, setIsResubmitOpen] = useState(false);
@@ -282,14 +279,14 @@ export default function TicketPage(): React.JSX.Element {
               </span>
             </div>
             <div className="min-h-0 flex-1 p-4">
-              <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasPaidAccess} />
+              <MentorPanel ticketId={ticket.id} mentor={phase.mentor} />
             </div>
           </div>
         </div>
       )}
       {activeTab === 'mentor' && (
         <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-          <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasPaidAccess} />
+          <MentorPanel ticketId={ticket.id} mentor={phase.mentor} />
         </div>
       )}
       {activeTab === 'submissions' && (

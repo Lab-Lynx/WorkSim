@@ -11,10 +11,9 @@ import MentorMessageList, { type PendingMentorMessage } from '@/components/ticke
 export interface MentorPanelProps {
 	ticketId: string;
 	mentor: MentorAvailability;
-	hasAccess: boolean;
 }
 
-export default function MentorPanel({ ticketId, mentor, hasAccess }: MentorPanelProps): React.JSX.Element {
+export default function MentorPanel({ ticketId, mentor }: MentorPanelProps): React.JSX.Element {
 	const messagesQuery = useMentorMessages(ticketId);
 	const sendMutation = useSendMentorMessage(ticketId);
 	const messages = messagesQuery.data ?? [];
@@ -60,9 +59,7 @@ export default function MentorPanel({ ticketId, mentor, hasAccess }: MentorPanel
 
 	let disabledReason: string | null = null;
 	if (mentor !== 'read_only') {
-		if (!hasAccess) {
-			disabledReason = 'An active subscription is required.';
-		} else if (mentor === 'not_started') {
+		if (mentor === 'not_started') {
 			disabledReason = 'Start the ticket to use the mentor.';
 		} else if (mentor === 'unavailable_after_submit') {
 			disabledReason = 'The mentor is only available while the ticket is in progress or revision (D-04).';

@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import validate from '../middlewares/validate.middleware.js';
 import authMiddleware from '../middlewares/auth.middleware.js';
-import { requirePaidAccess } from '../middlewares/access.middleware.js';
 import {
   getMentorMessagesParamsSchema,
   sendMentorMessageSchema,
@@ -11,11 +10,10 @@ import { mentorRequestLimiter } from '../middlewares/rateLimiter.middleware.js';
 
 const router = Router();
 
-/** EP-28 — POST /tickets/:ticketId/mentor/messages (auth + paid access) */
+/** EP-28 — POST /tickets/:ticketId/mentor/messages (auth; ticket ownership checked in the service) */
 router.post(
   '/:ticketId/mentor/messages',
   authMiddleware,
-  requirePaidAccess,
   mentorRequestLimiter,
   validate(sendMentorMessageSchema),
   mentorController.sendMessage,

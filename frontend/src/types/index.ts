@@ -35,9 +35,16 @@ export interface Subscription {
   canceledAt: ISODateString | null;
 }
 
+export interface FreeTicketUsage {
+  limit: number;
+  used: number;
+  remaining: number;
+}
+
 export interface SubscriptionStatusResponse {
   subscription: Subscription | null;
   hasAccess: boolean;
+  freeTickets?: FreeTicketUsage;
 }
 
 export type PaymentStatus = 'pending' | 'succeeded' | 'failed';
