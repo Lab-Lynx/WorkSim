@@ -193,6 +193,34 @@ export async function createBranch(input: {
   }
 }
 
+const STARTER_TEMPLATE_REPOS: Record<string, string> = {
+  react: 'Lab-Lynx/react_starter_template',
+  django: 'Lab-Lynx/django_starter_template',
+  node_express: 'Lab-Lynx/express-starter-template',
+};
+
+// A repo generated from a template can answer before its files are committed; ticket branches
+// are cut from the default branch right after, so wait until that branch resolves.
+const waitForBranch = async (
+  fullName: string,
+  branch: string,
+  accessToken: string,
+  attempts = 10,
+): Promise<void> => {
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${fullName}/git/ref/heads/${branch}`, {
+        headers: { ...GITHUB_API_HEADERS, Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) return;
+    } catch {
+      // retry
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  logger.warn({ repo: fullName, branch }, 'Starter repo branch not readable yet after generation');
+};
+
 export interface CreateStarterRepositoryInput {
   starterTemplate: string;
   repoName: string;
@@ -218,9 +246,14 @@ export const createStarterRepository = async (
     };
   }
 
+  const template = STARTER_TEMPLATE_REPOS[input.starterTemplate];
+  if (!template) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Unknown starter template '${input.starterTemplate}'`);
+  }
+
   let createRes: Response;
   try {
-    createRes = await fetch('https://api.github.com/user/repos', {
+    createRes = await fetch(`https://api.github.com/repos/${template}/generate`, {
       method: 'POST',
       headers: {
         ...GITHUB_API_HEADERS,
@@ -230,7 +263,6 @@ export const createStarterRepository = async (
       body: JSON.stringify({
         name: input.repoName,
         private: true,
-        auto_init: true,
         description: 'Work Simulator Starter Project',
       }),
     });
@@ -278,9 +310,13 @@ export const createStarterRepository = async (
     );
   }
 
-  // Register workflow_run webhook on repo (EP-33)
+  const defaultBranch = repoData.default_branch || 'main';
+  await waitForBranch(repoData.full_name, defaultBranch, input.accessToken);
+
+  // Register workflow_run webhook on repo (EP-33). A failure here is not fatal: submissions
+  // also read the commit's CI state straight from GitHub.
   try {
-    await fetch(`https://api.github.com/repos/${repoData.full_name}/hooks`, {
+    const hookRes = await fetch(`https://api.github.com/repos/${repoData.full_name}/hooks`, {
       method: 'POST',
       headers: {
         ...GITHUB_API_HEADERS,
@@ -298,17 +334,20 @@ export const createStarterRepository = async (
         },
       }),
     });
-  } catch {
-    throw new ApiError(
-      HTTP_STATUS.BAD_GATEWAY,
-      'GitHub could not create the repository, please try again',
-    );
+    if (!hookRes.ok) {
+      logger.warn(
+        { status: hookRes.status, repo: repoData.full_name },
+        'Could not register the workflow_run webhook on the starter repo',
+      );
+    }
+  } catch (hookErr) {
+    logger.warn({ err: hookErr, repo: repoData.full_name }, 'Could not register the workflow_run webhook');
   }
 
   return {
     githubRepoId: String(repoData.id),
     fullName: repoData.full_name,
-    defaultBranch: repoData.default_branch || 'main',
+    defaultBranch,
   };
 };
 
