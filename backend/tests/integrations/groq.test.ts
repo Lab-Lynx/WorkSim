@@ -65,7 +65,7 @@ describe('Groq Integration Adapter (Doc 8 §8.10, Doc 9 §9.2.10)', () => {
     it('includes diff, CI result, ticket content, attempt number, and config key in headers', async () => {
       let interceptedUrl = '';
       let interceptedHeaders: Record<string, string> = {};
-      let interceptedBody: Record<string, unknown> | null = null;
+      let interceptedBody = null as Record<string, unknown> | null;
 
       globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
         interceptedUrl = url;
@@ -114,7 +114,7 @@ describe('Groq Integration Adapter (Doc 8 §8.10, Doc 9 §9.2.10)', () => {
     });
 
     it('includes mentor transcript on attempt 2 when provided', async () => {
-      let interceptedBody: Record<string, unknown> | null = null;
+      let interceptedBody = null as Record<string, unknown> | null;
 
       globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
         interceptedBody = init?.body ? JSON.parse(init.body as string) : null;
@@ -163,7 +163,7 @@ describe('Groq Integration Adapter (Doc 8 §8.10, Doc 9 §9.2.10)', () => {
     });
 
     it('handles ciPassed=false in request contents', async () => {
-      let interceptedBody: Record<string, unknown> | null = null;
+      let interceptedBody = null as Record<string, unknown> | null;
 
       globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
         interceptedBody = init?.body ? JSON.parse(init.body as string) : null;
@@ -192,7 +192,7 @@ describe('Groq Integration Adapter (Doc 8 §8.10, Doc 9 §9.2.10)', () => {
         ciPassed: false,
       });
 
-      const messagesText = JSON.stringify(interceptedBody.messages);
+      const messagesText = JSON.stringify(interceptedBody?.messages);
       expect(messagesText).toContain('FAILED');
     });
   });

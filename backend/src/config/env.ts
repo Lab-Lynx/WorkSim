@@ -49,8 +49,8 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().min(1),
   GROQ_API_KEY: z.string().min(1),
   // Pending team decision: provider model names remain deployment-configurable.
-  GEMINI_MODEL: z.string().min(1).default('gemini-1.5-flash'),
-  GROQ_MODEL: z.string().min(1).default('llama-3.3-70b-versatile'),
+  GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
+  GROQ_MODEL: z.string().min(1).default('openai/gpt-oss-120b'),
   GEMINI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
   GROQ_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
   GEMINI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),

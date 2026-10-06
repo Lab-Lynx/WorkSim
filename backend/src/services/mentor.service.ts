@@ -4,7 +4,6 @@ import { env } from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import type { MentorHintStage, TicketContent } from '../types/domain.js';
-import { hasPaidAccess } from './subscription.service.js';
 import { callMentorModel } from '../integrations/gemini.js';
 
 const asTicketContent = (value: Prisma.JsonValue): TicketContent => {
@@ -90,7 +89,7 @@ export const canSendMentorMessage = async (
 
 /**
  * Send a message to the AI mentor (Doc 8 §8.8, FR-37–FR-41).
- * Validates paid access, ticket state, and rate limits, calls Gemini, and persists both messages.
+ * Validates ticket ownership/state and rate limits (free-trial users included), calls Gemini, and persists both messages.
  * Single JSON reply, not a stream (D-15).
  */
 export const sendMentorMessage = async (
@@ -98,10 +97,6 @@ export const sendMentorMessage = async (
   ticketId: string,
   content: string,
 ): Promise<{ userMessage: MentorMessage; mentorMessage: MentorMessage }> => {
-  if (!(await hasPaidAccess(userId))) {
-    throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
-  }
-
   if (!content || !content.trim()) {
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'content must not be empty');
   }
