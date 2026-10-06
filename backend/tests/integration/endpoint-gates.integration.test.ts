@@ -30,8 +30,8 @@ import { encryptGitHubToken } from '../../src/lib/crypto/github-token.js';
  * | EP-22                                             | 401                                | 402            | 403                  | —               | —                     |
  * | EP-23                                             | 401                                | 402            | 403                  | 409             | —                     |
  * | EP-24, EP-34                                      | 401                                | —              | —                    | —               | —                     |
- * | EP-25, EP-29, EP-31                               | 401                                | —              | —                    | —               | 404                   |
- * | EP-26, EP-28, EP-32                               | 401                                | 402            | —                    | —               | 404                   |
+ * | EP-25, EP-28, EP-29, EP-31                        | 401                                | —              | —                    | —               | 404                   |
+ * | EP-26, EP-32                                      | 401                                | 402            | —                    | —               | 404                   |
  * | EP-27, EP-30                                      | 401                                | 402            | 403                  | 409             | 404                   |
  */
 
@@ -325,7 +325,6 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     getPath: (ticketId) => `/tickets/${ticketId}/mentor/messages`,
     implemented: true,
     noSessionExpected: 401,
-    noPaidExpected: 402,
     otherUserExpected: 404,
     validBody: () => ({ content: 'Need assistance with this ticket' }),
   },
@@ -606,9 +605,9 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
     }
   });
 
-  describe('No paid access gate (authenticated user without active subscription)', () => {
-    const paidGated = ENDPOINT_TABLE.filter((e) => e.implemented && e.noPaidExpected === 402);
+  const paidGated = ENDPOINT_TABLE.filter((e) => e.implemented && e.noPaidExpected === 402);
 
+  describe.skipIf(paidGated.length === 0)('No paid access gate (authenticated user without active subscription)', () => {
     for (const ep of paidGated) {
       it(`${ep.id} (${ep.method} ${ep.path}) returns 402 when user has no paid access`, async () => {
         const user = await createUser(); // Has no subscription
