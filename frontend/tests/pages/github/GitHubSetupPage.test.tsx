@@ -113,7 +113,7 @@ describe('GitHubSetupPage', () => {
         );
     });
 
-    it('shows blocked notice "An active subscription is required." when user lacks subscription access', () => {
+    it('allows user without subscription to access repository creation once GitHub is connected', () => {
         vi.spyOn(useSubscriptionModule, 'useSubscription').mockReturnValue({
             data: { hasAccess: false, status: 'canceled' },
             isLoading: false,
@@ -126,9 +126,9 @@ describe('GitHubSetupPage', () => {
 
         renderPage();
         expect(
-            screen.getByText(/An active subscription is required\./i)
-        ).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Billing' })).toHaveAttribute('href', '/billing');
+            screen.queryByText(/An active subscription is required\./i)
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /create repository/i })).toBeInTheDocument();
     });
 
     it('handles disconnect flow with ConfirmDialog when user clicks Disconnect', async () => {
