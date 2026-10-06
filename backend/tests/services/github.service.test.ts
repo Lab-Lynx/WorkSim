@@ -10,7 +10,6 @@ const starterRepoCreate = vi.fn();
 const createBranch = vi.fn();
 const createStarterRepository = vi.fn();
 const getPullRequestAndDiff = vi.fn();
-const hasPaidAccess = vi.fn();
 
 vi.mock('../../src/config/db.js', () => ({
   prisma: {
@@ -29,10 +28,6 @@ vi.mock('../../src/integrations/github.js', () => ({
   createBranch,
   createStarterRepository,
   getPullRequestAndDiff,
-}));
-
-vi.mock('../../src/services/subscription.service.js', () => ({
-  hasPaidAccess,
 }));
 
 const {
@@ -168,16 +163,7 @@ describe('github.service', () => {
   });
 
   describe('createStarterRepo', () => {
-    it('throws 402 if subscription is not active', async () => {
-      hasPaidAccess.mockResolvedValue(false);
-
-      await expect(createStarterRepo('u1', 'react')).rejects.toMatchObject({
-        statusCode: HTTP_STATUS.PAYMENT_REQUIRED,
-      });
-    });
-
     it('throws 403 if GitHub is not connected', async () => {
-      hasPaidAccess.mockResolvedValue(true);
       gitHubConnectionFindUnique.mockResolvedValue(null);
 
       await expect(createStarterRepo('u1', 'react')).rejects.toMatchObject({
@@ -186,7 +172,6 @@ describe('github.service', () => {
     });
 
     it('throws 409 if starter repository already exists', async () => {
-      hasPaidAccess.mockResolvedValue(true);
       gitHubConnectionFindUnique.mockResolvedValue({
         accessTokenEncrypted: encryptGitHubToken('token'),
       });
@@ -197,8 +182,7 @@ describe('github.service', () => {
       });
     });
 
-    it('creates repository and persists starterRepo record', async () => {
-      hasPaidAccess.mockResolvedValue(true);
+    it('creates repository and persists starterRepo record without subscription', async () => {
       gitHubConnectionFindUnique.mockResolvedValue({
         accessTokenEncrypted: encryptGitHubToken('token'),
       });

@@ -2,7 +2,6 @@ import { Router } from 'express';
 import validate from '../middlewares/validate.middleware.js';
 import authMiddleware from '../middlewares/auth.middleware.js';
 import {
-  requirePaidAccess,
   requireGitHubConnection,
   requireStarterRepo,
 } from '../middlewares/access.middleware.js';
@@ -20,7 +19,6 @@ const router = Router();
 router.post(
   '/:ticketId/submissions',
   authMiddleware,
-  requirePaidAccess,
   requireGitHubConnection,
   requireStarterRepo,
   submissionLimiter,
@@ -40,7 +38,6 @@ router.get(
 router.post(
   '/:ticketId/submissions/:attempt/retry',
   authMiddleware,
-  requirePaidAccess,
   submissionLimiter,
   validate(retrySubmissionParamsSchema),
   submissionController.retry,

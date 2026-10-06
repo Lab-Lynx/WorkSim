@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HTTP_STATUS } from '../../src/constants/index.js';
 
 
 const completeGitHubAuthorization = vi.fn();
@@ -16,11 +15,6 @@ vi.mock('../../src/services/github.service.js', () => ({
   createStarterRepo,
 }));
 
-const hasPaidAccess = vi.fn();
-vi.mock('../../src/services/subscription.service.js', () => ({
-  hasPaidAccess,
-}));
-
 const { callback, connect, getConnection, disconnect, createRepo } = await import(
   '../../src/controllers/github.controller.js'
 );
@@ -31,23 +25,7 @@ describe('github.controller', () => {
   });
 
   describe('connect', () => {
-    it('throws 402 if user has no active subscription', async () => {
-      hasPaidAccess.mockResolvedValue(false);
-      const req = { user: { id: 'user-1' } };
-      const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
-      const next = vi.fn();
-
-      await connect(req as never, res as never, next);
-
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({
-          statusCode: HTTP_STATUS.PAYMENT_REQUIRED,
-        }),
-      );
-    });
-
-    it('returns an authorization URL with standard SuccessResponse for paid user', async () => {
-      hasPaidAccess.mockResolvedValue(true);
+    it('returns an authorization URL with standard SuccessResponse for authenticated user', async () => {
       createGitHubAuthorization.mockResolvedValue('https://github.com/login/oauth/authorize?state=x');
       const response = { status: vi.fn().mockReturnThis(), json: vi.fn() };
 

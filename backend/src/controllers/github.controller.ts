@@ -5,14 +5,10 @@ import { AuthRequest } from '../types/index.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { SuccessResponse } from '../utils/ApiResponse.js';
 import * as githubService from '../services/github.service.js';
-import { hasPaidAccess } from '../services/subscription.service.js';
 import type { StarterTemplate } from '@prisma/client';
 
 export const connect = asyncHandler(async (req: AuthRequest, res: Response) => {
   if (!req.user) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Not authenticated');
-  if (!(await hasPaidAccess(req.user.id))) {
-    throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
-  }
   const authorizeUrl = await githubService.createGitHubAuthorization(req.user.id);
   res.status(HTTP_STATUS.OK).json(
     new SuccessResponse(HTTP_STATUS.OK, 'GitHub authorization URL generated', { authorizeUrl }),

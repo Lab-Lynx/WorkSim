@@ -1,6 +1,7 @@
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import { env } from '../config/env.js';
+import logger from '../utils/logger.js';
 
 interface GitHubTokenResponse {
   access_token?: string;
@@ -70,19 +71,24 @@ export const exchangeOAuthCode = async (code: string): Promise<GitHubOAuthIdenti
     throw new ApiError(HTTP_STATUS.BAD_GATEWAY, 'Could not connect to GitHub');
   }
 
-  const returnedScopes = (tokenPayload.scope ?? '')
+  const returnedScopeList = (tokenPayload.scope ?? '')
     .split(',')
     .map((scope) => scope.trim())
-    .filter(Boolean)
-    .sort()
-    .join(',');
-  if (
-    returnedScopes !==
-    env.GITHUB_REQUESTED_SCOPE.split(',')
-      .map((scope) => scope.trim())
-      .sort()
-      .join(',')
-  ) {
+    .filter(Boolean);
+  const requestedScopeList = (process.env.GITHUB_REQUESTED_SCOPE ?? env.GITHUB_REQUESTED_SCOPE)
+    .split(',')
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+
+  const returnedSet = new Set(returnedScopeList);
+  const hasAllRequired = requestedScopeList.every(
+    (req) => returnedSet.has(req) || (req === 'write:repo_hook' && returnedSet.has('repo')),
+  );
+  const hasUnexpected = returnedScopeList.some((ret) => !requestedScopeList.includes(ret));
+
+  const returnedScopes = returnedScopeList.slice().sort().join(',');
+
+  if (!hasAllRequired || hasUnexpected) {
     throw new ApiError(HTTP_STATUS.BAD_GATEWAY, 'GitHub returned an invalid permission scope');
   }
 
@@ -391,7 +397,8 @@ export const createStarterRepository = async (
         description: 'Work Simulator Starter Project',
       }),
     });
-  } catch {
+  } catch (fetchErr) {
+    logger.error({ err: fetchErr }, 'Failed to connect to GitHub API for repository creation');
     throw new ApiError(
       HTTP_STATUS.BAD_GATEWAY,
       'GitHub could not create the repository, please try again',
@@ -413,6 +420,11 @@ export const createStarterRepository = async (
   }
 
   if (!createRes.ok) {
+    const errorBody = await createRes.text().catch(() => '');
+    logger.error(
+      { status: createRes.status, body: errorBody },
+      'GitHub repository creation API returned non-2xx status',
+    );
     throw new ApiError(
       HTTP_STATUS.BAD_GATEWAY,
       'GitHub could not create the repository, please try again',

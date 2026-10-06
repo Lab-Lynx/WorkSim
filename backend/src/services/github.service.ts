@@ -4,6 +4,7 @@ import { env } from '../config/env.js';
 import { StarterTemplate } from '@prisma/client';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
+import logger from '../utils/logger.js';
 import type {
   GitHubConnectionSummary,
   GitHubSubmissionState,
@@ -12,7 +13,6 @@ import type {
 import * as githubIntegration from '../integrations/github.js';
 import { decryptGitHubToken, encryptGitHubToken } from '../lib/crypto/github-token.js';
 import { hashToken } from '../lib/crypto/token-hash.js';
-import { hasPaidAccess } from './subscription.service.js';
 
 const GITHUB_NOT_CONNECTED = 'GitHub is not connected. Connect GitHub to continue';
 const BRANCH_CREATE_FAILED =
@@ -53,7 +53,14 @@ export const createGitHubAuthorization = async (userId: string): Promise<string>
   const url = new URL('https://github.com/login/oauth/authorize');
   url.searchParams.set('client_id', env.GITHUB_CLIENT_ID);
   url.searchParams.set('redirect_uri', env.GITHUB_CALLBACK_URL);
-  url.searchParams.set('scope', env.GITHUB_REQUESTED_SCOPE);
+  url.searchParams.set(
+    'scope',
+    env.GITHUB_REQUESTED_SCOPE
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(' '),
+  );
   url.searchParams.set('state', state);
   return url.toString();
 };
@@ -202,13 +209,6 @@ export const createStarterRepo = async (
   starterTemplate: StarterTemplate | string,
   repoName: string = 'work-simulator',
 ): Promise<RepoSummary> => {
-  if (!(await hasPaidAccess(userId))) {
-    throw new ApiError(
-      HTTP_STATUS.PAYMENT_REQUIRED,
-      'An active subscription is required',
-    );
-  }
-
   const connection = await prisma.gitHubConnection.findUnique({
     where: { userId },
   });
@@ -271,6 +271,7 @@ export const createStarterRepo = async (
     };
   } catch (error) {
     if (error instanceof ApiError) throw error;
+    logger.error({ err: error }, 'Failed to persist starter repo to database');
     throw new ApiError(
       HTTP_STATUS.BAD_GATEWAY,
       'GitHub could not create the repository, please try again',

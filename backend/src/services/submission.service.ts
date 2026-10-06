@@ -8,7 +8,6 @@ import { prisma } from '../config/db.js';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import type { SubmissionAttempt, SubmissionView } from '../types/domain.js';
-import { hasPaidAccess } from './subscription.service.js';
 import * as githubService from './github.service.js';
 import { serializeSubmission } from '../serializers/submission.serializer.js';
 import { startSubmissionPipeline } from './submission-pipeline.js';
@@ -47,10 +46,6 @@ export const submitWork = async (
   userId: string,
   ticketId: string,
 ): Promise<Submission> => {
-  if (!(await hasPaidAccess(userId))) {
-    throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
-  }
-
   await githubService.assertGitHubConnected(userId);
   await githubService.assertStarterRepo(userId);
 
@@ -218,10 +213,6 @@ export const retrySubmission = async (
   ticketId: string,
   attempt: SubmissionAttempt,
 ): Promise<Submission> => {
-  if (!(await hasPaidAccess(userId))) {
-    throw new ApiError(HTTP_STATUS.PAYMENT_REQUIRED, 'An active subscription is required');
-  }
-
   const ticket = await prisma.ticket.findFirst({
     where: { id: ticketId, userId },
     select: { id: true },

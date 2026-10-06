@@ -9,6 +9,7 @@ const ticketFindUnique = vi.fn();
 const ticketFindUniqueOrThrow = vi.fn();
 const ticketCreate = vi.fn();
 const ticketUpdateMany = vi.fn();
+const ticketCount = vi.fn();
 const starterRepoFindUnique = vi.fn();
 
 vi.mock('../../src/config/db.js', () => ({
@@ -20,6 +21,7 @@ vi.mock('../../src/config/db.js', () => ({
       findUniqueOrThrow: ticketFindUniqueOrThrow,
       create: ticketCreate,
       updateMany: ticketUpdateMany,
+      count: ticketCount,
     },
     starterRepo: {
       findUnique: starterRepoFindUnique,
@@ -138,12 +140,14 @@ function stubHappyGates() {
     callOrder.push('create');
     return { ...baseTicket, ...args.data, id: 'ticket-1' };
   });
+  ticketCount.mockResolvedValue(0);
 }
 
 describe('ticket.service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     callOrder.length = 0;
+    ticketCount.mockResolvedValue(0);
   });
 
   describe('assignNextTicket', () => {
@@ -153,7 +157,6 @@ describe('ticket.service', () => {
       const result = await assignNextTicket('user-1');
 
       expect(callOrder).toEqual([
-        'access',
         'connection',
         'repo',
         'active-check',
@@ -173,16 +176,12 @@ describe('ticket.service', () => {
       );
     });
 
-    it('throws 402 when unpaid and skips Gemini/GitHub branch', async () => {
-      hasPaidAccess.mockResolvedValue(false);
+    it('assigns ticket even when user does not have a paid subscription', async () => {
+      stubHappyGates();
+      ticketCount.mockResolvedValue(0);
 
-      await expect(assignNextTicket('user-1')).rejects.toMatchObject({
-        statusCode: HTTP_STATUS.PAYMENT_REQUIRED,
-        message: 'An active subscription is required',
-      });
-      expect(assertGitHubConnected).not.toHaveBeenCalled();
-      expect(generateTicketContent).not.toHaveBeenCalled();
-      expect(createTicketBranch).not.toHaveBeenCalled();
+      const result = await assignNextTicket('user-1');
+      expect(result.status).toBe(TicketStatus.assigned);
     });
 
     it('throws 403 when GitHub is not connected', async () => {
@@ -238,6 +237,29 @@ describe('ticket.service', () => {
     it('assigns when only done and abandoned tickets exist', async () => {
       stubHappyGates();
       ticketFindFirst.mockResolvedValue(null);
+
+      const result = await assignNextTicket('user-1');
+      expect(result.status).toBe(TicketStatus.assigned);
+    });
+
+    it('throws 429 when 3 tickets have already been completed today (daily limit)', async () => {
+      stubHappyGates();
+      ticketFindFirst.mockResolvedValue(null);
+      ticketCount.mockResolvedValue(3);
+
+      await expect(assignNextTicket('user-1')).rejects.toMatchObject({
+        statusCode: HTTP_STATUS.TOO_MANY_REQUESTS,
+        message: 'Daily ticket limit reached. Maximum 3 tickets per day per project',
+      });
+      expect(generateTicketContent).not.toHaveBeenCalled();
+      expect(createTicketBranch).not.toHaveBeenCalled();
+      expect(ticketCreate).not.toHaveBeenCalled();
+    });
+
+    it('allows assignment when fewer than 3 tickets were completed today', async () => {
+      stubHappyGates();
+      ticketFindFirst.mockResolvedValue(null);
+      ticketCount.mockResolvedValue(2);
 
       const result = await assignNextTicket('user-1');
       expect(result.status).toBe(TicketStatus.assigned);
@@ -513,12 +535,13 @@ describe('ticket.service', () => {
       });
     });
 
-    it('throws 402 without paid access', async () => {
-      hasPaidAccess.mockResolvedValue(false);
-      await expect(startTicket('user-1', 'ticket-1')).rejects.toMatchObject({
-        statusCode: HTTP_STATUS.PAYMENT_REQUIRED,
-      });
-      expect(ticketUpdateMany).not.toHaveBeenCalled();
+    it('starts ticket without requiring paid access', async () => {
+      ticketFindFirst.mockResolvedValue({ ...baseTicket, status: TicketStatus.assigned });
+      ticketUpdateMany.mockResolvedValue({ count: 1 });
+      ticketFindUniqueOrThrow.mockResolvedValue({ ...baseTicket, status: TicketStatus.in_progress });
+
+      const result = await startTicket('user-1', 'ticket-1');
+      expect(result.status).toBe(TicketStatus.in_progress);
     });
   });
 
@@ -658,11 +681,25 @@ describe('ticket.service', () => {
       });
     });
 
-    it('throws 402 without paid access', async () => {
-      hasPaidAccess.mockResolvedValue(false);
-      await expect(abandonTicket('user-1', 'ticket-1')).rejects.toMatchObject({
-        statusCode: HTTP_STATUS.PAYMENT_REQUIRED,
+    it('abandons ticket without requiring paid access', async () => {
+      assertGitHubConnected.mockResolvedValue(undefined);
+      assertStarterRepo.mockResolvedValue(repo);
+      ticketFindFirst
+        .mockResolvedValueOnce({ ...baseTicket, status: TicketStatus.assigned })
+        .mockResolvedValueOnce(null);
+      ticketUpdateMany.mockResolvedValue({ count: 1 });
+      selectNextTicketTemplate.mockResolvedValue({ templateKey: template.key });
+      loadTicketTemplate.mockReturnValue(template);
+      generateTicketContent.mockResolvedValue(content);
+      createTicketBranch.mockResolvedValue(undefined);
+      ticketCreate.mockResolvedValue({
+        ...baseTicket,
+        id: 'ticket-new',
+        status: TicketStatus.assigned,
       });
+
+      const result = await abandonTicket('user-1', 'ticket-1');
+      expect(result.abandonedTicketId).toBe('ticket-1');
     });
   });
 });
