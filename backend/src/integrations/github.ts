@@ -17,6 +17,15 @@ interface GitHubUserResponse {
 const GITHUB_API_HEADERS = {
   Accept: 'application/vnd.github+json',
   'X-GitHub-Api-Version': '2022-11-28',
+  'User-Agent': 'WorkSim',
+};
+
+// The OAuth token endpoint only answers in JSON when Accept is exactly application/json;
+// any other value returns a form-encoded body that cannot be parsed as JSON.
+const GITHUB_OAUTH_TOKEN_HEADERS = {
+  Accept: 'application/json',
+  'Content-Type': 'application/json',
+  'User-Agent': 'WorkSim',
 };
 
 export class GitHubProviderError extends Error {
@@ -48,7 +57,7 @@ export const exchangeOAuthCode = async (code: string): Promise<GitHubOAuthIdenti
   try {
     tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
-      headers: { ...GITHUB_API_HEADERS, 'Content-Type': 'application/json' },
+      headers: GITHUB_OAUTH_TOKEN_HEADERS,
       body: JSON.stringify({
         client_id: env.GITHUB_CLIENT_ID,
         client_secret: env.GITHUB_CLIENT_SECRET,
@@ -68,6 +77,7 @@ export const exchangeOAuthCode = async (code: string): Promise<GitHubOAuthIdenti
   }
 
   if (!tokenResponse.ok || !tokenPayload.access_token) {
+    logger.warn({ reason: tokenPayload.error }, 'GitHub OAuth token exchange rejected');
     throw new ApiError(HTTP_STATUS.BAD_GATEWAY, 'Could not connect to GitHub');
   }
 
