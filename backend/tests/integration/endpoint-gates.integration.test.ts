@@ -491,6 +491,7 @@ describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {
     const res = await fetch(`${baseUrl}/api/v1${path}`, {
       method,
       headers,
+      redirect: 'manual',
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     });
     let json: { statusCode?: number; success?: boolean; message?: string; data?: unknown } | null =
