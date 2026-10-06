@@ -7,6 +7,8 @@ export interface ErrorPageProps {
   description: string;
   code?: string;
   actions?: React.ReactNode;
+  /** Render inside an existing layout instead of as a full-screen page. */
+  embedded?: boolean;
 }
 
 export default function ErrorPage({
@@ -15,9 +17,11 @@ export default function ErrorPage({
   description,
   code,
   actions,
+  embedded = false,
 }: ErrorPageProps): React.JSX.Element {
+  const Wrapper = embedded ? 'section' : 'main';
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-6 py-16 text-center">
+    <Wrapper className={embedded ? 'flex min-h-[50vh] flex-col items-center justify-center gap-6 px-6 py-12 text-center' : 'flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-6 py-16 text-center'}>
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
         <Icon className="h-7 w-7" aria-hidden="true" />
       </div>
@@ -29,6 +33,6 @@ export default function ErrorPage({
         <p className="text-pretty text-sm leading-relaxed text-muted-foreground">{description}</p>
       </div>
       {actions && <div className="flex flex-wrap items-center justify-center gap-3">{actions}</div>}
-    </main>
+    </Wrapper>
   );
 }

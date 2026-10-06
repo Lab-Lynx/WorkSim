@@ -4,10 +4,12 @@ import {
   CheckCircle2,
   ExternalLink,
   GitBranch,
-  GitCommitHorizontal,
   GitPullRequest,
-  RefreshCw,
 } from 'lucide-react';
+import { useSubmissions } from '@/hooks/submissions/useSubmissions';
+import { friendlyMessage } from '@/lib/api/friendly-error';
+import EmptyState from '@/components/common/EmptyState';
+import ErrorState from '@/components/common/ErrorState';
 import { useGitHubConnection } from '@/hooks/github/useGitHubConnection';
 import { useGitHubConnect } from '@/hooks/github/useGitHubConnect';
 import { useDisconnectGitHub } from '@/hooks/github/useDisconnectGitHub';
@@ -30,42 +32,15 @@ import {
 } from '@/components/ui/card';
 import type { GitHubConnectionSummary } from '@/types';
 
-const PREVIEW_ACTIVITY = [
-  {
-    id: 'a1',
-    type: 'commit' as const,
-    message: 'Ignore stale quantity responses via request sequencing',
-    sha: 'e91a3c2',
-    time: '12m ago',
-  },
-  {
-    id: 'a2',
-    type: 'commit' as const,
-    message: 'Add debounce to stepper click handler',
-    sha: 'b2f7d10',
-    time: '38m ago',
-  },
-  {
-    id: 'a3',
-    type: 'pr_opened' as const,
-    message: 'Opened PR #58 fix/cart-race-214 → main',
-    sha: null,
-    time: '1h ago',
-  },
-  {
-    id: 'a4',
-    type: 'ci_run' as const,
-    message: 'CI run triggered on push',
-    sha: 'b2f7d10',
-    time: '1h ago',
-  },
-];
+const RECENT_PR_LIMIT = 5;
 
-const activityIcon = {
-  commit: GitCommitHorizontal,
-  pr_opened: GitPullRequest,
-  ci_run: RefreshCw,
-};
+function formatActivityDate(value: string): string {
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 
 export default function GitHubSetupPage(): React.JSX.Element {
   useDocumentTitle('GitHub and repository');
@@ -85,6 +60,8 @@ export default function GitHubSetupPage(): React.JSX.Element {
     githubLogin: null,
     repo: null,
   };
+  const submissionsQuery = useSubmissions({ enabled: connection.connected });
+  const recentSubmissions = (submissionsQuery.data ?? []).slice(0, RECENT_PR_LIMIT);
   const connectMutation = useGitHubConnect();
   const disconnectMutation = useDisconnectGitHub();
   const createRepoMutation = useCreateRepo();
@@ -240,24 +217,7 @@ export default function GitHubSetupPage(): React.JSX.Element {
         <CardContent className="flex flex-col gap-5" aria-label="Starter repository">
           <h2 className="sr-only">Starter repository</h2>
           {connection.repo ? (
-            <>
-              <RepoSummary ref={repoHeadingRef} repo={connection.repo} />
-              <div className="border-t border-border" />
-              <div className="grid grid-cols-3 divide-x divide-border text-center">
-                <div className="flex flex-col gap-1">
-                  <span className="font-heading text-2xl font-medium tabular-nums">9</span>
-                  <span className="text-xs text-muted-foreground">Commits</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-heading text-2xl font-medium tabular-nums">1</span>
-                  <span className="text-xs text-muted-foreground">Open PR</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-heading text-2xl font-medium tabular-nums">1</span>
-                  <span className="text-xs text-muted-foreground">CI runs</span>
-                </div>
-              </div>
-            </>
+            <RepoSummary ref={repoHeadingRef} repo={connection.repo} />
           ) : (
             <RepoCreateForm
               onSubmit={handleCreateRepo}
@@ -271,30 +231,52 @@ export default function GitHubSetupPage(): React.JSX.Element {
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-heading text-base font-medium">Recent activity</CardTitle>
-          <CardDescription>Live feed from your working branch</CardDescription>
+          <CardTitle className="font-heading text-base font-medium">Recent pull requests</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="flex flex-col gap-4">
-            {PREVIEW_ACTIVITY.map((item) => {
-              const Icon = activityIcon[item.type];
-              return (
+          {!connection.connected ? (
+            <EmptyState
+              title="Nothing to show yet"
+              description="Connect GitHub to see the pull requests you submit."
+            />
+          ) : submissionsQuery.isLoading ? (
+            <div role="status" aria-label="Loading pull requests" className="h-16 animate-pulse rounded-md bg-muted" />
+          ) : submissionsQuery.isError ? (
+            <ErrorState
+              message={friendlyMessage(submissionsQuery.error, 'We could not load your pull requests.')}
+              onRetry={() => void submissionsQuery.refetch()}
+            />
+          ) : recentSubmissions.length === 0 ? (
+            <EmptyState
+              title="No pull requests yet"
+              description="Pull requests you submit for evaluation will appear here."
+            />
+          ) : (
+            <ul className="flex flex-col gap-4">
+              {recentSubmissions.map((item) => (
                 <li key={item.id} className="flex items-start gap-3">
                   <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <Icon className="size-3.5" />
+                    <GitPullRequest className="size-3.5" aria-hidden="true" />
                   </div>
                   <div className="flex flex-1 flex-col gap-0.5">
-                    <p className="text-sm leading-relaxed text-pretty">{item.message}</p>
+                    <a
+                      href={item.prUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm leading-relaxed text-pretty hover:underline"
+                    >
+                      PR #{item.prNumber} · {item.ticket.title}
+                    </a>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {item.sha && <span className="font-mono">{item.sha}</span>}
-                      {item.sha && <span>·</span>}
-                      <span>{item.time}</span>
+                      <span className="font-mono">{item.headSha.slice(0, 7)}</span>
+                      <span>·</span>
+                      <span>{formatActivityDate(item.submittedAt)}</span>
                     </div>
                   </div>
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 

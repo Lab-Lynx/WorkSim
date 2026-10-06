@@ -252,3 +252,84 @@ export const retrySubmission = async (
   await startSubmissionPipeline(row.id);
   return row;
 };
+
+export interface SubmissionListItem extends SubmissionView {
+  ticket: {
+    id: string;
+    title: string;
+    category: string;
+    branchName: string | null;
+  };
+  baseBranch: string | null;
+}
+
+const LIST_LIMIT = 100;
+
+/** EP-35 — every submission the user has made, newest first. Diff is never included. */
+export const listSubmissions = async (userId: string): Promise<SubmissionListItem[]> => {
+  const rows = await prisma.submission.findMany({
+    where: { ticket: { userId } },
+    orderBy: { submittedAt: 'desc' },
+    take: LIST_LIMIT,
+    select: {
+      id: true,
+      attempt: true,
+      status: true,
+      prNumber: true,
+      headSha: true,
+      ciPassed: true,
+      ciRunUrl: true,
+      failureReason: true,
+      submittedAt: true,
+      evaluation: {
+        select: {
+          feedback: true,
+          requirementsMetScore: true,
+          correctnessTestsScore: true,
+          codeQualityScore: true,
+          problemSolvingScore: true,
+          totalScore: true,
+          createdAt: true,
+        },
+      },
+      ticket: { select: { id: true, branchName: true, content: true } },
+    },
+  });
+
+  if (rows.length === 0) return [];
+
+  const repo = await githubService.getStarterRepoSummary(userId);
+
+  return rows.map((row) => {
+    const content =
+      row.ticket.content && typeof row.ticket.content === 'object' && !Array.isArray(row.ticket.content)
+        ? (row.ticket.content as { title?: string; category?: string })
+        : {};
+    const view = serializeSubmission(
+      {
+        id: row.id,
+        attempt: row.attempt as SubmissionAttempt,
+        status: row.status,
+        prNumber: row.prNumber,
+        headSha: row.headSha,
+        ciPassed: row.ciPassed,
+        ciRunUrl: row.ciRunUrl,
+        failureReason: row.failureReason,
+        submittedAt: row.submittedAt,
+        evaluation: row.evaluation,
+      },
+      { includeDiff: false, repoFullName: repo?.fullName ?? null },
+    ) as SubmissionView;
+
+    return {
+      ...view,
+      ticket: {
+        id: row.ticket.id,
+        title: content.title ?? 'Untitled ticket',
+        category: content.category ?? 'General',
+        branchName: row.ticket.branchName,
+      },
+      baseBranch: repo?.defaultBranch ?? null,
+    };
+  });
+};

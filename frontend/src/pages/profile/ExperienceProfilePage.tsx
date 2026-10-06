@@ -1,8 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
   Award,
-  Flame,
-  MessageCircle,
   Target,
   TrendingUp,
 } from 'lucide-react';
@@ -14,32 +12,12 @@ import ExperienceItem from '@/components/profile/ExperienceItem';
 import { CategoryChart } from '@/components/profile/CategoryChart';
 import { ScoreTrendChart } from '@/components/dashboard/ScoreTrendChart';
 import ErrorState from '@/components/common/ErrorState';
+import { friendlyMessage } from '@/lib/api/friendly-error';
 import EmptyState from '@/components/common/EmptyState';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-const PREVIEW_STATS = {
-  ticketsCompleted: 4,
-  averageScore: 91,
-  currentStreak: 4,
-  totalMentorMessages: 62,
-};
-
-const PREVIEW_SCORE_HISTORY = [
-  { ticket: 'WS-160', score: 98 },
-  { ticket: 'WS-171', score: 85 },
-  { ticket: 'WS-183', score: 97 },
-  { ticket: 'WS-198', score: 91 },
-];
-
-const PREVIEW_CATEGORIES = [
-  { category: 'Feature', count: 2 },
-  { category: 'Bug Fix', count: 1 },
-  { category: 'Performance', count: 1 },
-  { category: 'Security', count: 1 },
-];
 
 function initials(name?: string) {
   if (!name) return 'WS';
@@ -59,44 +37,33 @@ export default function ExperienceProfilePage(): React.JSX.Element {
   const name = user?.name ?? 'Practitioner';
 
   const scored = items.filter((item) => item.evaluation.scores?.total != null);
-  const stats =
+  const averageScore =
     scored.length > 0
-      ? {
-          ticketsCompleted: items.length,
-          averageScore: Math.round(
-            scored.reduce((sum, item) => sum + (item.evaluation.scores?.total ?? 0), 0) /
-              scored.length,
-          ),
-          currentStreak: PREVIEW_STATS.currentStreak,
-          totalMentorMessages: PREVIEW_STATS.totalMentorMessages,
-        }
-      : PREVIEW_STATS;
+      ? Math.round(
+          scored.reduce((sum, item) => sum + (item.evaluation.scores?.total ?? 0), 0) /
+            scored.length,
+        )
+      : null;
 
-  const scoreHistory =
-    scored.length > 0
-      ? [...scored]
-          .reverse()
-          .map((item) => ({
-            ticket: item.ticketId.slice(0, 8),
-            score: item.evaluation.scores?.total ?? 0,
-          }))
-      : PREVIEW_SCORE_HISTORY;
+  const scoreHistory = [...scored].reverse().map((item) => ({
+    ticket: item.ticketId.slice(0, 8),
+    score: item.evaluation.scores?.total ?? 0,
+  }));
 
-  const categoryBreakdown =
-    items.length > 0
-      ? Object.entries(
-          items.reduce<Record<string, number>>((acc, item) => {
-            acc[item.category] = (acc[item.category] ?? 0) + 1;
-            return acc;
-          }, {}),
-        ).map(([category, count]) => ({ category, count }))
-      : PREVIEW_CATEGORIES;
+  const categoryBreakdown = Object.entries(
+    items.reduce<Record<string, number>>((acc, item) => {
+      acc[item.category] = (acc[item.category] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).map(([category, count]) => ({ category, count }));
 
   const statCards = [
-    { label: 'Tickets completed', value: stats.ticketsCompleted, icon: Target },
-    { label: 'Average score', value: `${stats.averageScore}/100`, icon: TrendingUp },
-    { label: 'Current streak', value: `${stats.currentStreak} weeks`, icon: Flame },
-    { label: 'Mentor messages', value: stats.totalMentorMessages, icon: MessageCircle },
+    { label: 'Tickets completed', value: items.length, icon: Target },
+    {
+      label: 'Average score',
+      value: averageScore !== null ? `${averageScore}/100` : '—',
+      icon: TrendingUp,
+    },
   ];
 
   return (
@@ -122,7 +89,7 @@ export default function ExperienceProfilePage(): React.JSX.Element {
 
       <PracticeRecordNotice />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4">
         {statCards.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="flex flex-col gap-2 p-5">
@@ -140,7 +107,13 @@ export default function ExperienceProfilePage(): React.JSX.Element {
             <CardTitle className="font-heading text-base font-medium">Score trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScoreTrendChart data={scoreHistory} />
+            {scoreHistory.length > 0 ? (
+              <ScoreTrendChart data={scoreHistory} />
+            ) : (
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                Scores appear after your first evaluated ticket.
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -148,7 +121,13 @@ export default function ExperienceProfilePage(): React.JSX.Element {
             <CardTitle className="font-heading text-base font-medium">Tickets by category</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryChart data={categoryBreakdown} />
+            {categoryBreakdown.length > 0 ? (
+              <CategoryChart data={categoryBreakdown} />
+            ) : (
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                Complete a ticket to see your category mix.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -160,7 +139,7 @@ export default function ExperienceProfilePage(): React.JSX.Element {
         </div>
       ) : profile.isError ? (
         <ErrorState
-          message={profile.error?.message || 'Could not load your experience profile.'}
+          message={friendlyMessage(profile.error, 'We could not load your experience profile.')}
           onRetry={() => void profile.refetch()}
         />
       ) : !items.length ? (

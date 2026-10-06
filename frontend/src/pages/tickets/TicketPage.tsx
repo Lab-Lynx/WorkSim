@@ -14,6 +14,9 @@ import { mapApiError, type UiError } from '@/lib/api/errors';
 import { queryKeys } from '@/lib/query-keys';
 import { TICKET_DONE_SYNC_INTERVAL_MS, TICKET_DONE_SYNC_MAX_ATTEMPTS } from '@/config/app.config';
 import type { TicketWithSubmissions } from '@/types';
+import { Compass } from 'lucide-react';
+import { friendlyMessage } from '@/lib/api/friendly-error';
+import ErrorPage from '@/components/common/ErrorPage';
 import ErrorState from '@/components/common/ErrorState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Button } from '@/components/ui/button';
@@ -196,18 +199,43 @@ export default function TicketPage(): React.JSX.Element {
     const mappedError = mapApiError(ticketQuery.error);
     if (mappedError.isNotFound || mappedError.status === 400) {
       return (
-        <section className="space-y-3 py-8">
-          <h1 tabIndex={-1} className="text-xl font-semibold">Ticket not found</h1>
-          <p className="text-sm text-muted-foreground">This ticket is unavailable.</p>
-          <Link to="/dashboard" className="text-sm font-medium text-primary underline">Go to dashboard</Link>
-        </section>
+        <ErrorPage
+          embedded
+          icon={Compass}
+          code="404"
+          title="Ticket not found"
+          description="This ticket is unavailable."
+          actions={
+            <Button asChild>
+              <Link to="/dashboard">Go to dashboard</Link>
+            </Button>
+          }
+        />
       );
     }
-    return <ErrorState message={mappedError.message} onRetry={() => void ticketQuery.refetch()} />;
+    return (
+      <ErrorState
+        message={friendlyMessage(ticketQuery.error, 'We could not load this ticket.')}
+        onRetry={() => void ticketQuery.refetch()}
+      />
+    );
   }
 
   if (!ticket || !phase) {
-    return <ErrorState message="Ticket not found" />;
+    return (
+      <ErrorPage
+        embedded
+        icon={Compass}
+        code="404"
+        title="Ticket not found"
+        description="This ticket is unavailable."
+        actions={
+          <Button asChild>
+            <Link to="/dashboard">Go to dashboard</Link>
+          </Button>
+        }
+      />
+    );
   }
 
   return (

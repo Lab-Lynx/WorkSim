@@ -387,6 +387,16 @@ export const ENDPOINT_TABLE: EndpointSpec[] = [
     implemented: true,
     noSessionExpected: 401,
   },
+
+  // EP-35: Submissions list
+  {
+    id: 'EP-35',
+    method: 'GET',
+    path: '/submissions',
+    getPath: () => '/submissions',
+    implemented: true,
+    noSessionExpected: 401,
+  },
 ];
 
 describeDb('Doc 9 §9.3.13 endpoint-gates table-driven test', () => {

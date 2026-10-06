@@ -3,12 +3,14 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Code, MailCheck } from 'lucide-react';
 import { useMe } from '@/hooks/auth/useMe';
+import { useGitHubConnection } from '@/hooks/github/useGitHubConnection';
 import { useUpdateProfile } from '@/hooks/auth/useUpdateProfile';
 import { useChangePassword } from '@/hooks/auth/useChangePassword';
 import { useLogoutAll } from '@/hooks/auth/useLogoutAll';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { useToast } from '@/hooks/useToast';
-import { applyServerErrorToForm, mapApiError, SERVER_MESSAGES } from '@/lib/api/errors';
+import { applyServerErrorToForm, SERVER_MESSAGES } from '@/lib/api/errors';
+import { friendlyMessage } from '@/lib/api/friendly-error';
 import {
   updateProfileSchema,
   changePasswordSchema,
@@ -24,7 +26,6 @@ import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -47,6 +48,7 @@ function initials(name?: string) {
 export default function SettingsPage(): React.JSX.Element {
   useDocumentTitle('Settings');
   const meQuery = useMe();
+  const github = useGitHubConnection().data;
   const updateProfile = useUpdateProfile();
   const changePassword = useChangePassword();
   const logoutAll = useLogoutAll();
@@ -107,23 +109,18 @@ export default function SettingsPage(): React.JSX.Element {
       await logoutAll.mutateAsync();
       setIsLogoutDialogOpen(false);
     } catch (error: unknown) {
-      setLogoutError(mapApiError(error).message);
+      setLogoutError(friendlyMessage(error, 'We could not log you out everywhere. Please try again.'));
     }
   };
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1
-          tabIndex={-1}
-          className="font-heading text-2xl font-medium tracking-tight text-foreground outline-none"
-        >
-          Settings
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Manage your account, integrations, and preferences.
-        </p>
-      </div>
+      <h1
+        tabIndex={-1}
+        className="font-heading text-2xl font-medium tracking-tight text-foreground outline-none"
+      >
+        Settings
+      </h1>
 
       {meQuery.isPending && (
         <p role="status" className="text-sm text-muted-foreground">
@@ -136,9 +133,6 @@ export default function SettingsPage(): React.JSX.Element {
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="font-heading text-base font-medium">Profile</CardTitle>
-            <CardDescription>
-              This information is visible on your public experience profile.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="mb-5 flex items-center gap-4">
@@ -197,9 +191,6 @@ export default function SettingsPage(): React.JSX.Element {
         <Card className="md:row-span-1">
           <CardHeader>
             <CardTitle className="font-heading text-base font-medium">Connections</CardTitle>
-            <CardDescription>
-              Work Simulator uses GitHub to assign repos and pull your submissions.
-            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-3">
@@ -207,12 +198,19 @@ export default function SettingsPage(): React.JSX.Element {
                 <Code className="size-5 shrink-0" />
                 <div className="flex min-w-0 flex-col">
                   <span className="text-sm font-medium">GitHub</span>
-                  <span className="text-xs text-muted-foreground">Manage in GitHub settings</span>
+                  <span className="truncate text-xs text-muted-foreground">{github?.githubLogin ? `@${github.githubLogin}` : 'Not connected'}</span>
                 </div>
               </div>
-              <Badge variant="secondary" className="shrink-0 gap-1.5 bg-primary/15 text-primary">
-                <span className="size-1.5 rounded-full bg-primary" />
-                Connected
+              <Badge
+                variant="secondary"
+                className={
+                  github?.connected ? 'shrink-0 gap-1.5 bg-primary/15 text-primary' : 'shrink-0 gap-1.5'
+                }
+              >
+                <span
+                  className={`size-1.5 rounded-full ${github?.connected ? 'bg-primary' : 'bg-muted-foreground'}`}
+                />
+                {github?.connected ? 'Connected' : 'Not connected'}
               </Badge>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-3">
@@ -293,7 +291,6 @@ export default function SettingsPage(): React.JSX.Element {
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-base font-medium">Sessions</CardTitle>
-            <CardDescription>Sign out of all other devices and this session.</CardDescription>
           </CardHeader>
           <CardFooter className="mt-auto">
             <Button

@@ -7,6 +7,7 @@ export const queryKeys = {
   githubConnection: ['github-connection'] as const,
   currentTicket: ['ticket', 'current'] as const,
   profile: ['profile'] as const,
+  submissions: ['submissions'] as const,
   ticket: (id: string) => ['ticket', id] as const,
   mentor: (id: string) => ['mentor', id] as const,
   submission: (id: string, attempt: SubmissionAttempt, includeDiff: boolean) =>

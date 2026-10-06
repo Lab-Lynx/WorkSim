@@ -6,11 +6,13 @@ import ApiError from '../../src/utils/ApiError.js';
 const submitWork = vi.fn();
 const getSubmission = vi.fn();
 const retrySubmission = vi.fn();
+const listSubmissions = vi.fn();
 
 vi.mock('../../src/services/submission.service.js', () => ({
   submitWork,
   getSubmission,
   retrySubmission,
+  listSubmissions,
 }));
 
 const getStarterRepoSummary = vi.fn();
@@ -22,6 +24,7 @@ const {
   submit,
   getSubmission: getSubmissionCtrl,
   retry,
+  listSubmissions: listSubmissionsCtrl,
 } = await import('../../src/controllers/submission.controller.js');
 
 function mockRes() {
@@ -157,5 +160,28 @@ describe('submission.controller (EP-30–EP-32)', () => {
     );
 
     expect(next).toHaveBeenCalledWith(err);
+  });
+});
+
+describe('submission.controller listSubmissions (EP-35)', () => {
+  it('returns 200 with the items for the authenticated user', async () => {
+    listSubmissions.mockResolvedValue([{ id: 'sub-1' }]);
+    const res = mockRes();
+
+    await listSubmissionsCtrl({ user: { id: 'user-1' } } as never, res as never, vi.fn());
+
+    expect(listSubmissions).toHaveBeenCalledWith('user-1');
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { items: [{ id: 'sub-1' }] } }),
+    );
+  });
+
+  it('forwards a 401 when there is no authenticated user', async () => {
+    const next = vi.fn();
+
+    await listSubmissionsCtrl({} as never, mockRes() as never, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: HTTP_STATUS.UNAUTHORIZED }));
   });
 });

@@ -7,6 +7,7 @@ const ticketFindFirst = vi.fn();
 const ticketUpdateMany = vi.fn();
 const submissionCreate = vi.fn();
 const submissionFindUnique = vi.fn();
+const submissionFindMany = vi.fn();
 const submissionFindUniqueOrThrow = vi.fn();
 const submissionUpdateMany = vi.fn();
 const transaction = vi.fn();
@@ -20,6 +21,7 @@ vi.mock('../../src/config/db.js', () => ({
     submission: {
       create: submissionCreate,
       findUnique: submissionFindUnique,
+      findMany: submissionFindMany,
       findUniqueOrThrow: submissionFindUniqueOrThrow,
       updateMany: submissionUpdateMany,
     },
@@ -53,6 +55,7 @@ const {
   submitWork,
   getSubmission,
   retrySubmission,
+  listSubmissions,
 } = await import('../../src/services/submission.service.js');
 
 const userId = 'user-1';
@@ -521,5 +524,78 @@ describe('submission.service (doc 9 §9.2.11)', () => {
         message: 'Submission not found',
       });
     });
+  });
+});
+
+describe('listSubmissions (EP-35)', () => {
+  beforeEach(() => {
+    submissionFindMany.mockReset();
+    getStarterRepoSummary.mockReset();
+  });
+
+  const row = {
+    id: 'sub-1',
+    attempt: 1,
+    status: SubmissionStatus.completed,
+    prNumber: 12,
+    headSha: 'abc1234',
+    ciPassed: true,
+    ciRunUrl: null,
+    failureReason: null,
+    submittedAt: new Date('2026-04-01T10:00:00.000Z'),
+    evaluation: null,
+    ticket: {
+      id: ticketId,
+      branchName: 'fix/cart-race',
+      content: { title: 'Fix cart race', category: 'Bug Fix' },
+    },
+  };
+
+  it('returns an empty list without looking up the repo when there are no submissions', async () => {
+    submissionFindMany.mockResolvedValue([]);
+
+    await expect(listSubmissions(userId)).resolves.toEqual([]);
+    expect(getStarterRepoSummary).not.toHaveBeenCalled();
+  });
+
+  it('scopes the query to the user and orders newest first', async () => {
+    submissionFindMany.mockResolvedValue([]);
+
+    await listSubmissions(userId);
+
+    expect(submissionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { ticket: { userId } },
+        orderBy: { submittedAt: 'desc' },
+      }),
+    );
+  });
+
+  it('maps rows to submissions with ticket info, PR url and base branch, without a diff', async () => {
+    submissionFindMany.mockResolvedValue([row]);
+    getStarterRepoSummary.mockResolvedValue({ fullName: 'octo/starter', defaultBranch: 'main' });
+
+    const [item] = await listSubmissions(userId);
+
+    expect(item).toMatchObject({
+      id: 'sub-1',
+      attempt: 1,
+      prNumber: 12,
+      prUrl: 'https://github.com/octo/starter/pull/12',
+      baseBranch: 'main',
+      ticket: { id: ticketId, title: 'Fix cart race', category: 'Bug Fix', branchName: 'fix/cart-race' },
+    });
+    expect(item).not.toHaveProperty('diff');
+  });
+
+  it('falls back to safe defaults when ticket content or the repo is missing', async () => {
+    submissionFindMany.mockResolvedValue([{ ...row, ticket: { ...row.ticket, content: null } }]);
+    getStarterRepoSummary.mockResolvedValue(null);
+
+    const [item] = await listSubmissions(userId);
+
+    expect(item.ticket.title).toBe('Untitled ticket');
+    expect(item.ticket.category).toBe('General');
+    expect(item.baseBranch).toBeNull();
   });
 });

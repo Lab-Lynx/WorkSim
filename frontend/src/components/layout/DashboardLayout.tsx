@@ -2,12 +2,13 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { CreditCard, GitBranch, LayoutDashboard, LogOut, Menu, Settings, UserRound } from 'lucide-react';
+import { CreditCard, GitBranch, LayoutDashboard, ListChecks, LogOut, Menu, Settings, UserRound } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { to: '/github', label: 'Workspace', icon: GitBranch },
+  { to: '/submissions', label: 'Submissions', icon: ListChecks },
   { to: '/billing', label: 'Billing', icon: CreditCard },
   { to: '/profile', label: 'Experience', icon: UserRound },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -30,12 +31,11 @@ export default function DashboardLayout() {
           <nav className="mt-3 flex flex-col gap-1" aria-label="Main navigation">
             {navItems.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} onClick={() => setOpen(false)} className={({ isActive }) => cn('flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors', isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}><Icon className="size-4" />{label}</NavLink>)}
           </nav>
-          <div className="mt-auto rounded-2xl border border-border bg-muted/60 p-4"><p className="text-xs font-semibold text-foreground">Keep your momentum</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Complete tickets to build a portfolio of real work samples.</p></div>
-          <div className="mt-4 flex items-center justify-between border-t border-border pt-4"><div className="min-w-0"><p className="truncate text-sm font-semibold">{user?.name || 'Developer'}</p><p className="truncate text-xs text-muted-foreground">{user?.email}</p></div><Button variant="ghost" size="icon" onClick={logout} aria-label="Log out"><LogOut className="size-4" /></Button></div>
+          <div className="mt-auto flex items-center justify-between border-t border-border pt-4"><div className="min-w-0"><p className="truncate text-sm font-semibold">{user?.name || 'Developer'}</p><p className="truncate text-xs text-muted-foreground">{user?.email}</p></div><Button variant="ghost" size="icon" onClick={logout} aria-label="Log out"><LogOut className="size-4" /></Button></div>
         </aside>
         {open && <button className="fixed inset-0 z-30 bg-black/20 md:hidden" aria-label="Close navigation" onClick={() => setOpen(false)} />}
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/80 bg-background/90 px-5 backdrop-blur md:px-10"><Button variant="ghost" size="icon" className="md:hidden" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu className="size-5" /></Button><div className="hidden md:block"><p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Developer workspace</p></div><div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="size-2 rounded-full bg-foreground" /> All systems ready</div></header>
+          <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/80 bg-background/90 px-5 backdrop-blur md:px-10"><Button variant="ghost" size="icon" className="md:hidden" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu className="size-5" /></Button></header>
           <main className={cn('mx-auto', isDashboard ? 'w-full max-w-none p-0' : 'max-w-6xl px-5 py-8 md:px-10 md:py-10')}><Outlet /></main>
         </div>
       </div>
