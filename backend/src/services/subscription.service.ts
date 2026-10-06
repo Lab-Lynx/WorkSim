@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { prisma } from '../config/db.js';
 import { env } from '../config/env.js';
-import { HTTP_STATUS } from '../constants/index.js';
+import { FREE_TICKET_LIMIT, HTTP_STATUS } from '../constants/index.js';
 import ApiError from '../utils/ApiError.js';
 import { PaymentStatus, SubscriptionStatus } from '@prisma/client';
 import * as chapaIntegration from '../integrations/chapa.js';
@@ -24,6 +24,40 @@ export const hasPaidAccess = async (
     select: { id: true },
   });
   return live !== null;
+};
+
+export interface FreeTicketUsage {
+  limit: number;
+  used: number;
+  remaining: number;
+}
+
+/**
+ * Free-trial usage: every ticket ever assigned counts, including abandoned ones,
+ * so abandoning cannot be used to get unlimited free tickets.
+ */
+export const getFreeTicketUsage = async (userId: string): Promise<FreeTicketUsage> => {
+  const used = await prisma.ticket.count({ where: { userId } });
+  return {
+    limit: FREE_TICKET_LIMIT,
+    used,
+    remaining: Math.max(FREE_TICKET_LIMIT - used, 0),
+  };
+};
+
+/**
+ * Ticket gate: subscribers are unlimited, everyone else gets FREE_TICKET_LIMIT tickets.
+ */
+export const assertCanAssignTicket = async (userId: string): Promise<void> => {
+  if (await hasPaidAccess(userId)) return;
+
+  const usage = await getFreeTicketUsage(userId);
+  if (usage.remaining === 0) {
+    throw new ApiError(
+      HTTP_STATUS.PAYMENT_REQUIRED,
+      `You have used your ${usage.limit} free tickets. An active subscription is required to continue`,
+    );
+  }
 };
 
 /**
@@ -83,14 +117,20 @@ export const createCheckout = async (userId: string): Promise<{ checkoutUrl: str
  */
 export const getSubscriptionStatus = async (
   userId: string,
-): Promise<{ subscription: SerializedSubscription | null; hasAccess: boolean }> => {
+): Promise<{
+  subscription: SerializedSubscription | null;
+  hasAccess: boolean;
+  freeTickets: FreeTicketUsage;
+}> => {
   const subscription = await prisma.subscription.findFirst({
     where: { userId },
     orderBy: { createdAt: 'desc' },
   });
   const hasAccess = await hasPaidAccess(userId);
+  const freeTickets = await getFreeTicketUsage(userId);
 
   return {
+    freeTickets,
     subscription: subscription
       ? {
           id: subscription.id,

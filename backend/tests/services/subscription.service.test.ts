@@ -5,6 +5,7 @@ import { SubscriptionStatus, PaymentStatus, Prisma } from '@prisma/client';
 const subscriptionFindFirst = vi.fn();
 const subscriptionUpdate = vi.fn();
 const userFindUnique = vi.fn();
+const ticketCount = vi.fn();
 const paymentCreate = vi.fn();
 const paymentFindMany = vi.fn();
 const initializePayment = vi.fn();
@@ -17,6 +18,9 @@ vi.mock('../../src/config/db.js', () => ({
     },
     user: {
       findUnique: userFindUnique,
+    },
+    ticket: {
+      count: ticketCount,
     },
     payment: {
       create: paymentCreate,
@@ -31,6 +35,8 @@ vi.mock('../../src/integrations/chapa.js', () => ({
 
 const {
   hasPaidAccess,
+  getFreeTicketUsage,
+  assertCanAssignTicket,
   createCheckout,
   getSubscriptionStatus,
   cancelSubscription,
@@ -60,6 +66,46 @@ describe('subscription.service', () => {
     it('returns false when no live subscription exists', async () => {
       subscriptionFindFirst.mockResolvedValue(null);
       await expect(hasPaidAccess('user-1')).resolves.toBe(false);
+    });
+  });
+
+  describe('getFreeTicketUsage', () => {
+    it.each([
+      [0, 3],
+      [2, 1],
+      [3, 0],
+      [5, 0],
+    ])('with %i tickets used reports %i remaining', async (used, remaining) => {
+      ticketCount.mockResolvedValue(used);
+
+      await expect(getFreeTicketUsage('user-1')).resolves.toEqual({ limit: 3, used, remaining });
+      expect(ticketCount).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    });
+  });
+
+  describe('assertCanAssignTicket', () => {
+    it('allows subscribers without counting tickets', async () => {
+      subscriptionFindFirst.mockResolvedValue({ id: 'sub-1' });
+
+      await expect(assertCanAssignTicket('user-1')).resolves.toBeUndefined();
+      expect(ticketCount).not.toHaveBeenCalled();
+    });
+
+    it('allows a non-subscriber who still has free tickets', async () => {
+      subscriptionFindFirst.mockResolvedValue(null);
+      ticketCount.mockResolvedValue(2);
+
+      await expect(assertCanAssignTicket('user-1')).resolves.toBeUndefined();
+    });
+
+    it('throws 402 once a non-subscriber has used all 3 free tickets', async () => {
+      subscriptionFindFirst.mockResolvedValue(null);
+      ticketCount.mockResolvedValue(3);
+
+      await expect(assertCanAssignTicket('user-1')).rejects.toMatchObject({
+        statusCode: HTTP_STATUS.PAYMENT_REQUIRED,
+        message: 'You have used your 3 free tickets. An active subscription is required to continue',
+      });
     });
   });
 
@@ -113,11 +159,13 @@ describe('subscription.service', () => {
   describe('getSubscriptionStatus', () => {
     it('returns null subscription and hasAccess: false when no subscription exists', async () => {
       subscriptionFindFirst.mockResolvedValue(null);
+      ticketCount.mockResolvedValue(1);
 
       const result = await getSubscriptionStatus('user-1');
       expect(result).toEqual({
         subscription: null,
         hasAccess: false,
+        freeTickets: { limit: 3, used: 1, remaining: 2 },
       });
     });
 
@@ -130,6 +178,7 @@ describe('subscription.service', () => {
         currentPeriodEnd: future,
         canceledAt: null,
       });
+      ticketCount.mockResolvedValue(4);
 
       const result = await getSubscriptionStatus('user-1');
       expect(result).toEqual({
@@ -140,6 +189,7 @@ describe('subscription.service', () => {
           canceledAt: null,
         },
         hasAccess: true,
+        freeTickets: { limit: 3, used: 4, remaining: 0 },
       });
     });
   });

@@ -32,33 +32,6 @@ import { queryKeys } from '@/lib/query-keys';
 import { ROUTES } from '@/constants';
 import type { GitHubConnectionSummary, Ticket } from '@/types';
 
-/** Preview data for UI work while APIs/session are unavailable. */
-const PREVIEW = {
-  stats: {
-    ticketsCompleted: 4,
-    averageScore: 91,
-    currentStreak: 4,
-    totalMentorMessages: 62,
-  },
-  subscription: {
-    status: 'active',
-    plan: 'Practitioner',
-    priceLabel: '450 ETB / month',
-    nextBillingDate: 'November 14, 2025',
-  },
-  scoreHistory: [
-    { ticket: 'WS-160', score: 98 },
-    { ticket: 'WS-171', score: 85 },
-    { ticket: 'WS-183', score: 97 },
-    { ticket: 'WS-198', score: 91 },
-  ],
-  recent: [
-    { id: 'WS-198', title: 'Add pagination to admin order list endpoint', completedAt: 'Sep 24, 2025', score: 91 },
-    { id: 'WS-183', title: 'Fix N+1 query on user dashboard', completedAt: 'Sep 10, 2025', score: 97 },
-    { id: 'WS-171', title: 'Build reusable Toast notification system', completedAt: 'Aug 27, 2025', score: 85 },
-  ],
-};
-
 function StatCard({
   icon: Icon,
   label,
@@ -117,32 +90,25 @@ export default function DashboardPage() {
     };
   });
 
-  const recent = recentFromProfile.length > 0 ? recentFromProfile : PREVIEW.recent;
-  const scoreHistory =
-    recentFromProfile.length > 0
-      ? [...recentFromProfile]
-          .reverse()
-          .map((item) => ({
-            ticket: item.id.slice(0, 8),
-            score: item.score ?? 0,
-          }))
-      : PREVIEW.scoreHistory;
+  const recent = recentFromProfile;
+  const scoreHistory = [...recentFromProfile].reverse().map((item) => ({
+    ticket: item.id.slice(0, 8),
+    score: item.score ?? 0,
+  }));
 
   const scoredItems = profileItems.filter((item) => item.evaluation.scores?.total != null);
-  const stats =
+  const averageScore =
     scoredItems.length > 0
-      ? {
-          ticketsCompleted: profileItems.length,
-          averageScore: Math.round(
-            scoredItems.reduce((sum, item) => sum + (item.evaluation.scores?.total ?? 0), 0) /
-              scoredItems.length,
-          ),
-          currentStreak: PREVIEW.stats.currentStreak,
-          totalMentorMessages: PREVIEW.stats.totalMentorMessages,
-        }
-      : PREVIEW.stats;
+      ? Math.round(
+          scoredItems.reduce((sum, item) => sum + (item.evaluation.scores?.total ?? 0), 0) /
+            scoredItems.length,
+        )
+      : null;
 
-  const sub = subscriptionQuery.data?.subscription;
+  const subscriptionData = subscriptionQuery.data;
+  const sub = subscriptionData?.subscription;
+  const freeTickets = subscriptionData?.freeTickets;
+  const hasPaidPlan = Boolean(sub) && subscriptionData?.hasAccess === true;
   const subscription = sub
     ? {
         status: sub.status,
@@ -156,7 +122,14 @@ export default function DashboardPage() {
             })
           : '—',
       }
-    : PREVIEW.subscription;
+    : {
+        status: freeTickets && freeTickets.remaining === 0 ? 'free tickets used' : 'free trial',
+        plan: 'Free',
+        priceLabel: freeTickets
+          ? `${freeTickets.remaining} of ${freeTickets.limit} free tickets left`
+          : '—',
+        nextBillingDate: '—',
+      };
 
   const handleGetTicket = async () => {
     setGetError(null);
@@ -213,26 +186,28 @@ export default function DashboardPage() {
         <StatCard
           icon={Trophy}
           label="Tickets completed"
-          value={String(stats.ticketsCompleted)}
+          value={String(profileItems.length)}
           hint="Completed work samples"
         />
         <StatCard
           icon={Target}
           label="Average score"
-          value={`${stats.averageScore} / 100`}
+          value={averageScore != null ? `${averageScore} / 100` : '—'}
           hint="Across completed tickets"
         />
         <StatCard
           icon={Flame}
-          label="Current streak"
-          value={`${stats.currentStreak} weeks`}
-          hint="Ticket every week"
+          label="Tickets started"
+          value={freeTickets ? String(freeTickets.used) : '—'}
+          hint={hasPaidPlan ? 'Unlimited on your plan' : 'Counts toward your free tickets'}
         />
         <StatCard
           icon={MessageSquare}
-          label="Mentor exchanges"
-          value={String(stats.totalMentorMessages)}
-          hint="All-time messages"
+          label="Free tickets left"
+          value={
+            hasPaidPlan ? 'Unlimited' : freeTickets ? `${freeTickets.remaining} / ${freeTickets.limit}` : '—'
+          }
+          hint={hasPaidPlan ? 'Subscription active' : 'Subscribe to keep practicing'}
         />
       </div>
 
@@ -326,7 +301,13 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ScoreTrendChart data={scoreHistory} />
+            {scoreHistory.length > 0 ? (
+              <ScoreTrendChart data={scoreHistory} />
+            ) : (
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                Complete your first ticket to see your score trend.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -336,6 +317,9 @@ export default function DashboardPage() {
             <CardTitle className="font-heading text-xl font-medium">Latest work samples</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
+            {recent.length === 0 && (
+              <p className="text-sm text-muted-foreground">No completed tickets yet.</p>
+            )}
             {recent.map((ticket) => (
               <div key={ticket.id} className="flex items-start justify-between gap-3">
                 <div className="flex flex-col gap-1">
