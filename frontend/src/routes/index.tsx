@@ -6,6 +6,8 @@ import RequireAuth from './RequireAuth';
 import PublicOnly from './PublicOnly';
 import AppLayout from '@/components/layout/AppLayout';
 import AuthLayout from '@/components/layout/AuthLayout';
+import NotFoundPage from '@/pages/NotFoundPage';
+import RouteErrorPage from '@/pages/RouteErrorPage';
 import { ROUTES } from '@/constants';
 import { useCurrentTicket } from '@/hooks/tickets/useCurrentTicket';
 
@@ -15,7 +17,6 @@ const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
-const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage'));
 const BillingPage = lazy(() => import('@/pages/billing/BillingPage'));
 const CheckoutReturnPage = lazy(() => import('@/pages/billing/CheckoutReturnPage'));
@@ -66,6 +67,9 @@ const withSuspense = (element: React.ReactNode) => (
 
 const router = createBrowserRouter([
   {
+    errorElement: <RouteErrorPage />,
+    children: [
+  {
     path: ROUTES.HOME,
     element: withSuspense(<LandingPage />),
   },
@@ -108,7 +112,9 @@ const router = createBrowserRouter([
       },
     ],
   },
-  { path: '*', element: withSuspense(<NotFoundPage />) },
+  { path: '*', element: <NotFoundPage /> },
+    ],
+  },
 ]);
 
 export default router;
