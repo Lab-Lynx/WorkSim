@@ -24,6 +24,9 @@ vi.mock('@/hooks/auth/useChangePassword', () => ({ useChangePassword: mocks.useC
 vi.mock('@/hooks/auth/useLogoutAll', () => ({ useLogoutAll: mocks.useLogoutAll }));
 vi.mock('@/hooks/useUnsavedChangesWarning', () => ({ useUnsavedChangesWarning: mocks.useUnsavedChangesWarning }));
 vi.mock('@/hooks/useToast', () => ({ useToast: mocks.useToast }));
+vi.mock('@/hooks/github/useGitHubConnection', () => ({
+  useGitHubConnection: () => ({ data: { connected: true, githubLogin: 'alex-dev', repo: null } }),
+}));
 
 describe('SettingsPage (FE-099)', () => {
   beforeEach(() => {

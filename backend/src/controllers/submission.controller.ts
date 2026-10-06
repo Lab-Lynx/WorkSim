@@ -80,3 +80,10 @@ export const retry = asyncHandler(async (req: AuthRequest, res: Response) => {
     }),
   );
 });
+
+/** EP-35 — GET /submissions */
+export const listSubmissions = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const items = await submissionService.listSubmissions(user.id);
+  res.status(HTTP_STATUS.OK).json(new SuccessResponse(HTTP_STATUS.OK, 'Submissions', { items }));
+});

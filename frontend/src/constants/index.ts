@@ -19,3 +19,11 @@ export const QUERY_KEYS = {
   USERS: 'users',
   PRODUCTS: 'products',
 } as const;
+
+export const PLAN = {
+  NAME: 'Practitioner',
+  PRICE_LABEL: '450 ETB / month',
+  PRICE_AMOUNT: '450 ETB',
+} as const;
+
+export const MAX_SUBMISSION_ATTEMPTS = 2;

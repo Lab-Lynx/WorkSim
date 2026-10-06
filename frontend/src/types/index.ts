@@ -128,6 +128,16 @@ export interface Submission {
   diff?: string;
 }
 
+export interface SubmissionListItem extends Submission {
+  ticket: {
+    id: UUID;
+    title: string;
+    category: string;
+    branchName: string | null;
+  };
+  baseBranch: string | null;
+}
+
 export interface TicketWithSubmissions {
   ticket: Ticket;
   submissions: Submission[];

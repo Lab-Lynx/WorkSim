@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/card';
 import { mapApiError, type UiError } from '@/lib/api/errors';
 import { queryKeys } from '@/lib/query-keys';
-import { ROUTES } from '@/constants';
+import { PLAN, ROUTES } from '@/constants';
 import type { GitHubConnectionSummary, Ticket } from '@/types';
 
 function StatCard({
@@ -112,8 +112,8 @@ export default function DashboardPage() {
   const subscription = sub
     ? {
         status: sub.status,
-        plan: 'Practitioner',
-        priceLabel: '450 ETB / month',
+        plan: PLAN.NAME,
+        priceLabel: PLAN.PRICE_LABEL,
         nextBillingDate: sub.currentPeriodEnd
           ? new Date(sub.currentPeriodEnd).toLocaleDateString('en-US', {
               month: 'long',
@@ -171,16 +171,9 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm text-muted-foreground">Welcome back</p>
-        <h1 className="font-heading text-3xl font-medium tracking-tight text-balance md:text-4xl">
-          {firstName}, your bench is warm.
-        </h1>
-        <p className="max-w-2xl text-sm text-muted-foreground text-pretty">
-          One active ticket, a live mentor thread, and a growing work-sample record — this is where
-          the practice compounds.
-        </p>
-      </div>
+      <h1 className="font-heading text-3xl font-medium tracking-tight text-balance md:text-4xl">
+        Welcome back, {firstName}
+      </h1>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
