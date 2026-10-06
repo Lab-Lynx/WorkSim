@@ -29,7 +29,13 @@ describe('GitHub OAuth integration', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       'https://github.com/login/oauth/access_token',
-      expect.objectContaining({ body: expect.stringContaining('"code":"code"') }),
+      expect.objectContaining({
+        body: expect.stringContaining('"code":"code"'),
+        headers: expect.objectContaining({
+          Accept: 'application/json',
+          'User-Agent': 'WorkSim',
+        }),
+      }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,

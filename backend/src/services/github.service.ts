@@ -106,6 +106,10 @@ export const completeGitHubAuthorization = async (
     });
     return frontendOAuthRedirect('connected');
   } catch (error) {
+    logger.warn(
+      { message: error instanceof Error ? error.message : 'unknown error' },
+      'GitHub OAuth callback failed',
+    );
     if (error instanceof ApiError && error.message.includes('scope')) {
       return frontendOAuthRedirect('error', 'scope_invalid');
     }
