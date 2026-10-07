@@ -26,8 +26,8 @@ export default function MentorComposer({
 	};
 
 	return (
-		<div className="space-y-2">
-			<label htmlFor="mentor-message" className="text-sm font-medium text-foreground">
+		<div className="space-y-2 border-t border-border/60 pt-4">
+			<label htmlFor="mentor-message" className="sr-only">
 				Message to the mentor
 			</label>
 			<textarea
@@ -36,20 +36,26 @@ export default function MentorComposer({
 				onChange={(event) => setValue(event.target.value)}
 				disabled={Boolean(disabledReason) || isSending}
 				aria-describedby={disabledReason ? 'mentor-composer-reason' : undefined}
+				placeholder="Ask for a hint or describe where you are stuck."
 				rows={3}
-				className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+				className="w-full resize-none rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
 			/>
 			{disabledReason && (
 				<p id="mentor-composer-reason" className="text-sm text-muted-foreground">
 					{disabledReason}
 				</p>
 			)}
-			{maxChars !== null && (
-				<p className="text-right text-xs text-muted-foreground" aria-live="polite">
-					{value.length} / {maxChars}
-				</p>
-			)}
-			<div className="flex justify-end">
+			<div className="flex items-center justify-between gap-3">
+				{maxChars !== null ? (
+					<p
+						className={`text-xs ${isOverLimit ? 'text-destructive' : 'text-muted-foreground'}`}
+						aria-live="polite"
+					>
+						{value.length} / {maxChars}
+					</p>
+				) : (
+					<span />
+				)}
 				<SubmitButton
 					type="button"
 					isPending={isSending}
