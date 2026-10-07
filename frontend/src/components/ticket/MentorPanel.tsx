@@ -61,7 +61,7 @@ export default function MentorPanel({ ticketId, mentor, hasAccess }: MentorPanel
 	let disabledReason: string | null = null;
 	if (mentor !== 'read_only') {
 		if (!hasAccess) {
-			disabledReason = 'An active subscription is required to chat with the mentor.';
+			disabledReason = 'An active subscription is required.';
 		} else if (mentor === 'not_started') {
 			disabledReason = 'Start the ticket to use the mentor.';
 		} else if (mentor === 'unavailable_after_submit') {
