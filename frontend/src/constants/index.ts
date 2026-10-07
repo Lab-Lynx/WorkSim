@@ -5,6 +5,7 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   BILLING: '/billing',
   BILLING_RETURN: '/billing/return',
+  PAYMENT_RETURN_ALIAS: '/payment/return',
   GITHUB: '/github',
   PROFILE: '/profile',
   SETTINGS: '/settings',
@@ -19,3 +20,11 @@ export const QUERY_KEYS = {
   USERS: 'users',
   PRODUCTS: 'products',
 } as const;
+
+export const PLAN = {
+  NAME: 'Practitioner',
+  PRICE_LABEL: '450 ETB / month',
+  PRICE_AMOUNT: '450 ETB',
+} as const;
+
+export const MAX_SUBMISSION_ATTEMPTS = 2;

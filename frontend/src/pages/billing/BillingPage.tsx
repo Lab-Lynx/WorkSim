@@ -1,16 +1,17 @@
 import { useState } from 'react';
-import { Check, CreditCard, Loader2 } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { useSubscription } from '@/hooks/billing/useSubscription';
 import { usePayments } from '@/hooks/billing/usePayments';
 import { useStartCheckout } from '@/hooks/billing/useStartCheckout';
 import { useCancelSubscription } from '@/hooks/billing/useCancelSubscription';
 import { mapApiError } from '@/lib/api/errors';
+import { friendlyMessage } from '@/lib/api/friendly-error';
+import { PLAN } from '@/constants';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import ErrorState from '@/components/common/ErrorState';
 import SubscriptionCard from '@/components/billing/SubscriptionCard';
 import PaymentHistory from '@/components/billing/PaymentHistory';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -25,14 +26,6 @@ const planFeatures = [
   'Rubric-scored feedback on every submission',
   'Experience profile with public work history',
 ];
-
-function sanitizeErrorMessage(message: string | undefined, fallback: string): string {
-  if (!message) return fallback;
-  if (/^Route\s+[A-Z]+\s+\//i.test(message) || message.includes('/api/')) {
-    return fallback;
-  }
-  return message;
-}
 
 export function BillingPage() {
   useDocumentTitle('Billing');
@@ -55,10 +48,10 @@ export function BillingPage() {
     } catch (error: unknown) {
       setIsRedirecting(false);
       const mapped = mapApiError(error);
-      if (mapped.message && (/^Route\s+[A-Z]+\s+\//i.test(mapped.message) || mapped.message.includes('/api/'))) {
-        mapped.message = 'Failed to start checkout. Please try again.';
-      }
-      setSubscribeError(mapped);
+      setSubscribeError({
+        ...mapped,
+        message: friendlyMessage(error, 'We could not start checkout. Please try again.'),
+      });
     }
   };
 
@@ -72,27 +65,22 @@ export function BillingPage() {
       if (mappedError.status === 409) {
         setIsConfirmOpen(false);
       } else {
-        setCancelError(sanitizeErrorMessage(mappedError.message, 'Failed to cancel subscription. Please try again.'));
+        setCancelError(friendlyMessage(error, 'We could not cancel your subscription. Please try again.'));
       }
     }
   };
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-heading text-2xl font-medium tracking-tight">Billing</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage your subscription and view payment history.
-        </p>
-      </div>
+      <h1 className="font-heading text-2xl font-medium tracking-tight">Billing</h1>
 
       <Card>
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div className="flex flex-col gap-1.5">
-            <CardTitle className="font-heading text-lg font-medium">Practitioner plan</CardTitle>
-            <CardDescription>450 ETB / month · billed via Chapa</CardDescription>
+            <CardTitle className="font-heading text-lg font-medium">{PLAN.NAME} plan</CardTitle>
+            <CardDescription>{PLAN.PRICE_LABEL}</CardDescription>
           </div>
-          <span className="font-heading text-3xl font-medium tracking-tight text-nowrap">450 ETB</span>
+          <span className="font-heading text-3xl font-medium tracking-tight text-nowrap">{PLAN.PRICE_AMOUNT}</span>
         </CardHeader>
         <CardContent>
           <div className="mb-5 border-t border-border" />
@@ -110,7 +98,6 @@ export function BillingPage() {
       <Card>
         <CardHeader>
           <CardTitle className="font-heading text-base font-medium">Subscription</CardTitle>
-          <CardDescription>Current access and renewal status</CardDescription>
         </CardHeader>
         <CardContent>
           {subscription.isLoading ? (
@@ -123,7 +110,7 @@ export function BillingPage() {
             </div>
           ) : subscription.isError || !subscription.data ? (
             <ErrorState
-              message={sanitizeErrorMessage(subscription.error?.message, 'Failed to load subscription information.')}
+              message={friendlyMessage(subscription.error, 'We could not load your subscription.')}
               onRetry={() => void subscription.refetch()}
               retryLabel="Retry subscription"
             />
@@ -143,26 +130,6 @@ export function BillingPage() {
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <CardTitle className="font-heading text-base font-medium">Payment method</CardTitle>
-            <CardDescription>Billed via Chapa</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" type="button" disabled>
-            <CreditCard data-icon="inline-start" />
-            Update
-          </Button>
-        </CardHeader>
-        <CardContent className="flex items-center gap-3 rounded-lg bg-muted px-4 py-3">
-          <CreditCard className="size-5 text-muted-foreground" />
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">Telebirr · via Chapa</span>
-            <span className="text-xs text-muted-foreground">Managed on Chapa checkout</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
         <CardHeader>
           <CardTitle className="font-heading text-base font-medium">Payment history</CardTitle>
         </CardHeader>
@@ -177,7 +144,7 @@ export function BillingPage() {
             </div>
           ) : payments.isError ? (
             <ErrorState
-              message={sanitizeErrorMessage(payments.error?.message, 'Failed to load payment history.')}
+              message={friendlyMessage(payments.error, 'We could not load your payment history.')}
               onRetry={() => void payments.refetch()}
               retryLabel="Retry payments"
             />

@@ -34,8 +34,10 @@ vi.mock('../../src/config/env.js', () => ({
 }));
 
 const hasPaidAccess = vi.fn();
+const assertCanAssignTicket = vi.fn();
 vi.mock('../../src/services/subscription.service.js', () => ({
   hasPaidAccess,
+  assertCanAssignTicket,
 }));
 
 const assertGitHubConnected = vi.fn();
@@ -182,6 +184,25 @@ describe('ticket.service', () => {
 
       const result = await assignNextTicket('user-1');
       expect(result.status).toBe(TicketStatus.assigned);
+    });
+
+    it('throws 402 when the free ticket limit is used and there is no subscription', async () => {
+      stubHappyGates();
+      ticketFindFirst.mockResolvedValue(null);
+      assertCanAssignTicket.mockRejectedValueOnce(
+        new ApiError(
+          HTTP_STATUS.PAYMENT_REQUIRED,
+          'You have used your 3 free tickets. An active subscription is required to continue',
+        ),
+      );
+
+      await expect(assignNextTicket('user-1')).rejects.toMatchObject({
+        statusCode: HTTP_STATUS.PAYMENT_REQUIRED,
+      });
+      expect(assertCanAssignTicket).toHaveBeenCalledWith('user-1');
+      expect(generateTicketContent).not.toHaveBeenCalled();
+      expect(createTicketBranch).not.toHaveBeenCalled();
+      expect(ticketCreate).not.toHaveBeenCalled();
     });
 
     it('throws 403 when GitHub is not connected', async () => {

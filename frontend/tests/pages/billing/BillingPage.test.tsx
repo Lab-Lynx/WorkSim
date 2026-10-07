@@ -76,13 +76,13 @@ describe('BillingPage', () => {
         mockUseSubscription.mockReturnValueOnce({
             isLoading: false,
             isError: true,
-            error: { message: 'Failed to load subscription' } as ApiError,
+            error: { status: 503, kind: 'api', message: 'Failed to load subscription' } as unknown as ApiError,
             refetch: mockRefetchSub,
         } as unknown as UseQueryResult<SubscriptionStatusResponse, ApiError>);
 
         render(<BillingPage />);
 
-        expect(screen.getByRole('alert')).toHaveTextContent('Failed to load subscription');
+        expect(screen.getByRole('alert')).toHaveTextContent('We could not load your subscription.');
 
         const retryBtn = screen.getByRole('button', { name: /retry subscription/i });
         fireEvent.click(retryBtn);
@@ -94,7 +94,7 @@ describe('BillingPage', () => {
             data: undefined,
             isLoading: false,
             isError: true,
-            error: { message: 'Failed to load subscription' } as ApiError,
+            error: { status: 503, kind: 'api', message: 'Failed to load subscription' } as unknown as ApiError,
             refetch: mockRefetchSub,
         } as unknown as UseQueryResult<SubscriptionStatusResponse, ApiError>);
         mockUsePayments.mockReturnValue({
@@ -115,7 +115,7 @@ describe('BillingPage', () => {
 
         render(<BillingPage />);
 
-        expect(screen.getByRole('alert')).toHaveTextContent('Failed to load subscription');
+        expect(screen.getByRole('alert')).toHaveTextContent('We could not load your subscription.');
         expect(screen.getByText('Payment history')).toBeInTheDocument();
         expect(screen.getAllByText('29.99 USD')).toHaveLength(2);
     });
@@ -224,13 +224,13 @@ describe('BillingPage', () => {
         mockUseSubscription.mockReturnValueOnce({
             isLoading: false,
             isError: true,
-            error: { message: 'Route GET /api/v1/subscriptions/me not found' } as ApiError,
+            error: { status: 500, kind: 'api', message: 'Route GET /api/v1/subscriptions/me not found' } as unknown as ApiError,
             refetch: mockRefetchSub,
         } as unknown as UseQueryResult<SubscriptionStatusResponse, ApiError>);
 
         render(<BillingPage />);
 
         expect(screen.queryByText(/Route GET/)).not.toBeInTheDocument();
-        expect(screen.getByText('Failed to load subscription information.')).toBeInTheDocument();
+        expect(screen.getByText('We could not load your subscription.')).toBeInTheDocument();
     });
 });

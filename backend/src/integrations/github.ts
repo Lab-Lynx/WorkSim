@@ -17,6 +17,15 @@ interface GitHubUserResponse {
 const GITHUB_API_HEADERS = {
   Accept: 'application/vnd.github+json',
   'X-GitHub-Api-Version': '2022-11-28',
+  'User-Agent': 'WorkSim',
+};
+
+// The OAuth token endpoint only answers in JSON when Accept is exactly application/json;
+// any other value returns a form-encoded body that cannot be parsed as JSON.
+const GITHUB_OAUTH_TOKEN_HEADERS = {
+  Accept: 'application/json',
+  'Content-Type': 'application/json',
+  'User-Agent': 'WorkSim',
 };
 
 export class GitHubProviderError extends Error {
@@ -36,6 +45,13 @@ export class GitHubTokenInvalidError extends GitHubProviderError {
   }
 }
 
+export class GitHubOAuthRejectedError extends ApiError {
+  constructor(readonly githubError: string | undefined) {
+    super(HTTP_STATUS.BAD_GATEWAY, 'Could not connect to GitHub');
+    this.name = 'GitHubOAuthRejectedError';
+  }
+}
+
 export interface GitHubOAuthIdentity {
   accessToken: string;
   scope: string;
@@ -48,7 +64,7 @@ export const exchangeOAuthCode = async (code: string): Promise<GitHubOAuthIdenti
   try {
     tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
-      headers: { ...GITHUB_API_HEADERS, 'Content-Type': 'application/json' },
+      headers: GITHUB_OAUTH_TOKEN_HEADERS,
       body: JSON.stringify({
         client_id: env.GITHUB_CLIENT_ID,
         client_secret: env.GITHUB_CLIENT_SECRET,
@@ -68,7 +84,8 @@ export const exchangeOAuthCode = async (code: string): Promise<GitHubOAuthIdenti
   }
 
   if (!tokenResponse.ok || !tokenPayload.access_token) {
-    throw new ApiError(HTTP_STATUS.BAD_GATEWAY, 'Could not connect to GitHub');
+    logger.warn({ reason: tokenPayload.error }, 'GitHub OAuth token exchange rejected');
+    throw new GitHubOAuthRejectedError(tokenPayload.error);
   }
 
   const returnedScopeList = (tokenPayload.scope ?? '')
@@ -120,179 +137,6 @@ export const exchangeOAuthCode = async (code: string): Promise<GitHubOAuthIdenti
   };
 };
 
-export async function exchangeCodeForToken(
-  code: string,
-): Promise<{ accessToken: string; scope: string }> {
-  const clientId = process.env.GITHUB_CLIENT_ID || process.env.GITHUB_OAUTH_CLIENT_ID || '';
-  const clientSecret =
-    process.env.GITHUB_CLIENT_SECRET || process.env.GITHUB_OAUTH_CLIENT_SECRET || '';
-
-  if (!clientId || !clientSecret) {
-    throw new ApiError(
-      HTTP_STATUS.INTERNAL_SERVER_ERROR,
-      'GitHub OAuth configuration is incomplete',
-    );
-  }
-
-  let response: Response;
-  try {
-    response = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        client_id: clientId,
-        client_secret: clientSecret,
-        code,
-      }),
-    });
-  } catch (err) {
-    throw new GitHubProviderError('Failed to reach GitHub for token exchange', err);
-  }
-
-  const data = (await response.json().catch(() => null)) as {
-    error?: string;
-    access_token?: string;
-    scope?: string;
-  } | null;
-
-  if (!response.ok || !data || data.error || !data.access_token) {
-    throw new GitHubProviderError('GitHub token exchange failed');
-  }
-
-  return { accessToken: data.access_token, scope: data.scope ?? '' };
-}
-
-export async function getAuthenticatedUser(
-  accessToken: string,
-): Promise<{ id: number; login: string }> {
-  let response: Response;
-  try {
-    response = await fetch('https://api.github.com/user', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'WorkSim',
-      },
-    });
-  } catch (err) {
-    throw new GitHubProviderError('Failed to reach GitHub user API', err);
-  }
-
-  if (response.status === 401) {
-    throw new GitHubTokenInvalidError();
-  }
-
-  const data = (await response.json().catch(() => null)) as {
-    id?: number;
-    login?: string;
-  } | null;
-
-  if (!response.ok || !data || !data.id || !data.login) {
-    throw new GitHubProviderError('Failed to get authenticated GitHub user');
-  }
-
-  return { id: data.id, login: data.login };
-}
-
-export async function createRepoFromTemplate(params: {
-  accessToken: string;
-  templateOwner: string;
-  templateRepo: string;
-  name: string;
-}): Promise<{ repoId: string; fullName: string; defaultBranch: string }> {
-  let response: Response;
-  try {
-    response = await fetch(
-      `https://api.github.com/repos/${params.templateOwner}/${params.templateRepo}/generate`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${params.accessToken}`,
-          Accept: 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'WorkSim',
-        },
-        body: JSON.stringify({
-          name: params.name,
-          private: false,
-        }),
-      },
-    );
-  } catch (err) {
-    throw new GitHubProviderError('Failed to create repository from template', err);
-  }
-
-  if (response.status === 401) {
-    throw new GitHubTokenInvalidError();
-  }
-
-  const data = (await response.json().catch(() => null)) as {
-    id?: number;
-    full_name?: string;
-    default_branch?: string;
-    message?: string;
-  } | null;
-
-  if (!response.ok || !data || !data.id || !data.full_name) {
-    const error = new GitHubProviderError('Failed to create repo from template') as GitHubProviderError & {
-      status?: number;
-    };
-    error.status = response.status;
-    error.message = data?.message || 'Failed to create repo from template';
-    throw error;
-  }
-
-  return {
-    repoId: String(data.id),
-    fullName: data.full_name,
-    defaultBranch: data.default_branch || 'main',
-  };
-}
-
-export async function registerWorkflowWebhook(params: {
-  accessToken: string;
-  owner: string;
-  repo: string;
-  webhookUrl: string;
-  webhookSecret: string;
-}): Promise<void> {
-  let response: Response;
-  try {
-    response = await fetch(`https://api.github.com/repos/${params.owner}/${params.repo}/hooks`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${params.accessToken}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'WorkSim',
-      },
-      body: JSON.stringify({
-        name: 'web',
-        active: true,
-        events: ['workflow_run'],
-        config: {
-          url: params.webhookUrl,
-          content_type: 'json',
-          secret: params.webhookSecret,
-        },
-      }),
-    });
-  } catch (err) {
-    throw new GitHubProviderError('Failed to register workflow webhook', err);
-  }
-
-  if (response.status === 401) {
-    throw new GitHubTokenInvalidError();
-  }
-
-  if (!response.ok) {
-    throw new GitHubProviderError('Failed to register workflow webhook');
-  }
-}
-
 export async function createBranch(input: {
   owner: string;
   repo: string;
@@ -323,7 +167,14 @@ export async function createBranch(input: {
     } | null;
 
     if (!refRes.ok || !refData?.object?.sha) {
-      throw new GitHubProviderError('Failed to get base branch reference');
+      const detail = describeGitHubFailure(refRes.status, refData);
+      logger.error(
+        { status: refRes.status, repo: `${input.owner}/${input.repo}`, base: input.baseBranch },
+        'GitHub base branch lookup failed',
+      );
+      throw new GitHubProviderError(
+        `Failed to read branch '${input.baseBranch}' of ${input.owner}/${input.repo}${detail}`,
+      );
     }
 
     const createRes = await fetch(
@@ -348,13 +199,55 @@ export async function createBranch(input: {
     }
 
     if (!createRes.ok) {
-      throw new GitHubProviderError('Failed to create ticket branch');
+      const body = (await createRes.json().catch(() => null)) as { message?: string } | null;
+      const detail = describeGitHubFailure(createRes.status, body);
+      logger.error(
+        { status: createRes.status, repo: `${input.owner}/${input.repo}`, branch: input.branchName },
+        'GitHub ticket branch creation failed',
+      );
+      throw new GitHubProviderError(`Failed to create ticket branch${detail}`);
     }
   } catch (err) {
-    if (err instanceof GitHubTokenInvalidError) throw err;
+    if (err instanceof GitHubProviderError) throw err;
     throw new GitHubProviderError('Failed to create ticket branch', err);
   }
 }
+
+function describeGitHubFailure(status: number, body: unknown): string {
+  const message =
+    body && typeof body === 'object' && 'message' in body
+      ? String((body as { message?: unknown }).message ?? '')
+      : '';
+  return message ? ` (${status}: ${message})` : ` (${status})`;
+}
+
+const STARTER_TEMPLATE_REPOS: Record<string, string> = {
+  react: 'Lab-Lynx/react_starter_template',
+  django: 'Lab-Lynx/django_starter_template',
+  node_express: 'Lab-Lynx/express-starter-template',
+};
+
+// A repo generated from a template can answer before its files are committed; ticket branches
+// are cut from the default branch right after, so wait until that branch resolves.
+const waitForBranch = async (
+  fullName: string,
+  branch: string,
+  accessToken: string,
+  attempts = 10,
+): Promise<void> => {
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${fullName}/git/ref/heads/${branch}`, {
+        headers: { ...GITHUB_API_HEADERS, Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) return;
+    } catch {
+      // retry
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  logger.warn({ repo: fullName, branch }, 'Starter repo branch not readable yet after generation');
+};
 
 export interface CreateStarterRepositoryInput {
   starterTemplate: string;
@@ -381,9 +274,14 @@ export const createStarterRepository = async (
     };
   }
 
+  const template = STARTER_TEMPLATE_REPOS[input.starterTemplate];
+  if (!template) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Unknown starter template '${input.starterTemplate}'`);
+  }
+
   let createRes: Response;
   try {
-    createRes = await fetch('https://api.github.com/user/repos', {
+    createRes = await fetch(`https://api.github.com/repos/${template}/generate`, {
       method: 'POST',
       headers: {
         ...GITHUB_API_HEADERS,
@@ -393,7 +291,6 @@ export const createStarterRepository = async (
       body: JSON.stringify({
         name: input.repoName,
         private: true,
-        auto_init: true,
         description: 'Work Simulator Starter Project',
       }),
     });
@@ -422,12 +319,20 @@ export const createStarterRepository = async (
   if (!createRes.ok) {
     const errorBody = await createRes.text().catch(() => '');
     logger.error(
-      { status: createRes.status, body: errorBody },
+      { status: createRes.status, body: errorBody, template },
       'GitHub repository creation API returned non-2xx status',
     );
+    let githubMessage = '';
+    try {
+      githubMessage = (JSON.parse(errorBody) as { message?: string }).message ?? '';
+    } catch {
+      // body was not JSON
+    }
     throw new ApiError(
       HTTP_STATUS.BAD_GATEWAY,
-      'GitHub could not create the repository, please try again',
+      githubMessage
+        ? `GitHub could not create the repository (${createRes.status}): ${githubMessage}`
+        : `GitHub could not create the repository (${createRes.status}), please try again`,
     );
   }
 
@@ -441,9 +346,13 @@ export const createStarterRepository = async (
     );
   }
 
-  // Register workflow_run webhook on repo (EP-33)
+  const defaultBranch = repoData.default_branch || 'main';
+  await waitForBranch(repoData.full_name, defaultBranch, input.accessToken);
+
+  // Register workflow_run webhook on repo (EP-33). A failure here is not fatal: submissions
+  // also read the commit's CI state straight from GitHub.
   try {
-    await fetch(`https://api.github.com/repos/${repoData.full_name}/hooks`, {
+    const hookRes = await fetch(`https://api.github.com/repos/${repoData.full_name}/hooks`, {
       method: 'POST',
       headers: {
         ...GITHUB_API_HEADERS,
@@ -461,17 +370,20 @@ export const createStarterRepository = async (
         },
       }),
     });
-  } catch {
-    throw new ApiError(
-      HTTP_STATUS.BAD_GATEWAY,
-      'GitHub could not create the repository, please try again',
-    );
+    if (!hookRes.ok) {
+      logger.warn(
+        { status: hookRes.status, repo: repoData.full_name },
+        'Could not register the workflow_run webhook on the starter repo',
+      );
+    }
+  } catch (hookErr) {
+    logger.warn({ err: hookErr, repo: repoData.full_name }, 'Could not register the workflow_run webhook');
   }
 
   return {
     githubRepoId: String(repoData.id),
     fullName: repoData.full_name,
-    defaultBranch: repoData.default_branch || 'main',
+    defaultBranch,
   };
 };
 
@@ -579,106 +491,66 @@ export const getPullRequestAndDiff = async (
   };
 };
 
-export async function findOrCreatePullRequest(params: {
-  accessToken: string;
+export type CommitCiState =
+  | { state: 'none' }
+  | { state: 'pending' }
+  | { state: 'passed'; runUrl: string | null }
+  | { state: 'failed'; runUrl: string | null; conclusion: string };
+
+export interface GetCommitCiStateInput {
   owner: string;
   repo: string;
-  branchName: string;
-  baseBranch: string;
-}): Promise<{ prNumber: number; prUrl: string; headSha: string }> {
+  headSha: string;
+  accessToken: string;
+}
+
+/**
+ * Reads GitHub Actions runs for a commit. Covers CI that finished before the
+ * submission existed, because the workflow_run webhook is only delivered once.
+ */
+export const getCommitCiState = async (input: GetCommitCiStateInput): Promise<CommitCiState> => {
+  if (process.env.NODE_ENV === 'test' || input.accessToken.startsWith('test-')) {
+    return { state: 'pending' };
+  }
+
+  const url = new URL(`https://api.github.com/repos/${input.owner}/${input.repo}/actions/runs`);
+  url.searchParams.set('head_sha', input.headSha);
+  url.searchParams.set('per_page', '20');
+
+  let response: Response;
   try {
-    const listRes = await fetch(
-      `https://api.github.com/repos/${params.owner}/${params.repo}/pulls?head=${params.owner}:${params.branchName}&state=open`,
-      {
-        headers: {
-          Authorization: `Bearer ${params.accessToken}`,
-          Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'WorkSim',
-        },
-      },
+    response = await fetch(url.toString(), {
+      headers: { ...GITHUB_API_HEADERS, Authorization: `Bearer ${input.accessToken}` },
+    });
+  } catch {
+    throw new ApiError(HTTP_STATUS.BAD_GATEWAY, 'Could not read CI results from GitHub');
+  }
+
+  if (response.status === 401) {
+    throw new ApiError(
+      HTTP_STATUS.FORBIDDEN,
+      'Your GitHub connection is no longer valid. Reconnect GitHub to continue',
     );
+  }
+  if (!response.ok) {
+    throw new ApiError(HTTP_STATUS.BAD_GATEWAY, 'Could not read CI results from GitHub');
+  }
 
-    if (listRes.status === 401) throw new GitHubTokenInvalidError();
+  const payload = (await response.json().catch(() => null)) as {
+    workflow_runs?: Array<{ status: string; conclusion: string | null; html_url: string }>;
+  } | null;
+  const runs = payload?.workflow_runs ?? [];
 
-    const listData = (await listRes.json().catch(() => null)) as Array<{
-      number: number;
-      html_url: string;
-      head: { sha: string };
-    }> | null;
+  if (runs.length === 0) return { state: 'none' };
+  if (runs.some((run) => run.status !== 'completed')) return { state: 'pending' };
 
-    if (listData && listData.length > 0) {
-      const existing = listData[0];
-      return {
-        prNumber: existing.number,
-        prUrl: existing.html_url,
-        headSha: existing.head.sha,
-      };
-    }
-
-    const createRes = await fetch(
-      `https://api.github.com/repos/${params.owner}/${params.repo}/pulls`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${params.accessToken}`,
-          Accept: 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'WorkSim',
-        },
-        body: JSON.stringify({
-          head: params.branchName,
-          base: params.baseBranch,
-          title: `Ticket work: ${params.branchName}`,
-        }),
-      },
-    );
-
-    if (createRes.status === 401) throw new GitHubTokenInvalidError();
-
-    const created = (await createRes.json().catch(() => null)) as {
-      number: number;
-      html_url: string;
-      head: { sha: string };
-    } | null;
-
-    if (!createRes.ok || !created) {
-      throw new GitHubProviderError('Failed to create pull request');
-    }
-
+  const failedRun = runs.find((run) => run.conclusion !== 'success');
+  if (failedRun) {
     return {
-      prNumber: created.number,
-      prUrl: created.html_url,
-      headSha: created.head.sha,
+      state: 'failed',
+      runUrl: failedRun.html_url ?? null,
+      conclusion: failedRun.conclusion ?? 'unknown',
     };
-  } catch (err) {
-    if (err instanceof GitHubTokenInvalidError) throw err;
-    throw new GitHubProviderError('Failed to manage pull request', err);
   }
-}
-
-export async function getPullRequestDiff(params: {
-  accessToken: string;
-  owner: string;
-  repo: string;
-  prNumber: number;
-}): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://api.github.com/repos/${params.owner}/${params.repo}/pulls/${params.prNumber}`,
-      {
-        headers: {
-          Authorization: `Bearer ${params.accessToken}`,
-          Accept: 'application/vnd.github.v3.diff',
-          'User-Agent': 'WorkSim',
-        },
-      },
-    );
-
-    if (res.status === 401) throw new GitHubTokenInvalidError();
-
-    return await res.text();
-  } catch (err) {
-    if (err instanceof GitHubTokenInvalidError) throw err;
-    throw new GitHubProviderError('Failed to get pull request diff', err);
-  }
-}
+  return { state: 'passed', runUrl: runs[0]?.html_url ?? null };
+};

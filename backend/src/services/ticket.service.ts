@@ -6,6 +6,7 @@ import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import type { TicketContent } from '../types/domain.js';
 import * as githubService from './github.service.js';
+import * as subscriptionService from './subscription.service.js';
 import * as ticketGeneration from './ticket-generation.service.js';
 
 const ACTIVE_STATUSES: TicketStatus[] = [
@@ -77,6 +78,8 @@ export const assignNextTicket = async (
   if (active) {
     throw new ApiError(HTTP_STATUS.CONFLICT, 'You already have an active ticket');
   }
+
+  await subscriptionService.assertCanAssignTicket(userId);
 
   const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const completedToday = await prisma.ticket.count({

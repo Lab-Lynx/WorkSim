@@ -7,6 +7,7 @@ const ticketFindFirst = vi.fn();
 const ticketUpdateMany = vi.fn();
 const submissionCreate = vi.fn();
 const submissionFindUnique = vi.fn();
+const submissionFindMany = vi.fn();
 const submissionFindUniqueOrThrow = vi.fn();
 const submissionUpdateMany = vi.fn();
 const transaction = vi.fn();
@@ -20,6 +21,7 @@ vi.mock('../../src/config/db.js', () => ({
     submission: {
       create: submissionCreate,
       findUnique: submissionFindUnique,
+      findMany: submissionFindMany,
       findUniqueOrThrow: submissionFindUniqueOrThrow,
       updateMany: submissionUpdateMany,
     },
@@ -36,16 +38,20 @@ const assertGitHubConnected = vi.fn();
 const assertStarterRepo = vi.fn();
 const getBranchSubmissionState = vi.fn();
 const getStarterRepoSummary = vi.fn();
+const getCommitCiState = vi.fn();
 vi.mock('../../src/services/github.service.js', () => ({
   assertGitHubConnected,
   assertStarterRepo,
   getBranchSubmissionState,
   getStarterRepoSummary,
+  getCommitCiState,
 }));
 
 const startSubmissionPipeline = vi.fn();
+const applyCiResult = vi.fn();
 vi.mock('../../src/services/submission-pipeline.js', () => ({
   startSubmissionPipeline: (...args: unknown[]) => startSubmissionPipeline(...args),
+  applyCiResult: (...args: unknown[]) => applyCiResult(...args),
 }));
 
 const {
@@ -53,6 +59,7 @@ const {
   submitWork,
   getSubmission,
   retrySubmission,
+  listSubmissions,
 } = await import('../../src/services/submission.service.js');
 
 const userId = 'user-1';
@@ -87,6 +94,8 @@ describe('submission.service (doc 9 §9.2.11)', () => {
       defaultBranch: 'main',
     });
     startSubmissionPipeline.mockResolvedValue(undefined);
+    applyCiResult.mockResolvedValue(undefined);
+    getCommitCiState.mockResolvedValue({ state: 'none' });
 
     transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
@@ -155,7 +164,53 @@ describe('submission.service (doc 9 §9.2.11)', () => {
       });
       expect(result.attempt).toBe(1);
       expect(result.diff).toBe(branchState.diff);
-      expect(startSubmissionPipeline).toHaveBeenCalledWith('sub-1');
+      await vi.waitFor(() => expect(getCommitCiState).toHaveBeenCalledWith(userId, 'deadbeef'));
+      expect(applyCiResult).not.toHaveBeenCalled();
+    });
+
+    it('settles a CI run that finished before the submission existed', async () => {
+      ticketFindFirst.mockResolvedValue(ticketInProgress);
+      ticketUpdateMany.mockResolvedValue({ count: 1 });
+      submissionCreate.mockResolvedValue({
+        id: 'sub-1',
+        ticketId,
+        attempt: 1,
+        status: SubmissionStatus.awaiting_ci,
+        prNumber: 7,
+        headSha: 'deadbeef',
+        diff: branchState.diff,
+      });
+      getCommitCiState.mockResolvedValue({ state: 'passed', runUrl: 'https://ci/9' });
+
+      await submitWork(userId, ticketId);
+
+      await vi.waitFor(() =>
+        expect(applyCiResult).toHaveBeenCalledWith('sub-1', {
+          passed: true,
+          runUrl: 'https://ci/9',
+        }),
+      );
+    });
+
+    it('still returns the submission when the CI lookup fails', async () => {
+      ticketFindFirst.mockResolvedValue(ticketInProgress);
+      ticketUpdateMany.mockResolvedValue({ count: 1 });
+      submissionCreate.mockResolvedValue({
+        id: 'sub-1',
+        ticketId,
+        attempt: 1,
+        status: SubmissionStatus.awaiting_ci,
+        prNumber: 7,
+        headSha: 'deadbeef',
+        diff: branchState.diff,
+      });
+      getCommitCiState.mockRejectedValue(new Error('github down'));
+
+      const result = await submitWork(userId, ticketId);
+
+      expect(result.id).toBe('sub-1');
+      await vi.waitFor(() => expect(getCommitCiState).toHaveBeenCalled());
+      expect(applyCiResult).not.toHaveBeenCalled();
     });
 
     it('rejects diffs over the configured byte limit before changing ticket state', async () => {
@@ -462,9 +517,11 @@ describe('submission.service (doc 9 §9.2.11)', () => {
       failureReason: 'boom',
     };
 
-    it('resets the same failed row to awaiting_ci and starts the pipeline once', async () => {
-      ticketFindFirst.mockResolvedValue({ id: ticketId });
-      submissionFindUnique.mockResolvedValue(failedRow);
+    const ownedTicket = { id: ticketId, branchName: 'ticket/x' };
+
+    it('after a CI failure, re-reads the branch and resets the same row to awaiting_ci', async () => {
+      ticketFindFirst.mockResolvedValue(ownedTicket);
+      submissionFindUnique.mockResolvedValue({ ...failedRow, ciPassed: false });
       submissionUpdateMany.mockResolvedValue({ count: 1 });
       submissionFindUniqueOrThrow.mockResolvedValue({
         ...failedRow,
@@ -474,19 +531,44 @@ describe('submission.service (doc 9 §9.2.11)', () => {
 
       const result = await retrySubmission(userId, ticketId, 1);
 
+      expect(getBranchSubmissionState).toHaveBeenCalledWith(userId, 'ticket/x');
       expect(submissionUpdateMany).toHaveBeenCalledWith({
         where: { id: 'sub-1', status: SubmissionStatus.failed },
         data: expect.objectContaining({
           status: SubmissionStatus.awaiting_ci,
           failureReason: null,
+          ciPassed: null,
+          headSha: 'deadbeef',
+          diff: branchState.diff,
         }),
       });
       expect(result.id).toBe('sub-1');
       expect(result.attempt).toBe(1);
-      expect(result.prNumber).toBe(7);
-      expect(result.headSha).toBe('deadbeef');
-      expect(startSubmissionPipeline).toHaveBeenCalledTimes(1);
+      await vi.waitFor(() => expect(getCommitCiState).toHaveBeenCalledWith(userId, 'deadbeef'));
+      expect(startSubmissionPipeline).not.toHaveBeenCalled();
       expect(submissionCreate).not.toHaveBeenCalled();
+    });
+
+    it('after an evaluator failure, keeps the passed CI and only re-runs evaluation', async () => {
+      ticketFindFirst.mockResolvedValue(ownedTicket);
+      submissionFindUnique.mockResolvedValue({ ...failedRow, ciPassed: true });
+      submissionUpdateMany.mockResolvedValue({ count: 1 });
+      submissionFindUniqueOrThrow.mockResolvedValue({
+        ...failedRow,
+        ciPassed: true,
+        status: SubmissionStatus.evaluating,
+        failureReason: null,
+      });
+
+      const result = await retrySubmission(userId, ticketId, 1);
+
+      expect(submissionUpdateMany).toHaveBeenCalledWith({
+        where: { id: 'sub-1', status: SubmissionStatus.failed },
+        data: { status: SubmissionStatus.evaluating, failureReason: null },
+      });
+      expect(getBranchSubmissionState).not.toHaveBeenCalled();
+      expect(startSubmissionPipeline).toHaveBeenCalledWith('sub-1');
+      expect(result.status).toBe(SubmissionStatus.evaluating);
     });
 
     it.each([
@@ -521,5 +603,78 @@ describe('submission.service (doc 9 §9.2.11)', () => {
         message: 'Submission not found',
       });
     });
+  });
+});
+
+describe('listSubmissions (EP-35)', () => {
+  beforeEach(() => {
+    submissionFindMany.mockReset();
+    getStarterRepoSummary.mockReset();
+  });
+
+  const row = {
+    id: 'sub-1',
+    attempt: 1,
+    status: SubmissionStatus.completed,
+    prNumber: 12,
+    headSha: 'abc1234',
+    ciPassed: true,
+    ciRunUrl: null,
+    failureReason: null,
+    submittedAt: new Date('2026-04-01T10:00:00.000Z'),
+    evaluation: null,
+    ticket: {
+      id: ticketId,
+      branchName: 'fix/cart-race',
+      content: { title: 'Fix cart race', category: 'Bug Fix' },
+    },
+  };
+
+  it('returns an empty list without looking up the repo when there are no submissions', async () => {
+    submissionFindMany.mockResolvedValue([]);
+
+    await expect(listSubmissions(userId)).resolves.toEqual([]);
+    expect(getStarterRepoSummary).not.toHaveBeenCalled();
+  });
+
+  it('scopes the query to the user and orders newest first', async () => {
+    submissionFindMany.mockResolvedValue([]);
+
+    await listSubmissions(userId);
+
+    expect(submissionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { ticket: { userId } },
+        orderBy: { submittedAt: 'desc' },
+      }),
+    );
+  });
+
+  it('maps rows to submissions with ticket info, PR url and base branch, without a diff', async () => {
+    submissionFindMany.mockResolvedValue([row]);
+    getStarterRepoSummary.mockResolvedValue({ fullName: 'octo/starter', defaultBranch: 'main' });
+
+    const [item] = await listSubmissions(userId);
+
+    expect(item).toMatchObject({
+      id: 'sub-1',
+      attempt: 1,
+      prNumber: 12,
+      prUrl: 'https://github.com/octo/starter/pull/12',
+      baseBranch: 'main',
+      ticket: { id: ticketId, title: 'Fix cart race', category: 'Bug Fix', branchName: 'fix/cart-race' },
+    });
+    expect(item).not.toHaveProperty('diff');
+  });
+
+  it('falls back to safe defaults when ticket content or the repo is missing', async () => {
+    submissionFindMany.mockResolvedValue([{ ...row, ticket: { ...row.ticket, content: null } }]);
+    getStarterRepoSummary.mockResolvedValue(null);
+
+    const [item] = await listSubmissions(userId);
+
+    expect(item.ticket.title).toBe('Untitled ticket');
+    expect(item.ticket.category).toBe('General');
+    expect(item.baseBranch).toBeNull();
   });
 });

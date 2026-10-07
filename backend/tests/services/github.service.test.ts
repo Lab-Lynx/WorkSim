@@ -24,11 +24,19 @@ vi.mock('../../src/config/db.js', () => ({
   },
 }));
 
-vi.mock('../../src/integrations/github.js', () => ({
-  createBranch,
-  createStarterRepository,
-  getPullRequestAndDiff,
-}));
+vi.mock('../../src/integrations/github.js', () => {
+  class GitHubProviderError extends Error {}
+  class GitHubTokenInvalidError extends GitHubProviderError {}
+  return {
+    createBranch,
+    createStarterRepository,
+    getPullRequestAndDiff,
+    GitHubProviderError,
+    GitHubTokenInvalidError,
+  };
+});
+
+const githubIntegrationMock = await import('../../src/integrations/github.js');
 
 const {
   assertGitHubConnected,
@@ -100,6 +108,33 @@ describe('github.service', () => {
     );
     await expect(createTicketBranch('u1', 'ticket/x', 'main')).rejects.toMatchObject({
       statusCode: HTTP_STATUS.BAD_GATEWAY,
+    });
+  });
+
+  it('createTicketBranch includes the GitHub provider message in the 502', async () => {
+    gitHubConnectionFindUnique.mockResolvedValue({
+      accessTokenEncrypted: encryptGitHubToken('github-token'),
+    });
+    starterRepoFindUnique.mockResolvedValue({ fullName: 'ada/starter', defaultBranch: 'main' });
+    createBranch.mockRejectedValue(
+      new githubIntegrationMock.GitHubProviderError('GitHub returned 404: Not Found'),
+    );
+
+    await expect(createTicketBranch('u1', 'ticket/x', 'main')).rejects.toMatchObject({
+      statusCode: HTTP_STATUS.BAD_GATEWAY,
+      message: expect.stringContaining('GitHub returned 404: Not Found'),
+    });
+  });
+
+  it('createTicketBranch maps an invalid GitHub token to 403', async () => {
+    gitHubConnectionFindUnique.mockResolvedValue({
+      accessTokenEncrypted: encryptGitHubToken('github-token'),
+    });
+    starterRepoFindUnique.mockResolvedValue({ fullName: 'ada/starter', defaultBranch: 'main' });
+    createBranch.mockRejectedValue(new githubIntegrationMock.GitHubTokenInvalidError());
+
+    await expect(createTicketBranch('u1', 'ticket/x', 'main')).rejects.toMatchObject({
+      statusCode: HTTP_STATUS.FORBIDDEN,
     });
   });
 

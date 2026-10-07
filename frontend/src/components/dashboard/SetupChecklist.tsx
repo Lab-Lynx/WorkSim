@@ -34,7 +34,7 @@ export default function SetupChecklist({
   if (progress.setupComplete) {
     return (
       <p className="border-y border-border py-4 text-sm font-medium text-foreground">
-        Setup complete: subscribed, GitHub connected, repository ready.
+        Setup complete: GitHub connected, repository ready, subscribed.
       </p>
     );
   }

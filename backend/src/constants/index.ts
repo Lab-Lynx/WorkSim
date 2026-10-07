@@ -1,3 +1,6 @@
+/** Tickets a user may be assigned before a paid subscription is required. */
+export const FREE_TICKET_LIMIT = 3;
+
 export const HTTP_STATUS = {
   OK: 200,
   CREATED: 201,

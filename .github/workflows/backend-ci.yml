@@ -41,7 +41,7 @@ jobs:
       CLIENT_URL: http://localhost:5173
       CHAPA_SECRET_KEY: ci-chapa-secret-not-for-production
       CHAPA_WEBHOOK_SECRET: ci-chapa-webhook-secret-not-for-production
-      CHAPA_RETURN_URL: http://localhost:5173/payment/return
+      CHAPA_RETURN_URL: http://localhost:5173/billing/return
       GITHUB_CLIENT_ID: ci-github-client-id-not-for-production
       GITHUB_CLIENT_SECRET: ci-github-client-secret-not-for-production
       GITHUB_CALLBACK_URL: http://localhost:3000/api/v1/github/callback

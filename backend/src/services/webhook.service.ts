@@ -1,7 +1,8 @@
-import { Prisma, PaymentStatus, SubmissionStatus, SubscriptionStatus, WebhookProvider } from '@prisma/client';
+import { Prisma, SubmissionStatus, WebhookProvider } from '@prisma/client';
 import { prisma } from '../config/db.js';
 import logger from '../utils/logger.js';
-import { startSubmissionPipeline } from './submission-pipeline.js';
+import { applyCiResult } from './submission-pipeline.js';
+import { settleChapaPayment } from './payment-settlement.service.js';
 
 type ChapaPayload = {
   event?: string;
@@ -39,39 +40,7 @@ export const processChapaWebhook = async (payload: ChapaPayload, eventKey: strin
   const failed = status === 'failed' || status === 'failure' || payload.event === 'charge.failed';
   if (!succeeded && !failed) return;
 
-  await prisma.$transaction(async (tx) => {
-    const payment = await tx.payment.findUnique({ where: { chapaTxRef: txRef } });
-    if (!payment || payment.status !== PaymentStatus.pending) return;
-
-    if (succeeded) {
-      const paidAt = new Date();
-      await tx.payment.update({
-        where: { id: payment.id },
-        data: { status: PaymentStatus.succeeded, paidAt },
-      });
-      const current = await tx.subscription.findFirst({
-        where: { userId: payment.userId, currentPeriodEnd: { gt: paidAt } },
-      });
-      if (!current) {
-        const currentPeriodEnd = new Date(paidAt);
-        currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
-        await tx.subscription.create({
-          data: {
-            userId: payment.userId,
-            status: SubscriptionStatus.active,
-            currentPeriodEnd,
-            payments: { connect: { id: payment.id } },
-          },
-        });
-      }
-    } else {
-      await tx.payment.update({ where: { id: payment.id }, data: { status: PaymentStatus.failed } });
-      await tx.subscription.updateMany({
-        where: { userId: payment.userId, status: SubscriptionStatus.active },
-        data: { status: SubscriptionStatus.past_due },
-      });
-    }
-  });
+  await settleChapaPayment(txRef, succeeded ? 'succeeded' : 'failed');
 };
 
 export const processGitHubWebhook = async (
@@ -96,27 +65,13 @@ export const processGitHubWebhook = async (
   });
   if (!submission) return;
 
-  if (run.conclusion === 'success') {
-    await prisma.submission.update({
-      where: { id: submission.id },
-      data: {
-        status: SubmissionStatus.evaluating,
-        ciPassed: true,
-        ciRunUrl: run.html_url,
-      },
-    });
-    await startSubmissionPipeline(submission.id);
-  } else {
-    await prisma.submission.update({
-      where: { id: submission.id },
-      data: {
-        status: SubmissionStatus.failed,
-        ciPassed: false,
-        ciRunUrl: run.html_url,
-        failureReason: `GitHub Actions completed with conclusion: ${run.conclusion ?? 'unknown'}`,
-      },
-    });
-  }
+  const runUrl = run.html_url ?? null;
+  await applyCiResult(
+    submission.id,
+    run.conclusion === 'success'
+      ? { passed: true, runUrl }
+      : { passed: false, runUrl, conclusion: run.conclusion ?? 'unknown' },
+  );
 };
 
 export const logWebhookProcessingFailure = (provider: string, error: unknown): void => {

@@ -7,7 +7,6 @@ import { useAbandonTicket } from '@/hooks/tickets/useAbandonTicket';
 import { useAssignTicket } from '@/hooks/tickets/useAssignTicket';
 import { useSubmitWork } from '@/hooks/submissions/useSubmitWork';
 import { useRetrySubmission } from '@/hooks/submissions/useRetrySubmission';
-import { useSubscription } from '@/hooks/billing/useSubscription';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useToast } from '@/hooks/useToast';
 import { getTicketPhase, type TicketPrimaryAction, type TicketTab } from '@/lib/ticket-phase';
@@ -15,6 +14,9 @@ import { mapApiError, type UiError } from '@/lib/api/errors';
 import { queryKeys } from '@/lib/query-keys';
 import { TICKET_DONE_SYNC_INTERVAL_MS, TICKET_DONE_SYNC_MAX_ATTEMPTS } from '@/config/app.config';
 import type { TicketWithSubmissions } from '@/types';
+import { Compass } from 'lucide-react';
+import { friendlyMessage } from '@/lib/api/friendly-error';
+import ErrorPage from '@/components/common/ErrorPage';
 import ErrorState from '@/components/common/ErrorState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Button } from '@/components/ui/button';
@@ -34,7 +36,6 @@ export default function TicketPage(): React.JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const ticketQuery = useTicket(ticketId);
-  const subscriptionQuery = useSubscription();
   const data = ticketQuery.data;
   const ticket = data?.ticket;
   const submissions = data?.submissions ?? [];
@@ -45,7 +46,6 @@ export default function TicketPage(): React.JSX.Element {
   const assign = useAssignTicket();
   const submitWork = useSubmitWork(resolvedTicketId);
   const retry = useRetrySubmission(resolvedTicketId, phase?.retryAttempt ?? 1);
-  const hasPaidAccess = Boolean(subscriptionQuery.data?.hasAccess);
   const [pendingAction, setPendingAction] = useState<TicketPrimaryAction | null>(null);
   const [actionError, setActionError] = useState<UiError | null>(null);
   const [isResubmitOpen, setIsResubmitOpen] = useState(false);
@@ -199,18 +199,43 @@ export default function TicketPage(): React.JSX.Element {
     const mappedError = mapApiError(ticketQuery.error);
     if (mappedError.isNotFound || mappedError.status === 400) {
       return (
-        <section className="space-y-3 py-8">
-          <h1 tabIndex={-1} className="text-xl font-semibold">Ticket not found</h1>
-          <p className="text-sm text-muted-foreground">This ticket is unavailable.</p>
-          <Link to="/dashboard" className="text-sm font-medium text-primary underline">Go to dashboard</Link>
-        </section>
+        <ErrorPage
+          embedded
+          icon={Compass}
+          code="404"
+          title="Ticket not found"
+          description="This ticket is unavailable."
+          actions={
+            <Button asChild>
+              <Link to="/dashboard">Go to dashboard</Link>
+            </Button>
+          }
+        />
       );
     }
-    return <ErrorState message={mappedError.message} onRetry={() => void ticketQuery.refetch()} />;
+    return (
+      <ErrorState
+        message={friendlyMessage(ticketQuery.error, 'We could not load this ticket.')}
+        onRetry={() => void ticketQuery.refetch()}
+      />
+    );
   }
 
   if (!ticket || !phase) {
-    return <ErrorState message="Ticket not found" />;
+    return (
+      <ErrorPage
+        embedded
+        icon={Compass}
+        code="404"
+        title="Ticket not found"
+        description="This ticket is unavailable."
+        actions={
+          <Button asChild>
+            <Link to="/dashboard">Go to dashboard</Link>
+          </Button>
+        }
+      />
+    );
   }
 
   return (
@@ -282,14 +307,14 @@ export default function TicketPage(): React.JSX.Element {
               </span>
             </div>
             <div className="min-h-0 flex-1 p-4">
-              <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasPaidAccess} />
+              <MentorPanel ticketId={ticket.id} mentor={phase.mentor} />
             </div>
           </div>
         </div>
       )}
       {activeTab === 'mentor' && (
         <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-          <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasPaidAccess} />
+          <MentorPanel ticketId={ticket.id} mentor={phase.mentor} />
         </div>
       )}
       {activeTab === 'submissions' && (

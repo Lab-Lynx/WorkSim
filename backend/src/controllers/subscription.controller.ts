@@ -32,11 +32,13 @@ export const createCheckout = startCheckout;
 /** EP-15: GET /subscriptions/me */
 export const getSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
-  const { subscription, hasAccess } = await subscriptionService.getSubscriptionStatus(user.id);
+  const { subscription, hasAccess, freeTickets } =
+    await subscriptionService.getSubscriptionStatus(user.id);
   res.status(HTTP_STATUS.OK).json(
     new SuccessResponse(HTTP_STATUS.OK, 'Subscription status retrieved', {
       subscription: subscription ? serializeSubscription(subscription as SubscriptionDbRecord) : null,
       hasAccess,
+      freeTickets,
     }),
   );
 });

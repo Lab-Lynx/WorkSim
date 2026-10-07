@@ -82,9 +82,9 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
 
       expect(result.steps).toHaveLength(4);
       expect(result.steps.map((s) => s.key)).toEqual([
-        'subscribe',
         'connect_github',
         'create_repo',
+        'subscribe',
         'get_ticket',
       ]);
       expect(result.steps.every((s) => s.status === 'done')).toBe(true);
@@ -92,10 +92,10 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
       expect(result.canGetTicket).toBe(false);
       expect(result.nextStep).toBeNull();
 
-      expect(result.steps[1].detail).toBe('Connected as @octocat');
-      expect(result.steps[0].label).toBe('Subscribe');
-      expect(result.steps[1].label).toBe('Connect GitHub');
-      expect(result.steps[2].label).toBe('Create your starter repository');
+      expect(result.steps[0].detail).toBe('Connected as @octocat');
+      expect(result.steps[0].label).toBe('Connect GitHub');
+      expect(result.steps[1].label).toBe('Create your starter repository');
+      expect(result.steps[2].label).toBe('Subscribe');
       expect(result.steps[3].label).toBe('Get a ticket');
     });
 
@@ -120,15 +120,15 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
       });
 
       expect(result.steps.map((s) => s.status)).toEqual(['todo', 'todo', 'todo', 'todo']);
-      expect(result.steps[0].label).toBe('Subscribe');
-      expect(result.steps[1].label).toBe('Connect GitHub');
-      expect(result.steps[2].label).toBe('Create your starter repository');
+      expect(result.steps[0].label).toBe('Connect GitHub');
+      expect(result.steps[1].label).toBe('Create your starter repository');
+      expect(result.steps[2].label).toBe('Subscribe');
       expect(result.steps[3].label).toBe('Get a ticket');
 
       expect(result.steps.map((s) => s.detail)).toEqual([null, null, null, null]);
       expect(result.setupComplete).toBe(false);
       expect(result.canGetTicket).toBe(false);
-      expect(result.nextStep).toBe('subscribe');
+      expect(result.nextStep).toBe('connect_github');
     });
 
     it('getSetupProgress — setupComplete true and canGetTicket true when steps 1-3 done and no active ticket (Doc 10 §10.13)', () => {
@@ -184,8 +184,8 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
         currentTicket: ticketInput,
       });
 
-      expect(result.steps[0].status).toBe('todo');
-      expect(result.steps[0].label).toBe('Subscribe again');
+      expect(result.steps[2].status).toBe('todo');
+      expect(result.steps[2].label).toBe('Subscribe again');
       expect(result.setupComplete).toBe(false);
       expect(result.canGetTicket).toBe(false);
       expect(result.nextStep).toBe('subscribe');
@@ -211,12 +211,12 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
         currentTicket: ticketInput,
       });
 
-      expect(result.steps[0].status).toBe('done');
-      expect(result.steps[1].status).toBe('todo');
-      expect(result.steps[1].label).toBe('Reconnect GitHub');
-      expect(result.steps[1].detail).toBeNull();
+      expect(result.steps[0].status).toBe('todo');
+      expect(result.steps[0].label).toBe('Reconnect GitHub');
+      expect(result.steps[0].detail).toBeNull();
+      expect(result.steps[1].status).toBe('done');
+      expect(result.steps[1].label).toBe('Create your starter repository');
       expect(result.steps[2].status).toBe('done');
-      expect(result.steps[2].label).toBe('Create your starter repository');
       expect(result.steps[3].status).toBe('todo');
 
       expect(result.setupComplete).toBe(false);
@@ -231,7 +231,7 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
         connection: { status: 'success', data: { connected: true, githubLogin: 'octocat', repo: mockRepo } },
         currentTicket: { status: 'success', data: null },
       });
-      expect(res1.steps[0].status).toBe('loading');
+      expect(res1.steps[2].status).toBe('loading');
       expect(res1.nextStep).toBeNull();
       expect(res1.setupComplete).toBe(false);
       expect(res1.canGetTicket).toBe(false);
@@ -242,9 +242,9 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
         connection: { status: 'pending', data: undefined },
         currentTicket: { status: 'success', data: null },
       });
-      expect(res2.steps[0].status).toBe('done');
+      expect(res2.steps[0].status).toBe('loading');
       expect(res2.steps[1].status).toBe('loading');
-      expect(res2.steps[2].status).toBe('loading');
+      expect(res2.steps[2].status).toBe('done');
       expect(res2.nextStep).toBeNull();
       expect(res2.setupComplete).toBe(false);
       expect(res2.canGetTicket).toBe(false);
@@ -271,7 +271,7 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
         connection: { status: 'success', data: { connected: true, githubLogin: 'octocat', repo: mockRepo } },
         currentTicket: { status: 'success', data: null },
       });
-      expect(res1.steps[0].status).toBe('error');
+      expect(res1.steps[2].status).toBe('error');
       expect(res1.nextStep).toBeNull();
       expect(res1.setupComplete).toBe(false);
       expect(res1.canGetTicket).toBe(false);
@@ -282,9 +282,9 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
         connection: { status: 'error', data: undefined },
         currentTicket: { status: 'success', data: null },
       });
-      expect(res2.steps[0].status).toBe('done');
+      expect(res2.steps[0].status).toBe('error');
       expect(res2.steps[1].status).toBe('error');
-      expect(res2.steps[2].status).toBe('error');
+      expect(res2.steps[2].status).toBe('done');
       expect(res2.nextStep).toBeNull();
       expect(res2.setupComplete).toBe(false);
       expect(res2.canGetTicket).toBe(false);
@@ -406,8 +406,8 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
       });
 
       await waitFor(() => {
-        expect(result.current.steps[0].status).toBe('error');
-        expect(result.current.steps[1].status).toBe('done');
+        expect(result.current.steps[0].status).toBe('done');
+        expect(result.current.steps[2].status).toBe('error');
         expect(result.current.steps[3].status).toBe('error');
       });
 
@@ -422,7 +422,7 @@ describe('useSetupProgress and getSetupProgress (doc 10 §10.13; doc 11 §11.2.1
       });
 
       await waitFor(() => {
-        expect(result.current.steps[0].status).toBe('done');
+        expect(result.current.steps[2].status).toBe('done');
         expect(result.current.steps[3].status).toBe('todo');
         expect(result.current.setupComplete).toBe(true);
         expect(result.current.canGetTicket).toBe(true);

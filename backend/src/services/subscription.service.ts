@@ -1,10 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import { prisma } from '../config/db.js';
 import { env } from '../config/env.js';
-import { HTTP_STATUS } from '../constants/index.js';
+import { FREE_TICKET_LIMIT, HTTP_STATUS } from '../constants/index.js';
 import ApiError from '../utils/ApiError.js';
 import { PaymentStatus, SubscriptionStatus } from '@prisma/client';
 import * as chapaIntegration from '../integrations/chapa.js';
+import logger from '../utils/logger.js';
+import { settleChapaPayment } from './payment-settlement.service.js';
 import type { SerializedSubscription } from '../serializers/subscription.serializer.js';
 import type { SerializedPayment } from '../serializers/payment.serializer.js';
 
@@ -24,6 +26,40 @@ export const hasPaidAccess = async (
     select: { id: true },
   });
   return live !== null;
+};
+
+export interface FreeTicketUsage {
+  limit: number;
+  used: number;
+  remaining: number;
+}
+
+/**
+ * Free-trial usage: every ticket ever assigned counts, including abandoned ones,
+ * so abandoning cannot be used to get unlimited free tickets.
+ */
+export const getFreeTicketUsage = async (userId: string): Promise<FreeTicketUsage> => {
+  const used = await prisma.ticket.count({ where: { userId } });
+  return {
+    limit: FREE_TICKET_LIMIT,
+    used,
+    remaining: Math.max(FREE_TICKET_LIMIT - used, 0),
+  };
+};
+
+/**
+ * Ticket gate: subscribers are unlimited, everyone else gets FREE_TICKET_LIMIT tickets.
+ */
+export const assertCanAssignTicket = async (userId: string): Promise<void> => {
+  if (await hasPaidAccess(userId)) return;
+
+  const usage = await getFreeTicketUsage(userId);
+  if (usage.remaining === 0) {
+    throw new ApiError(
+      HTTP_STATUS.PAYMENT_REQUIRED,
+      `You have used your ${usage.limit} free tickets. An active subscription is required to continue`,
+    );
+  }
 };
 
 /**
@@ -61,7 +97,9 @@ export const createCheckout = async (userId: string): Promise<{ checkoutUrl: str
   const firstName = nameParts[0] || 'Customer';
   const lastName = nameParts.slice(1).join(' ') || undefined;
 
-  const callbackUrl = `${env.CLIENT_URL.replace(/\/+$/, '')}/api/v1/webhooks/chapa`;
+  // Chapa posts the webhook to the API, which lives on the same origin as the GitHub OAuth callback, not the frontend.
+  const apiOrigin = new URL(env.GITHUB_CALLBACK_URL).origin;
+  const callbackUrl = `${apiOrigin}/api/v1/webhooks/chapa`;
   const returnUrl = env.CHAPA_RETURN_URL;
 
   const { checkoutUrl } = await chapaIntegration.initializePayment({
@@ -78,19 +116,76 @@ export const createCheckout = async (userId: string): Promise<{ checkoutUrl: str
   return { checkoutUrl };
 };
 
+const PENDING_VERIFY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const PENDING_VERIFY_MAX = 5;
+
+/**
+ * Ask Chapa for the real outcome of this user's recent pending payments. Chapa's webhook is
+ * the primary path, but it can be delayed or never arrive (wrong callback URL, test mode),
+ * which would leave a paid checkout pending forever. A provider error leaves the payment
+ * pending so the next status poll retries.
+ */
+export const verifyPendingPayments = async (userId: string): Promise<void> => {
+  const pending = await prisma.payment.findMany({
+    where: {
+      userId,
+      status: PaymentStatus.pending,
+      createdAt: { gt: new Date(Date.now() - PENDING_VERIFY_WINDOW_MS) },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: PENDING_VERIFY_MAX,
+    select: { chapaTxRef: true, amount: true, currency: true },
+  });
+
+  for (const payment of pending) {
+    try {
+      const result = await chapaIntegration.verifyTransaction(payment.chapaTxRef);
+      const status = result.status.toLowerCase();
+
+      if (status === 'success') {
+        const paidInFull =
+          Number(result.amount ?? 0) >= Number(String(payment.amount)) &&
+          (result.currency ?? payment.currency).toUpperCase() === payment.currency.toUpperCase();
+        if (!paidInFull) {
+          logger.warn({ txRef: payment.chapaTxRef }, 'Chapa reported success with a mismatched amount');
+          continue;
+        }
+        await settleChapaPayment(payment.chapaTxRef, 'succeeded');
+      } else if (status === 'failed' || status === 'failure') {
+        await settleChapaPayment(payment.chapaTxRef, 'failed');
+      }
+    } catch (error) {
+      logger.warn(
+        { txRef: payment.chapaTxRef, err: error instanceof Error ? error.message : error },
+        'Could not verify pending Chapa payment',
+      );
+    }
+  }
+};
+
 /**
  * Get current subscription status and access flag (EP-15).
  */
 export const getSubscriptionStatus = async (
   userId: string,
-): Promise<{ subscription: SerializedSubscription | null; hasAccess: boolean }> => {
+): Promise<{
+  subscription: SerializedSubscription | null;
+  hasAccess: boolean;
+  freeTickets: FreeTicketUsage;
+}> => {
+  if (!(await hasPaidAccess(userId))) {
+    await verifyPendingPayments(userId);
+  }
+
   const subscription = await prisma.subscription.findFirst({
     where: { userId },
     orderBy: { createdAt: 'desc' },
   });
   const hasAccess = await hasPaidAccess(userId);
+  const freeTickets = await getFreeTicketUsage(userId);
 
   return {
+    freeTickets,
     subscription: subscription
       ? {
           id: subscription.id,

@@ -48,12 +48,12 @@ describe('ExperienceProfilePage (FE-098)', () => {
       isLoading: false,
       data: undefined,
       isError: true,
-      error: new Error('Profile unavailable'),
+      error: { status: 503, kind: 'api', message: 'Profile unavailable' },
       refetch: vi.fn(),
     } as never);
     rerender(<MemoryRouter><ExperienceProfilePage /></MemoryRouter>);
     expect(screen.getByText(/not a certified or employer-verified credential/i)).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Profile unavailable');
+    expect(screen.getByRole('alert')).toHaveTextContent('We could not load your experience profile.');
   });
 
   it('renders count and items in the order returned by the server', () => {

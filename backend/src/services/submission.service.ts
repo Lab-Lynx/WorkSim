@@ -10,8 +10,9 @@ import { HTTP_STATUS } from '../constants/index.js';
 import type { SubmissionAttempt, SubmissionView } from '../types/domain.js';
 import * as githubService from './github.service.js';
 import { serializeSubmission } from '../serializers/submission.serializer.js';
-import { startSubmissionPipeline } from './submission-pipeline.js';
+import { applyCiResult, startSubmissionPipeline } from './submission-pipeline.js';
 import { env } from '../config/env.js';
+import logger from '../utils/logger.js';
 
 const WRONG_TICKET_STATE = 'This ticket cannot be submitted in its current state';
 const WAIT_FOR_FEEDBACK =
@@ -37,6 +38,60 @@ const requireOwnedTicket = async (userId: string, ticketId: string) => {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, TICKET_NOT_FOUND);
   }
   return ticket;
+};
+
+const readBranchState = async (userId: string, branchName: string) => {
+  let branchState;
+  try {
+    branchState = await githubService.getBranchSubmissionState(userId, branchName);
+  } catch (err) {
+    if (err instanceof ApiError) {
+      if (
+        err.statusCode === HTTP_STATUS.BAD_REQUEST ||
+        err.statusCode === HTTP_STATUS.FORBIDDEN ||
+        err.statusCode === HTTP_STATUS.BAD_GATEWAY
+      ) {
+        throw err;
+      }
+    }
+    throw new ApiError(HTTP_STATUS.BAD_GATEWAY, 'Could not read your pull request from GitHub, please try again');
+  }
+
+  if (Buffer.byteLength(branchState.diff, 'utf8') > env.DIFF_MAX_BYTES) {
+    throw new ApiError(
+      HTTP_STATUS.PAYLOAD_TOO_LARGE,
+      'The GitHub diff exceeds the maximum allowed size',
+    );
+  }
+  return branchState;
+};
+
+/**
+ * The workflow_run webhook fires once, so CI that finished before the submission
+ * existed would never be picked up. Check GitHub for it and settle the submission.
+ */
+const settleFinishedCi = async (
+  userId: string,
+  submissionId: string,
+  headSha: string,
+): Promise<void> => {
+  try {
+    const ci = await githubService.getCommitCiState(userId, headSha);
+    if (ci.state === 'passed') {
+      await applyCiResult(submissionId, { passed: true, runUrl: ci.runUrl });
+    } else if (ci.state === 'failed') {
+      await applyCiResult(submissionId, {
+        passed: false,
+        runUrl: ci.runUrl,
+        conclusion: ci.conclusion,
+      });
+    }
+  } catch (error) {
+    logger.warn(
+      { submissionId, message: error instanceof Error ? error.message : 'unknown error' },
+      'Could not check existing CI result; waiting for the webhook',
+    );
+  }
 };
 
 /**
@@ -72,28 +127,7 @@ export const submitWork = async (
     throw new ApiError(HTTP_STATUS.CONFLICT, WRONG_TICKET_STATE);
   }
 
-  let branchState;
-  try {
-    branchState = await githubService.getBranchSubmissionState(userId, ticket.branchName);
-  } catch (err) {
-    if (err instanceof ApiError) {
-      if (
-        err.statusCode === HTTP_STATUS.BAD_REQUEST ||
-        err.statusCode === HTTP_STATUS.FORBIDDEN ||
-        err.statusCode === HTTP_STATUS.BAD_GATEWAY
-      ) {
-        throw err;
-      }
-    }
-    throw new ApiError(HTTP_STATUS.BAD_GATEWAY, 'Could not read your pull request from GitHub, please try again');
-  }
-
-  if (Buffer.byteLength(branchState.diff, 'utf8') > env.DIFF_MAX_BYTES) {
-    throw new ApiError(
-      HTTP_STATUS.PAYLOAD_TOO_LARGE,
-      'The GitHub diff exceeds the maximum allowed size',
-    );
-  }
+  const branchState = await readBranchState(userId, ticket.branchName);
 
   const expectedStatus =
     attempt === 1 ? TicketStatus.in_progress : TicketStatus.submitted_v1;
@@ -122,7 +156,7 @@ export const submitWork = async (
       });
     });
 
-    await startSubmissionPipeline(created.id);
+    void settleFinishedCi(userId, created.id, created.headSha);
     return created;
   } catch (err) {
     if (err instanceof ApiError) throw err;
@@ -215,7 +249,7 @@ export const retrySubmission = async (
 ): Promise<Submission> => {
   const ticket = await prisma.ticket.findFirst({
     where: { id: ticketId, userId },
-    select: { id: true },
+    select: { id: true, branchName: true },
   });
   if (!ticket) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, SUBMISSION_NOT_FOUND);
@@ -231,6 +265,26 @@ export const retrySubmission = async (
     throw new ApiError(HTTP_STATUS.CONFLICT, ONLY_FAILED_RETRY);
   }
 
+  // CI already passed, so the failure came from the evaluator: just evaluate again.
+  if (existing.ciPassed === true) {
+    const claimed = await prisma.submission.updateMany({
+      where: { id: existing.id, status: SubmissionStatus.failed },
+      data: { status: SubmissionStatus.evaluating, failureReason: null },
+    });
+    if (claimed.count !== 1) {
+      throw new ApiError(HTTP_STATUS.CONFLICT, ONLY_FAILED_RETRY);
+    }
+    const evaluating = await prisma.submission.findUniqueOrThrow({ where: { id: existing.id } });
+    void startSubmissionPipeline(evaluating.id);
+    return evaluating;
+  }
+
+  // CI failed, so the user has presumably pushed a fix: pick up the new commit.
+  if (!ticket.branchName) {
+    throw new ApiError(HTTP_STATUS.CONFLICT, WRONG_TICKET_STATE);
+  }
+  const branchState = await readBranchState(userId, ticket.branchName);
+
   const updated = await prisma.submission.updateMany({
     where: { id: existing.id, status: SubmissionStatus.failed },
     data: {
@@ -238,6 +292,9 @@ export const retrySubmission = async (
       failureReason: null,
       ciPassed: null,
       ciRunUrl: null,
+      prNumber: branchState.prNumber,
+      headSha: branchState.headSha,
+      diff: branchState.diff,
     },
   });
 
@@ -249,6 +306,87 @@ export const retrySubmission = async (
     where: { id: existing.id },
   });
 
-  await startSubmissionPipeline(row.id);
+  void settleFinishedCi(userId, row.id, row.headSha);
   return row;
+};
+
+export interface SubmissionListItem extends SubmissionView {
+  ticket: {
+    id: string;
+    title: string;
+    category: string;
+    branchName: string | null;
+  };
+  baseBranch: string | null;
+}
+
+const LIST_LIMIT = 100;
+
+/** EP-35 — every submission the user has made, newest first. Diff is never included. */
+export const listSubmissions = async (userId: string): Promise<SubmissionListItem[]> => {
+  const rows = await prisma.submission.findMany({
+    where: { ticket: { userId } },
+    orderBy: { submittedAt: 'desc' },
+    take: LIST_LIMIT,
+    select: {
+      id: true,
+      attempt: true,
+      status: true,
+      prNumber: true,
+      headSha: true,
+      ciPassed: true,
+      ciRunUrl: true,
+      failureReason: true,
+      submittedAt: true,
+      evaluation: {
+        select: {
+          feedback: true,
+          requirementsMetScore: true,
+          correctnessTestsScore: true,
+          codeQualityScore: true,
+          problemSolvingScore: true,
+          totalScore: true,
+          createdAt: true,
+        },
+      },
+      ticket: { select: { id: true, branchName: true, content: true } },
+    },
+  });
+
+  if (rows.length === 0) return [];
+
+  const repo = await githubService.getStarterRepoSummary(userId);
+
+  return rows.map((row) => {
+    const content =
+      row.ticket.content && typeof row.ticket.content === 'object' && !Array.isArray(row.ticket.content)
+        ? (row.ticket.content as { title?: string; category?: string })
+        : {};
+    const view = serializeSubmission(
+      {
+        id: row.id,
+        attempt: row.attempt as SubmissionAttempt,
+        status: row.status,
+        prNumber: row.prNumber,
+        headSha: row.headSha,
+        ciPassed: row.ciPassed,
+        ciRunUrl: row.ciRunUrl,
+        failureReason: row.failureReason,
+        submittedAt: row.submittedAt,
+        evaluation: row.evaluation,
+      },
+      { includeDiff: false, repoFullName: repo?.fullName ?? null },
+    ) as SubmissionView;
+
+    return {
+      ...view,
+      ticket: {
+        id: row.ticket.id,
+        title: content.title ?? 'Untitled ticket',
+        category: content.category ?? 'General',
+        branchName: row.ticket.branchName,
+      },
+      baseBranch: repo?.defaultBranch ?? null,
+    };
+  });
 };

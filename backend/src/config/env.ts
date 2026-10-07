@@ -49,8 +49,8 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().min(1),
   GROQ_API_KEY: z.string().min(1),
   // Pending team decision: provider model names remain deployment-configurable.
-  GEMINI_MODEL: z.string().min(1).default('gemini-1.5-flash'),
-  GROQ_MODEL: z.string().min(1).default('llama-3.3-70b-versatile'),
+  GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
+  GROQ_MODEL: z.string().min(1).default('openai/gpt-oss-120b'),
   GEMINI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
   GROQ_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
   GEMINI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
@@ -75,6 +75,10 @@ const envSchema = z.object({
   COST_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
   COST_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   MENTOR_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+  // Transactional email via Resend. Without an API key emails are only logged.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(1).default('WorkSim <onboarding@resend.dev>'),
+
   // Pending team decision: branch naming convention remains configurable.
   BRANCH_NAME_PREFIX: z.string().min(1).optional(),
 

@@ -28,6 +28,9 @@ const { authLimiter, defaultLimiter } = await import(
   '../../src/middlewares/rateLimiter.middleware.js'
 );
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ApiBody = Record<string, any>;
+
 const databaseUrl = process.env.DATABASE_URL;
 const describeDb = databaseUrl ? describe : describe.skip;
 
@@ -123,7 +126,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
     });
 
     expect(regRes.status).toBe(HTTP_STATUS.CREATED);
-    const regBody = await regRes.json();
+    const regBody = (await regRes.json()) as ApiBody;
     expect(regBody).toMatchObject({
       statusCode: HTTP_STATUS.CREATED,
       success: true,
@@ -157,7 +160,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
     });
 
     expect(loginRes.status).toBe(HTTP_STATUS.OK);
-    const loginBody = await loginRes.json();
+    const loginBody = (await loginRes.json()) as ApiBody;
     expect(loginBody).toMatchObject({
       statusCode: HTTP_STATUS.OK,
       success: true,
@@ -201,7 +204,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       body: JSON.stringify({ name: 'User Two', email, password }),
     });
     expect(res2.status).toBe(HTTP_STATUS.CONFLICT);
-    const body2 = await res2.json();
+    const body2 = (await res2.json()) as ApiBody;
     expect(body2.message).toBe('Email already in use');
 
     // Verify DB count is still 1
@@ -249,7 +252,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: `unknown.${randomUUID()}@example.com`, password }),
     });
-    const unknownBody = await unknownRes.json();
+    const unknownBody = (await unknownRes.json()) as ApiBody;
 
     // 2. Wrong password
     const wrongRes = await fetch(`${baseUrl}/auth/login`, {
@@ -257,7 +260,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: 'definitely-wrong-password' }),
     });
-    const wrongBody = await wrongRes.json();
+    const wrongBody = (await wrongRes.json()) as ApiBody;
 
     expect(unknownRes.status).toBe(HTTP_STATUS.UNAUTHORIZED);
     expect(wrongRes.status).toBe(HTTP_STATUS.UNAUTHORIZED);
@@ -289,7 +292,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
     });
 
     expect(loginRes.status).toBe(HTTP_STATUS.OK);
-    const body = await loginRes.json();
+    const body = (await loginRes.json()) as ApiBody;
     expect(body.data.user.emailVerifiedAt).toBeNull();
 
     const cookies = extractCookies(loginRes);
@@ -319,7 +322,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       body: JSON.stringify({ token: rawToken }),
     });
     expect(verifyRes1.status).toBe(HTTP_STATUS.OK);
-    const body1 = await verifyRes1.json();
+    const body1 = (await verifyRes1.json()) as ApiBody;
     expect(body1).toMatchObject({
       statusCode: HTTP_STATUS.OK,
       success: true,
@@ -339,7 +342,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       body: JSON.stringify({ token: rawToken }),
     });
     expect(verifyRes2.status).toBe(HTTP_STATUS.OK);
-    const body2 = await verifyRes2.json();
+    const body2 = (await verifyRes2.json()) as ApiBody;
     expect(body2.message).toBe('Email already verified');
     expect(body2.data.emailVerifiedAt).toBe(body1.data.emailVerifiedAt);
 
@@ -367,7 +370,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       body: JSON.stringify({ token: expiredRawToken }),
     });
     expect(expiredRes.status).toBe(HTTP_STATUS.GONE);
-    const expiredBody = await expiredRes.json();
+    const expiredBody = (await expiredRes.json()) as ApiBody;
     expect(expiredBody.message).toBe('This verification link has expired');
 
     const checkExpiredUser = await prisma.user.findUnique({ where: { id: expiredUser.id } });
@@ -400,7 +403,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       body: JSON.stringify({ email: unverifiedEmail }),
     });
     expect(res1.status).toBe(HTTP_STATUS.OK);
-    const body1 = await res1.json();
+    const body1 = (await res1.json()) as ApiBody;
     expect(sendVerificationEmailMock).toHaveBeenCalledWith(unverifiedEmail, expect.any(String));
 
     // 2. Resend for non-existent email
@@ -412,7 +415,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       body: JSON.stringify({ email: nonExistentEmail }),
     });
     expect(res2.status).toBe(HTTP_STATUS.OK);
-    const body2 = await res2.json();
+    const body2 = (await res2.json()) as ApiBody;
 
     // Responses must be completely identical (non-enumerating)
     expect(body1).toEqual(body2);
@@ -476,7 +479,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       headers: { Cookie: `refreshToken=${initialRefresh}` },
     });
     expect(oldRefreshRes.status).toBe(HTTP_STATUS.UNAUTHORIZED);
-    const oldBody = await oldRefreshRes.json();
+    const oldBody = (await oldRefreshRes.json()) as ApiBody;
     expect(oldBody.message).toBe('Invalid or expired session');
   });
 
@@ -552,7 +555,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       body: JSON.stringify({ token: resetToken, newPassword }),
     });
     expect(resetRes1.status).toBe(HTTP_STATUS.OK);
-    const resetBody1 = await resetRes1.json();
+    const resetBody1 = (await resetRes1.json()) as ApiBody;
     expect(resetBody1.message).toBe('Password reset');
 
     // Second reset with same token -> 410 Gone "This reset link has already been used"
@@ -562,7 +565,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       body: JSON.stringify({ token: resetToken, newPassword: 'another-password-789' }),
     });
     expect(resetRes2.status).toBe(HTTP_STATUS.GONE);
-    const resetBody2 = await resetRes2.json();
+    const resetBody2 = (await resetRes2.json()) as ApiBody;
     expect(resetBody2.message).toBe('This reset link has already been used');
 
     // Login with new password works
@@ -661,7 +664,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       body: JSON.stringify({ currentPassword: 'wrong-password-999', newPassword }),
     });
     expect(wrongRes.status).toBe(HTTP_STATUS.BAD_REQUEST);
-    const wrongBody = await wrongRes.json();
+    const wrongBody = (await wrongRes.json()) as ApiBody;
     expect(wrongBody.message).toBe('Current password is incorrect');
 
     // 2. Correct current password -> 200 OK
@@ -674,7 +677,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
       body: JSON.stringify({ currentPassword, newPassword }),
     });
     expect(correctRes.status).toBe(HTTP_STATUS.OK);
-    const correctBody = await correctRes.json();
+    const correctBody = (await correctRes.json()) as ApiBody;
     expect(correctBody.message).toBe('Password changed');
 
     // 3. Login with new password works
@@ -715,7 +718,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
     });
 
     expect(res.status).toBe(HTTP_STATUS.UNAUTHORIZED);
-    const body = await res.json();
+    const body = (await res.json()) as ApiBody;
     expect(body.success).toBe(false);
   });
 
@@ -730,9 +733,9 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
     });
 
     type ResettableLimiter = {
-      resetKey?: (key: string) => Promise<void>;
+      resetKey?: (key: string) => Promise<void> | void;
     };
-    const authResettable = authLimiter as ResettableLimiter;
+    const authResettable = authLimiter as unknown as ResettableLimiter;
     await authResettable.resetKey?.('127.0.0.1');
     await authResettable.resetKey?.('::/56');
     await authResettable.resetKey?.('::1');
@@ -756,7 +759,7 @@ describeDb('auth.integration (Doc 9 §9.3.6)', () => {
     });
 
     expect(blockedRes.status).toBe(HTTP_STATUS.TOO_MANY_REQUESTS);
-    const body = await blockedRes.json();
+    const body = (await blockedRes.json()) as ApiBody;
     expect(body.message).toBe('Too many login attempts, please try again later.');
   });
 });

@@ -68,6 +68,31 @@ describe('Billing flow integration', () => {
     expect(fetchMock.mock.calls.every(([, init]) => init?.credentials === 'include')).toBe(true);
   });
 
+  it('forwards /payment/return to the checkout return page and keeps Chapa query params', async () => {
+    mockFetch((path) => {
+      if (path.endsWith('/users/me')) return response(200, { user: mockUser });
+      if (path.endsWith('/subscriptions/me')) {
+        return response(200, {
+          subscription: {
+            id: 'subscription-1',
+            status: 'active',
+            currentPeriodEnd: '2027-01-01T00:00:00.000Z',
+            canceledAt: null,
+          },
+          hasAccess: true,
+        });
+      }
+      return response(200, null);
+    });
+
+    await act(async () => router.navigate('/payment/return?trx_ref=abc&status=success'));
+    render(<App />);
+
+    expect(await screen.findByText('Subscription Confirmed')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/billing/return');
+    expect(router.state.location.search).toBe('?trx_ref=abc&status=success');
+  });
+
   it('shows a recovery state and never claims success when subscription lookup fails', async () => {
     mockFetch((path) => {
       if (path.endsWith('/users/me')) return response(200, { user: mockUser });

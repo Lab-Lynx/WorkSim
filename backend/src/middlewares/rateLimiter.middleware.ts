@@ -1,5 +1,5 @@
 import rateLimit from 'express-rate-limit';
-import { ErrorResponse } from '../utils/ApiResponse.js'; // 🟢 Consolidated API layout
+import { ErrorResponse } from '../utils/ApiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import { env } from '../config/env.js';
 
@@ -8,7 +8,7 @@ export const defaultLimiter = rateLimit({
   max: env.DEFAULT_RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
-  // 🟢 Intercept the limitation event and route it through your design system
+  // Return the standard error response when a limit is hit
   handler: (req, res) => {
     return res
       .status(HTTP_STATUS.TOO_MANY_REQUESTS)

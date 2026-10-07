@@ -6,12 +6,12 @@ import type { SetupProgress } from '@/hooks/useSetupProgress';
 
 const progress: SetupProgress = {
   steps: [
-    { key: 'subscribe', status: 'todo', label: 'Subscribe', detail: null },
     { key: 'connect_github', status: 'todo', label: 'Connect GitHub', detail: null },
     { key: 'create_repo', status: 'todo', label: 'Create repository', detail: null },
+    { key: 'subscribe', status: 'todo', label: 'Subscribe', detail: null },
     { key: 'get_ticket', status: 'todo', label: 'Get a ticket', detail: null },
   ],
-  nextStep: 'subscribe',
+  nextStep: 'connect_github',
   setupComplete: false,
   canGetTicket: false,
 };
@@ -24,11 +24,10 @@ describe('SetupChecklist (FE-080)', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getAllByText('Subscribe')).toHaveLength(2);
-    expect(screen.getByText('Connect GitHub')).toBeInTheDocument();
-    expect(screen.getByText('Create repository')).toBeInTheDocument();
-    expect(screen.getByText('Get a ticket')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /subscribe/i })).toHaveAttribute('href', '/billing');
+    const labels = screen.getAllByRole('listitem').map((item) => item.querySelector('p')?.textContent);
+    expect(labels).toEqual(['Connect GitHub', 'Create repository', 'Subscribe', 'Get a ticket']);
+    expect(screen.getByRole('link', { name: /connect github/i })).toHaveAttribute('href', '/github');
+    expect(screen.queryByRole('link', { name: /subscribe/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /get.*ticket/i })).not.toBeInTheDocument();
   });
 
@@ -43,7 +42,7 @@ describe('SetupChecklist (FE-080)', () => {
     );
 
     expect(
-      screen.getByText('Setup complete: subscribed, GitHub connected, repository ready.')
+      screen.getByText('Setup complete: GitHub connected, repository ready, subscribed.')
     ).toBeInTheDocument();
     expect(screen.queryByText('Get a ticket')).not.toBeInTheDocument();
   });

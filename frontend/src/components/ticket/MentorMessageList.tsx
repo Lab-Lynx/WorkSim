@@ -16,48 +16,71 @@ export interface MentorMessageListProps {
 	onRetry: () => void;
 }
 
+interface BubbleProps {
+	speaker: 'You' | 'Mentor';
+	content: string;
+	ariaLabel?: string;
+	children?: React.ReactNode;
+}
+
+function Bubble({ speaker, content, ariaLabel, children }: BubbleProps): React.JSX.Element {
+	const isUser = speaker === 'You';
+	return (
+		<article
+			aria-label={ariaLabel}
+			className={`flex max-w-[85%] flex-col gap-1 ${isUser ? 'items-end self-end' : 'items-start self-start'}`}
+		>
+			<p className="px-1 text-xs font-medium text-muted-foreground">{speaker}</p>
+			<p
+				className={`whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+					isUser
+						? 'rounded-br-md bg-primary text-primary-foreground'
+						: 'rounded-bl-md bg-secondary text-secondary-foreground'
+				}`}
+			>
+				{content}
+			</p>
+			{children}
+		</article>
+	);
+}
+
 export default function MentorMessageList({
 	messages,
 	pending,
 	canRetry,
 	onRetry,
 }: MentorMessageListProps): React.JSX.Element {
-	const logRef = useRef<HTMLDivElement>(null);
+	const endRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		const log = logRef.current;
-		if (!log || typeof log.scrollIntoView !== 'function') return;
+		const end = endRef.current;
+		if (!end || typeof end.scrollIntoView !== 'function') return;
 
 		const prefersReducedMotion =
 			typeof window.matchMedia === 'function' &&
 			window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		log.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'end' });
+		end.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'nearest' });
 	}, [messages.length, pending]);
 
 	return (
-		<div
-			ref={logRef}
-			role="log"
-			aria-live="polite"
-			className="max-h-96 space-y-4 overflow-y-auto"
-		>
+		<div role="log" aria-live="polite" className="flex min-h-48 flex-1 flex-col gap-4 overflow-y-auto pr-1">
 			{messages.map((message) => (
-				<article key={message.id} className="space-y-1">
-					<p className="text-xs font-semibold text-muted-foreground">
-						{message.role === 'user' ? 'You' : 'Mentor'}
-					</p>
-					<p className="whitespace-pre-wrap text-sm text-foreground">{message.content}</p>
-				</article>
+				<Bubble
+					key={message.id}
+					speaker={message.role === 'user' ? 'You' : 'Mentor'}
+					content={message.content}
+				/>
 			))}
 
 			{pending && (
-				<article className="space-y-1 border-l-2 border-primary/40 pl-3" aria-label="Pending message">
-					<p className="text-xs font-semibold text-muted-foreground">You</p>
-					<p className="whitespace-pre-wrap text-sm text-foreground">{pending.content}</p>
+				<Bubble speaker="You" content={pending.content} ariaLabel="Pending message">
 					{pending.status === 'sending' ? (
-						<p role="status" className="text-xs text-muted-foreground">Mentor is thinking…</p>
+						<p role="status" className="px-1 text-xs text-muted-foreground">
+							Mentor is thinking…
+						</p>
 					) : (
-						<div className="flex flex-wrap items-center gap-2 text-xs text-destructive">
+						<div className="flex flex-wrap items-center justify-end gap-2 px-1 text-xs text-destructive">
 							<span>Not sent</span>
 							{pending.error && <span>{pending.error.message}</span>}
 							{canRetry && (
@@ -67,8 +90,9 @@ export default function MentorMessageList({
 							)}
 						</div>
 					)}
-				</article>
+				</Bubble>
 			)}
+			<div ref={endRef} aria-hidden="true" />
 		</div>
 	);
 }

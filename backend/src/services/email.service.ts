@@ -22,6 +22,7 @@
 
 import { env } from '../config/env.js';
 import logger from '../utils/logger.js';
+import { sendResendEmail } from '../integrations/resend.js';
 import { renderVerificationEmail } from '../emails/verification/verification-email.js';
 import { renderPasswordResetEmail } from '../emails/password-reset/password-reset-email.js';
 import { renderPaymentFailedEmail } from '../emails/payment/payment-failed-email.js';
@@ -45,7 +46,17 @@ export interface EmailProvider {
  */
 export const emailProvider: EmailProvider = {
   send: async (payload: EmailPayload): Promise<void> => {
-    logger.debug({ to: payload.to, subject: payload.subject }, 'Email sent via default provider');
+    if (env.RESEND_API_KEY) {
+      await sendResendEmail(payload, { apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM });
+      return;
+    }
+    if (env.NODE_ENV === 'production') {
+      logger.warn(
+        { subject: payload.subject },
+        'RESEND_API_KEY is not set, so this email was not delivered',
+      );
+    }
+    logger.debug({ to: payload.to, subject: payload.subject }, 'Email logged by default provider');
     if (env.NODE_ENV === 'development') {
       const linkMatch = payload.text.match(/https?:\/\/[^\s]+/);
       if (linkMatch) {

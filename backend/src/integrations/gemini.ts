@@ -94,10 +94,30 @@ interface RawTicketJson {
  * Execute Gemini REST API call with sanitized error handling and logging.
  * Never logs prompt contents or raw error objects containing API keys or user code.
  */
-async function executeGeminiRequest(payload: GeminiRequestPayload): Promise<string> {
+const readProviderMessage = async (response: Response, apiKey: string): Promise<string> => {
+  try {
+    const body = (await response.json()) as { error?: { message?: unknown } };
+    const message = typeof body?.error?.message === 'string' ? body.error.message : '';
+    const redacted = apiKey ? message.split(apiKey).join('[redacted]') : message;
+    return redacted.slice(0, 200);
+  } catch {
+    return '';
+  }
+};
+
+// Ticket generation produces a larger structured answer than a mentor hint, so it needs more headroom.
+const TICKET_GENERATION_MIN_TIMEOUT_MS = 30_000;
+
+async function executeGeminiRequest(
+  payload: GeminiRequestPayload,
+  options: { minTimeoutMs?: number } = {},
+): Promise<string> {
   const apiKey = env.GEMINI_API_KEY;
   const model = env.GEMINI_MODEL;
-  const timeoutMs = env.AI_REQUEST_TIMEOUT_MS ?? env.GEMINI_REQUEST_TIMEOUT_MS;
+  const timeoutMs = Math.max(
+    env.AI_REQUEST_TIMEOUT_MS ?? env.GEMINI_REQUEST_TIMEOUT_MS,
+    options.minTimeoutMs ?? 0,
+  );
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
@@ -127,13 +147,13 @@ async function executeGeminiRequest(payload: GeminiRequestPayload): Promise<stri
       error?.message?.toLowerCase().includes('time') ||
       controller.signal.aborted
     ) {
-      logger.error({ cause: 'timeout' }, 'Gemini provider call timed out');
-      throw new GeminiTimeoutError();
+      logger.error({ cause: 'timeout', timeoutMs }, 'Gemini provider call timed out');
+      throw new GeminiTimeoutError(`Gemini request timed out after ${timeoutMs / 1000}s`);
     }
 
     // Network error / DNS outage / unreachable
     logger.error({ cause: 'outage' }, 'Gemini provider network request failed');
-    throw new GeminiOutageError();
+    throw new GeminiOutageError('Gemini service unreachable');
   } finally {
     clearTimeout(timeoutId);
   }
@@ -149,8 +169,16 @@ async function executeGeminiRequest(payload: GeminiRequestPayload): Promise<stri
       throw new GeminiTimeoutError();
     }
 
-    logger.error({ cause: 'outage', statusCode: response.status }, 'Gemini provider returned non-2xx status');
-    throw new GeminiOutageError();
+    const providerMessage = await readProviderMessage(response, apiKey);
+    logger.error(
+      { cause: 'outage', statusCode: response.status, providerMessage },
+      'Gemini provider returned non-2xx status',
+    );
+    throw new GeminiOutageError(
+      providerMessage
+        ? `Gemini service unavailable (${response.status}: ${providerMessage})`
+        : `Gemini service unavailable (${response.status})`,
+    );
   }
 
   let data: GeminiApiResponse | undefined;
@@ -266,7 +294,8 @@ export async function callTicketGenerationModel(
     'Rules:',
     '1. Do not change category, difficulty, or touched files.',
     '2. Return a valid JSON object matching the TicketContent interface with keys: title, scenario, category, difficulty, touchedFiles, acceptanceCriteria, testChecklist.',
-    '3. Output JSON only.',
+    '3. acceptanceCriteria and testChecklist MUST be arrays of plain strings, one sentence each, never objects.',
+    '4. Output JSON only.',
   ].join('\n');
 
   const payload: GeminiRequestPayload = {
@@ -281,7 +310,9 @@ export async function callTicketGenerationModel(
     },
   };
 
-  const rawResponse = await executeGeminiRequest(payload);
+  const rawResponse = await executeGeminiRequest(payload, {
+    minTimeoutMs: TICKET_GENERATION_MIN_TIMEOUT_MS,
+  });
 
   let parsed: unknown;
   try {
@@ -317,21 +348,62 @@ export async function callTicketGenerationModel(
     category: template.category,
     difficulty: template.difficulty,
     touchedFiles: [...template.touchedFiles],
-    acceptanceCriteria: candidate.acceptanceCriteria.map((c: unknown) => String(c).trim()),
-    testChecklist: candidate.testChecklist.map((t: unknown) => String(t).trim()),
+    acceptanceCriteria: normalizeTextItems(candidate.acceptanceCriteria),
+    testChecklist: normalizeTextItems(candidate.testChecklist),
   };
 
   return result;
 }
 
+const TEXT_ITEM_KEYS = ['criterion', 'criteria', 'description', 'text', 'item', 'check', 'title', 'name', 'value'];
+
 /**
- * Ticket-lifecycle stub (Doc 8 / D-06).
- * Builds valid TicketContent from the template so local flows work without a live call.
- * Prefer callTicketGenerationModel when a real Gemini fill is required.
+ * Models sometimes return list items as objects such as { "criterion": "..." } instead of plain
+ * strings. Extract the text so the UI never renders "[object Object]"; reject anything unusable.
+ */
+export function normalizeTextItem(item: unknown): string | null {
+  if (typeof item === 'string') {
+    return item.trim() || null;
+  }
+  if (item && typeof item === 'object' && !Array.isArray(item)) {
+    const record = item as Record<string, unknown>;
+    for (const key of TEXT_ITEM_KEYS) {
+      const value = record[key];
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    const firstString = Object.values(record).find(
+      (value): value is string => typeof value === 'string' && value.trim().length > 0,
+    );
+    return firstString ? firstString.trim() : null;
+  }
+  return null;
+}
+
+function normalizeTextItems(items: unknown[]): string[] {
+  const normalized = items.map(normalizeTextItem);
+  if (normalized.some((item) => item === null)) {
+    logger.error({ cause: 'malformed_response' }, 'Generated ticket list contains an unusable item');
+    throw new GeminiMalformedResponseError();
+  }
+  return normalized as string[];
+}
+
+/**
+ * Ticket wording entry point used by the ticket-generation service (Doc 8 / D-06).
+ * Delegates to Gemini; the template's fixed structure is enforced by the caller's validation.
  */
 export const generateTicketWording = async (
   template: TicketTemplate,
-): Promise<TicketContent> => ({
+  context: TicketGenerationContext,
+): Promise<TicketContent> => callTicketGenerationModel(template, context);
+
+/**
+ * Deterministic TicketContent built from the template alone, with no model call.
+ * For offline fixtures and tests that need valid content.
+ */
+export const buildTemplateTicketContent = (
+  template: TicketTemplate,
+): TicketContent => ({
   title: `${template.category}: ${template.key}`,
   scenario: `Implement the ${template.key} ticket for the ${template.difficulty} track.`,
   category: template.category,

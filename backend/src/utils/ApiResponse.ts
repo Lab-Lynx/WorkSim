@@ -10,7 +10,7 @@ interface IApiResponse {
 }
 
 /**
- * 🟢 Standardized wrapper for successful actions
+ * Standardized wrapper for successful actions
  */
 export class SuccessResponse<T = unknown> implements IApiResponse {
   statusCode: number;

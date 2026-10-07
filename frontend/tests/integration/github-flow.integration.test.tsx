@@ -67,6 +67,7 @@ describe('GitHub setup integration', () => {
     mockFetch((path, init) => {
       if (path.endsWith('/users/me')) return response(200, { user: mockUser });
       if (path.endsWith('/subscriptions/me')) return response(200, { subscription: null, hasAccess: true });
+      if (path.endsWith('/submissions')) return response(200, { items: [] });
       if (path.endsWith('/github/connection')) {
         return response(200, { connected: true, githubLogin: 'worksim-user', repo: null });
       }

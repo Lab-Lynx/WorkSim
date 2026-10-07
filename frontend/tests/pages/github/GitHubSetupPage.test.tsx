@@ -13,6 +13,15 @@ vi.mock('@/hooks/github/useGitHubConnect');
 vi.mock('@/hooks/github/useDisconnectGitHub');
 vi.mock('@/hooks/github/useCreateRepo');
 vi.mock('@/hooks/billing/useSubscription');
+vi.mock('@/hooks/submissions/useSubmissions', () => ({
+    useSubmissions: () => ({
+        data: [],
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+    }),
+}));
 vi.mock('@/hooks/useDocumentTitle', () => ({
     useDocumentTitle: vi.fn(),
 }));

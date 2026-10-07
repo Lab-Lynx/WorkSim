@@ -1,45 +1,72 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { RefreshCw, TriangleAlert } from 'lucide-react';
+import ErrorPage from '@/components/common/ErrorPage';
 import { Button } from '@/components/ui/button';
+import { isChunkLoadError, reloadOnceForChunkError } from '@/lib/chunk-error';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
 }
 
 interface ErrorBoundaryState {
-  hasError: boolean;
+  error: Error | null;
+}
+
+function reloadPage(): void {
+  window.location.reload();
 }
 
 export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { error: null };
   }
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Replace with real error reporting (Sentry, LogRocket, etc.) in production
     console.error('Uncaught error:', error, errorInfo);
+    if (isChunkLoadError(error)) reloadOnceForChunkError();
   }
 
-  handleReset = () => {
-    this.setState({ hasError: false });
-    window.location.href = '/';
-  };
-
   render() {
-    if (this.state.hasError) {
+    const { error } = this.state;
+    if (!error) return this.props.children;
+
+    if (isChunkLoadError(error)) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background">
-          <p className="text-foreground text-lg font-semibold">Something went wrong.</p>
-          <p className="text-muted-foreground text-sm">Please try refreshing the page.</p>
-          <Button onClick={this.handleReset}>Go to Home</Button>
-        </div>
+        <ErrorPage
+          icon={RefreshCw}
+          title="A new version is available"
+          description="WorkSim was updated while this page was open. Reload to continue."
+          actions={
+            <Button type="button" onClick={reloadPage}>
+              Reload page
+            </Button>
+          }
+        />
       );
     }
 
-    return this.props.children;
+    return (
+      <ErrorPage
+        icon={TriangleAlert}
+        title="Something went wrong"
+        description="An unexpected error occurred. Please retry. Your work is safe."
+        actions={
+          <>
+            <Button type="button" onClick={reloadPage}>
+              Try again
+            </Button>
+            <Button asChild variant="outline">
+              <a href="/">Go to home</a>
+            </Button>
+          </>
+        }
+      />
+    );
   }
 }

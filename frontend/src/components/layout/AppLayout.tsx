@@ -80,7 +80,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     { label: 'Dashboard', to: ROUTES.DASHBOARD, icon: LayoutGrid },
     {
       label: 'Current Ticket',
-      to: activeTicketId ? `/tickets/${activeTicketId}` : ROUTES.DASHBOARD,
+      to: `/tickets/${activeTicketId ?? 'current'}`,
       icon: Ticket,
       ticketNav: true as const,
     },
