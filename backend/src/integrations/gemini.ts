@@ -266,7 +266,8 @@ export async function callTicketGenerationModel(
     'Rules:',
     '1. Do not change category, difficulty, or touched files.',
     '2. Return a valid JSON object matching the TicketContent interface with keys: title, scenario, category, difficulty, touchedFiles, acceptanceCriteria, testChecklist.',
-    '3. Output JSON only.',
+    '3. acceptanceCriteria and testChecklist MUST be arrays of plain strings, one sentence each, never objects.',
+    '4. Output JSON only.',
   ].join('\n');
 
   const payload: GeminiRequestPayload = {
@@ -317,11 +318,44 @@ export async function callTicketGenerationModel(
     category: template.category,
     difficulty: template.difficulty,
     touchedFiles: [...template.touchedFiles],
-    acceptanceCriteria: candidate.acceptanceCriteria.map((c: unknown) => String(c).trim()),
-    testChecklist: candidate.testChecklist.map((t: unknown) => String(t).trim()),
+    acceptanceCriteria: normalizeTextItems(candidate.acceptanceCriteria),
+    testChecklist: normalizeTextItems(candidate.testChecklist),
   };
 
   return result;
+}
+
+const TEXT_ITEM_KEYS = ['criterion', 'criteria', 'description', 'text', 'item', 'check', 'title', 'name', 'value'];
+
+/**
+ * Models sometimes return list items as objects such as { "criterion": "..." } instead of plain
+ * strings. Extract the text so the UI never renders "[object Object]"; reject anything unusable.
+ */
+export function normalizeTextItem(item: unknown): string | null {
+  if (typeof item === 'string') {
+    return item.trim() || null;
+  }
+  if (item && typeof item === 'object' && !Array.isArray(item)) {
+    const record = item as Record<string, unknown>;
+    for (const key of TEXT_ITEM_KEYS) {
+      const value = record[key];
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    const firstString = Object.values(record).find(
+      (value): value is string => typeof value === 'string' && value.trim().length > 0,
+    );
+    return firstString ? firstString.trim() : null;
+  }
+  return null;
+}
+
+function normalizeTextItems(items: unknown[]): string[] {
+  const normalized = items.map(normalizeTextItem);
+  if (normalized.some((item) => item === null)) {
+    logger.error({ cause: 'malformed_response' }, 'Generated ticket list contains an unusable item');
+    throw new GeminiMalformedResponseError();
+  }
+  return normalized as string[];
 }
 
 /**

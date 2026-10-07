@@ -69,8 +69,8 @@ export default function MentorPanel({ ticketId, mentor }: MentorPanelProps): Rea
 	}
 
 	return (
-		<section aria-label="Mentor conversation" className="space-y-4">
-			<h3 className="text-base font-semibold text-foreground">Mentor</h3>
+		<section aria-label="Mentor conversation" className="flex h-full flex-col gap-4">
+			<h3 className="sr-only">Mentor</h3>
 			{messagesQuery.isLoading ? (
 				<div role="status" aria-label="Loading mentor messages" className="space-y-3">
 					<div className="h-4 w-2/3 animate-pulse bg-muted" />
@@ -79,7 +79,10 @@ export default function MentorPanel({ ticketId, mentor }: MentorPanelProps): Rea
 			) : messagesQuery.isError ? (
 				<ErrorState message="Could not load mentor messages." onRetry={() => void messagesQuery.refetch()} />
 			) : messages.length === 0 ? (
-				<p className="text-sm text-muted-foreground">Ask your mentor for a progressive hint when you need guidance.</p>
+				<p className="rounded-xl bg-secondary px-3.5 py-3 text-sm text-secondary-foreground">
+					Ask your mentor for a progressive hint when you need guidance. Hints start broad and get more specific
+					as you keep going.
+				</p>
 			) : null}
 
 			{!messagesQuery.isLoading && !messagesQuery.isError && (

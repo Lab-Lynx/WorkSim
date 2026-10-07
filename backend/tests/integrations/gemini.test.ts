@@ -365,6 +365,46 @@ describe('Gemini Integration Adapter (doc 8 §8.8, §8.7, doc 9 §9.2.10)', () =
       expect(result.touchedFiles).toEqual(mockTemplate.touchedFiles);
     });
 
+    it('Gemini — flattens object list items to plain text instead of "[object Object]"', async () => {
+      const generated = {
+        title: 'Generated title',
+        scenario: 'Generated scenario',
+        acceptanceCriteria: [{ criterion: 'Accepts limit param' }, { description: 'Rejects bad input' }, 'Plain string'],
+        testChecklist: [{ check: 'Default applies' }, { id: 1, text: 'Invalid returns 400' }],
+      };
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(generated) }], role: 'model' } }],
+        }),
+      } as unknown as Response);
+
+      const result = await callTicketGenerationModel(mockTemplate, mockContext);
+
+      expect(result.acceptanceCriteria).toEqual(['Accepts limit param', 'Rejects bad input', 'Plain string']);
+      expect(result.testChecklist).toEqual(['Default applies', 'Invalid returns 400']);
+      expect(JSON.stringify(result)).not.toContain('[object Object]');
+    });
+
+    it('Gemini — rejects list items that contain no usable text', async () => {
+      const generated = {
+        title: 'Generated title',
+        scenario: 'Generated scenario',
+        acceptanceCriteria: [{ id: 1 }],
+        testChecklist: ['ok'],
+      };
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(generated) }], role: 'model' } }],
+        }),
+      } as unknown as Response);
+
+      await expect(callTicketGenerationModel(mockTemplate, mockContext)).rejects.toThrow();
+    });
+
     it('Gemini — supports passing (template, context) signature as overload', async () => {
       const generatedTicketData: TicketContent = {
         title: 'Prevent stale closures in useCounter',
