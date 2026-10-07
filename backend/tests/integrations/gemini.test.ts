@@ -222,6 +222,19 @@ describe('Gemini Integration Adapter (doc 8 §8.8, §8.7, doc 9 §9.2.10)', () =
       await expect(callMentorModel(mockMentorInput)).rejects.toThrow(GeminiOutageError);
     });
 
+    it('Gemini — outage message includes the provider status and message', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: async () => ({ error: { message: 'API key not valid', code: 403 } }),
+      } as unknown as Response);
+
+      await expect(callMentorModel(mockMentorInput)).rejects.toThrow(
+        'Gemini service unavailable (403: API key not valid)',
+      );
+    });
+
     it('Gemini — malformed provider response throws normalized GeminiMalformedResponseError', async () => {
       // Empty candidates
       globalThis.fetch = vi.fn().mockResolvedValue({

@@ -311,6 +311,15 @@ export const createTicketBranch = async (
     });
   } catch (err) {
     if (err instanceof ApiError) throw err;
+    if (err instanceof githubIntegration.GitHubTokenInvalidError) {
+      throw new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        'Your GitHub connection is no longer valid. Reconnect GitHub to continue',
+      );
+    }
+    if (err instanceof githubIntegration.GitHubProviderError) {
+      throw new ApiError(HTTP_STATUS.BAD_GATEWAY, `${BRANCH_CREATE_FAILED}. ${err.message}`);
+    }
     throw new ApiError(HTTP_STATUS.BAD_GATEWAY, BRANCH_CREATE_FAILED);
   }
 };

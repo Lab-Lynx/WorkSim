@@ -94,10 +94,30 @@ interface RawTicketJson {
  * Execute Gemini REST API call with sanitized error handling and logging.
  * Never logs prompt contents or raw error objects containing API keys or user code.
  */
-async function executeGeminiRequest(payload: GeminiRequestPayload): Promise<string> {
+const readProviderMessage = async (response: Response, apiKey: string): Promise<string> => {
+  try {
+    const body = (await response.json()) as { error?: { message?: unknown } };
+    const message = typeof body?.error?.message === 'string' ? body.error.message : '';
+    const redacted = apiKey ? message.split(apiKey).join('[redacted]') : message;
+    return redacted.slice(0, 200);
+  } catch {
+    return '';
+  }
+};
+
+// Ticket generation produces a larger structured answer than a mentor hint, so it needs more headroom.
+const TICKET_GENERATION_MIN_TIMEOUT_MS = 30_000;
+
+async function executeGeminiRequest(
+  payload: GeminiRequestPayload,
+  options: { minTimeoutMs?: number } = {},
+): Promise<string> {
   const apiKey = env.GEMINI_API_KEY;
   const model = env.GEMINI_MODEL;
-  const timeoutMs = env.AI_REQUEST_TIMEOUT_MS ?? env.GEMINI_REQUEST_TIMEOUT_MS;
+  const timeoutMs = Math.max(
+    env.AI_REQUEST_TIMEOUT_MS ?? env.GEMINI_REQUEST_TIMEOUT_MS,
+    options.minTimeoutMs ?? 0,
+  );
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
@@ -127,13 +147,13 @@ async function executeGeminiRequest(payload: GeminiRequestPayload): Promise<stri
       error?.message?.toLowerCase().includes('time') ||
       controller.signal.aborted
     ) {
-      logger.error({ cause: 'timeout' }, 'Gemini provider call timed out');
-      throw new GeminiTimeoutError();
+      logger.error({ cause: 'timeout', timeoutMs }, 'Gemini provider call timed out');
+      throw new GeminiTimeoutError(`Gemini request timed out after ${timeoutMs / 1000}s`);
     }
 
     // Network error / DNS outage / unreachable
     logger.error({ cause: 'outage' }, 'Gemini provider network request failed');
-    throw new GeminiOutageError();
+    throw new GeminiOutageError('Gemini service unreachable');
   } finally {
     clearTimeout(timeoutId);
   }
@@ -149,8 +169,16 @@ async function executeGeminiRequest(payload: GeminiRequestPayload): Promise<stri
       throw new GeminiTimeoutError();
     }
 
-    logger.error({ cause: 'outage', statusCode: response.status }, 'Gemini provider returned non-2xx status');
-    throw new GeminiOutageError();
+    const providerMessage = await readProviderMessage(response, apiKey);
+    logger.error(
+      { cause: 'outage', statusCode: response.status, providerMessage },
+      'Gemini provider returned non-2xx status',
+    );
+    throw new GeminiOutageError(
+      providerMessage
+        ? `Gemini service unavailable (${response.status}: ${providerMessage})`
+        : `Gemini service unavailable (${response.status})`,
+    );
   }
 
   let data: GeminiApiResponse | undefined;
@@ -282,7 +310,9 @@ export async function callTicketGenerationModel(
     },
   };
 
-  const rawResponse = await executeGeminiRequest(payload);
+  const rawResponse = await executeGeminiRequest(payload, {
+    minTimeoutMs: TICKET_GENERATION_MIN_TIMEOUT_MS,
+  });
 
   let parsed: unknown;
   try {
