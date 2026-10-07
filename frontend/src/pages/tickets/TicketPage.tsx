@@ -45,7 +45,7 @@ export default function TicketPage(): React.JSX.Element {
   const assign = useAssignTicket();
   const submitWork = useSubmitWork(resolvedTicketId);
   const retry = useRetrySubmission(resolvedTicketId, phase?.retryAttempt ?? 1);
-  const hasAccess = subscriptionQuery.data ? subscriptionQuery.data.hasAccess : true;
+  const hasPaidAccess = Boolean(subscriptionQuery.data?.hasAccess);
   const [pendingAction, setPendingAction] = useState<TicketPrimaryAction | null>(null);
   const [actionError, setActionError] = useState<UiError | null>(null);
   const [isResubmitOpen, setIsResubmitOpen] = useState(false);
@@ -219,7 +219,7 @@ export default function TicketPage(): React.JSX.Element {
         <TicketHeader ticket={ticket} phase={phase} />
         <TicketActionBar
           phase={phase}
-          hasAccess={hasAccess}
+          hasAccess={true}
           pendingAction={pendingAction}
           error={actionError}
           onAction={(action) => void handleAction(action)}
@@ -229,17 +229,6 @@ export default function TicketPage(): React.JSX.Element {
       {ticket.status === 'abandoned' && (
         <div role="status" className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
           This ticket was abandoned.
-        </div>
-      )}
-      {!hasAccess && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          An active subscription is required.{' '}
-          <Link to="/billing" className="underline">
-            Go to billing
-          </Link>
         </div>
       )}
 
@@ -274,7 +263,6 @@ export default function TicketPage(): React.JSX.Element {
                 <Button
                   type="button"
                   variant="destructive"
-                  disabled={!hasAccess}
                   onClick={() => setIsAbandonOpen(true)}
                 >
                   Abandon ticket
@@ -294,14 +282,14 @@ export default function TicketPage(): React.JSX.Element {
               </span>
             </div>
             <div className="min-h-0 flex-1 p-4">
-              <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasAccess} />
+              <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasPaidAccess} />
             </div>
           </div>
         </div>
       )}
       {activeTab === 'mentor' && (
         <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-          <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasAccess} />
+          <MentorPanel ticketId={ticket.id} mentor={phase.mentor} hasAccess={hasPaidAccess} />
         </div>
       )}
       {activeTab === 'submissions' && (
@@ -310,7 +298,7 @@ export default function TicketPage(): React.JSX.Element {
             ticketId={ticket.id}
             submissions={submissions}
             phase={phase}
-            hasAccess={hasAccess}
+            hasAccess={true}
             retryingAttempt={retry.isPending ? phase.retryAttempt : null}
             onRetry={() => void handleAction('retry')}
             onSettled={handleSettled}

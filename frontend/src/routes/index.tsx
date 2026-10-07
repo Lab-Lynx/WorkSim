@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate, Outlet, useParams } from 'react-router-dom';
+import { createBrowserRouter, Link, Navigate, Outlet, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import RequireAuth from './RequireAuth';
 import PublicOnly from './PublicOnly';
@@ -34,7 +34,18 @@ function TicketRoute() {
   if (ticketId === 'current' || !ticketId) {
     if (isLoading) return <PageLoader />;
     if (currentTicket) return <Navigate to={`/tickets/${currentTicket.id}`} replace />;
-    return <Navigate to={ROUTES.DASHBOARD} replace />;
+    return (
+      <div className="mx-auto flex w-full max-w-4xl flex-col items-center justify-center py-16 text-center space-y-4">
+        <h2 className="text-xl font-semibold">No active ticket</h2>
+        <p className="text-sm text-muted-foreground">You do not have an active ticket in progress.</p>
+        <Link
+          to={ROUTES.DASHBOARD}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Go to dashboard
+        </Link>
+      </div>
+    );
   }
 
   return withSuspense(<TicketPage key={ticketId} />);
