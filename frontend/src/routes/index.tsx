@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Link, Navigate, Outlet, useParams } from 'react-router-dom';
+import { createBrowserRouter, Link, Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import RequireAuth from './RequireAuth';
 import PublicOnly from './PublicOnly';
@@ -50,6 +50,11 @@ function TicketRoute() {
   }
 
   return withSuspense(<TicketPage key={ticketId} />);
+}
+
+function PaymentReturnAlias() {
+  const { search } = useLocation();
+  return <Navigate to={`${ROUTES.BILLING_RETURN}${search}`} replace />;
 }
 
 function PageLoader() {
@@ -102,6 +107,7 @@ const router = createBrowserRouter([
           { path: ROUTES.DASHBOARD, element: withSuspense(<DashboardPage />) },
           { path: ROUTES.BILLING, element: withSuspense(<BillingPage />) },
           { path: ROUTES.BILLING_RETURN, element: withSuspense(<CheckoutReturnPage />) },
+          { path: ROUTES.PAYMENT_RETURN_ALIAS, element: <PaymentReturnAlias /> },
           { path: ROUTES.GITHUB, element: withSuspense(<GitHubSetupPage />) },
           { path: '/tickets', element: <TicketRoute /> },
           { path: ROUTES.TICKET, element: <TicketRoute /> },

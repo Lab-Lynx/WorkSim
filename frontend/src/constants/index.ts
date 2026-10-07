@@ -5,6 +5,7 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   BILLING: '/billing',
   BILLING_RETURN: '/billing/return',
+  PAYMENT_RETURN_ALIAS: '/payment/return',
   GITHUB: '/github',
   PROFILE: '/profile',
   SETTINGS: '/settings',
