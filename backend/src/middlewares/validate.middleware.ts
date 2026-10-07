@@ -3,11 +3,11 @@ import { ZodSchema, ZodError } from 'zod';
 import ApiError from '../utils/ApiError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 
-// 🟢 Using a generic parameter <T> so TypeScript tracks the specific schema shape dynamically
+// Generic over the schema so the parsed data keeps its inferred type
 const validate = <T>(schema: ZodSchema<T>) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // 🟢 parsedData is now strictly typed to match the schema's shape instead of 'any'
+      // parsedData is typed from the schema
       const parsedData: T = await schema.parseAsync({
         body: req.body,
         params: req.params,
