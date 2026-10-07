@@ -19,7 +19,7 @@ export interface SetupStep {
 }
 
 export interface SetupProgress {
-  steps: SetupStep[]; // always four, in this order
+  steps: SetupStep[]; // always four: connect_github, create_repo, subscribe, get_ticket
   nextStep: SetupStepKey | null;
   setupComplete: boolean; // steps 1 to 3 are done
   canGetTicket: boolean; // setupComplete and there is no active ticket
@@ -134,9 +134,10 @@ export function getSetupProgress(input: GetSetupProgressInput): SetupProgress {
     detail: null,
   };
 
-  const steps = [step1, step2, step3, step4];
+  // GitHub is connected first, the starter repo is created next, and subscribing comes last
+  const steps = [step2, step3, step1, step4];
 
-  // setupComplete: steps 1 to 3 are done
+  // setupComplete: connect_github, create_repo and subscribe are all done
   const setupComplete =
     step1.status === 'done' && step2.status === 'done' && step3.status === 'done';
 

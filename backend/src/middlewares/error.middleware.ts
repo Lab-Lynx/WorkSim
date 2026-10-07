@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import ApiError from '../utils/ApiError.js';
-import { ErrorResponse } from '../utils/ApiResponse.js'; // 🟢 Using the dedicated ErrorResponse variant
+import { ErrorResponse } from '../utils/ApiResponse.js';
 import logger from '../utils/logger.js';
 import { env } from '../config/env.js';
 

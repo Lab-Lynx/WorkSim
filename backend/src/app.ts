@@ -14,7 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { env } from './config/env.js';
 import logger from './utils/logger.js';
 import ApiError from './utils/ApiError.js';
-import { SuccessResponse } from './utils/ApiResponse.js'; // 🟢 For health check alignment
+import { SuccessResponse } from './utils/ApiResponse.js';
 import { HTTP_STATUS } from './constants/index.js';
 
 // Middlewares & Routes
@@ -25,14 +25,14 @@ import router from './routes/index.js';
 
 const app = express();
 
-// 🟢 2. Generate and bind Correlation Request IDs
+// Generate a correlation ID for each request
 app.use((req, res, next) => {
   req.id = randomUUID();
   res.setHeader('X-Request-Id', req.id);
   next();
 });
 
-// 🟢 3. Link Express Request IDs directly to Pino logs
+// Attach the request ID to Pino logs
 app.use(pinoHttp({
   logger,
   genReqId: (req: IncomingMessage) => (typeof req.id === 'string' ? req.id : randomUUID()),
@@ -92,7 +92,7 @@ app.use(csrfMiddleware);
 // 🚀 Core Application Routing Paths
 app.use('/api/v1', router);
 
-// 🟢 4. Realignment of Health Check Endpoint to your Design System Shell
+// Health check
 app.get('/health', (req, res) => {
   return res
     .status(HTTP_STATUS.OK)
