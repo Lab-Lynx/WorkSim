@@ -167,7 +167,14 @@ export async function createBranch(input: {
     } | null;
 
     if (!refRes.ok || !refData?.object?.sha) {
-      throw new GitHubProviderError('Failed to get base branch reference');
+      const detail = describeGitHubFailure(refRes.status, refData);
+      logger.error(
+        { status: refRes.status, repo: `${input.owner}/${input.repo}`, base: input.baseBranch },
+        'GitHub base branch lookup failed',
+      );
+      throw new GitHubProviderError(
+        `Failed to read branch '${input.baseBranch}' of ${input.owner}/${input.repo}${detail}`,
+      );
     }
 
     const createRes = await fetch(
@@ -192,12 +199,26 @@ export async function createBranch(input: {
     }
 
     if (!createRes.ok) {
-      throw new GitHubProviderError('Failed to create ticket branch');
+      const body = (await createRes.json().catch(() => null)) as { message?: string } | null;
+      const detail = describeGitHubFailure(createRes.status, body);
+      logger.error(
+        { status: createRes.status, repo: `${input.owner}/${input.repo}`, branch: input.branchName },
+        'GitHub ticket branch creation failed',
+      );
+      throw new GitHubProviderError(`Failed to create ticket branch${detail}`);
     }
   } catch (err) {
-    if (err instanceof GitHubTokenInvalidError) throw err;
+    if (err instanceof GitHubProviderError) throw err;
     throw new GitHubProviderError('Failed to create ticket branch', err);
   }
+}
+
+function describeGitHubFailure(status: number, body: unknown): string {
+  const message =
+    body && typeof body === 'object' && 'message' in body
+      ? String((body as { message?: unknown }).message ?? '')
+      : '';
+  return message ? ` (${status}: ${message})` : ` (${status})`;
 }
 
 const STARTER_TEMPLATE_REPOS: Record<string, string> = {
