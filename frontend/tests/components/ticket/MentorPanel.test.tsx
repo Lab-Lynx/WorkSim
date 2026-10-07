@@ -25,6 +25,15 @@ describe('MentorPanel (FE-090)', () => {
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
   });
 
+  it('shows the subscription required reason and disables sending when user lacks paid access', () => {
+    render(<MentorPanel ticketId="ticket-1" mentor="enabled" hasAccess={false} />);
+
+    expect(
+      screen.getByText('An active subscription is required to chat with the mentor.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+  });
+
   it('hides the composer when mentor access is read-only', () => {
     render(<MentorPanel ticketId="ticket-1" mentor="read_only" hasAccess />);
 
