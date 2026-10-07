@@ -22,6 +22,12 @@ const PR_READ_FAILED =
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
+const OAUTH_REJECTION_REASONS: Record<string, string> = {
+  bad_verification_code: 'code_expired',
+  incorrect_client_credentials: 'credentials_invalid',
+  redirect_uri_mismatch: 'redirect_mismatch',
+};
+
 const frontendOAuthRedirect = (status: 'connected' | 'error', reason?: string): string => {
   const url = new URL('/github', env.CLIENT_URL);
   url.searchParams.set('github', status);
@@ -92,10 +98,17 @@ export const completeGitHubAuthorization = async (
     });
     return frontendOAuthRedirect('connected');
   } catch (error) {
-    logger.warn(
-      { message: error instanceof Error ? error.message : 'unknown error' },
+    logger.error(
+      {
+        message: error instanceof Error ? error.message : 'unknown error',
+        githubError: error instanceof githubIntegration.GitHubOAuthRejectedError ? error.githubError : undefined,
+      },
       'GitHub OAuth callback failed',
     );
+    if (error instanceof githubIntegration.GitHubOAuthRejectedError) {
+      const reason = OAUTH_REJECTION_REASONS[error.githubError ?? ''];
+      if (reason) return frontendOAuthRedirect('error', reason);
+    }
     if (error instanceof ApiError && error.message.includes('scope')) {
       return frontendOAuthRedirect('error', 'scope_invalid');
     }

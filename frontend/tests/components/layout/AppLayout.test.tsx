@@ -141,7 +141,7 @@ describe('AppLayout', () => {
     expect(link).toHaveAttribute('href', '/tickets/ticket-abc');
   });
 
-  it('falls back Current Ticket to the dashboard when there is no active ticket', () => {
+  it('points Current Ticket at the current-ticket route when there is no active ticket', () => {
     currentTicketState = {
       data: null,
       isLoading: false,
@@ -159,7 +159,7 @@ describe('AppLayout', () => {
 
     expect(screen.getByRole('link', { name: /current ticket/i })).toHaveAttribute(
       'href',
-      '/dashboard',
+      '/tickets/current',
     );
   });
 

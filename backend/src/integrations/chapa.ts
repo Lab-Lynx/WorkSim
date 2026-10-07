@@ -99,6 +99,7 @@ export async function initializeCheckout(params: CheckoutParams): Promise<{ chec
 
   const data = (await response.json().catch(() => null)) as {
     status?: string;
+    message?: unknown;
     data?: { checkout_url?: string };
   } | null;
 
@@ -107,6 +108,16 @@ export async function initializeCheckout(params: CheckoutParams): Promise<{ chec
       { chapaResponse: data, statusCode: response.status, txRef: params.txRef },
       'Chapa payment initialization failed',
     );
+    if (
+      data?.message &&
+      typeof data.message === 'object' &&
+      'email' in (data.message as Record<string, unknown>)
+    ) {
+      throw new ApiError(
+        HTTP_STATUS.UNPROCESSABLE_ENTITY,
+        'The payment provider rejected your email address. Update your account email and try again',
+      );
+    }
     throw new ApiError(
       HTTP_STATUS.BAD_GATEWAY,
       'Payment provider could not initiate checkout, please try again',

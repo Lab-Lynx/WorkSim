@@ -75,6 +75,10 @@ const envSchema = z.object({
   COST_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
   COST_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   MENTOR_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+  // Transactional email via Resend. Without an API key emails are only logged.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(1).default('WorkSim <onboarding@resend.dev>'),
+
   // Pending team decision: branch naming convention remains configurable.
   BRANCH_NAME_PREFIX: z.string().min(1).optional(),
 

@@ -17,10 +17,15 @@ vi.mock('../../src/config/db.js', () => ({
     gitHubConnection: { upsert: connectionUpsert },
   },
 }));
-vi.mock('../../src/integrations/github.js', () => ({
-  exchangeOAuthCode,
-  createBranch: vi.fn(),
-}));
+vi.mock('../../src/integrations/github.js', async () => {
+  const { default: ApiError } = await import('../../src/utils/ApiError.js');
+  class GitHubOAuthRejectedError extends ApiError {
+    constructor(readonly githubError: string | undefined) {
+      super(502, 'Could not connect to GitHub');
+    }
+  }
+  return { exchangeOAuthCode, createBranch: vi.fn(), GitHubOAuthRejectedError };
+});
 
 const { createGitHubAuthorization, completeGitHubAuthorization } = await import(
   '../../src/services/github.service.js'
@@ -61,6 +66,20 @@ describe('github OAuth service', () => {
       'reason=state_invalid',
     );
     expect(exchangeOAuthCode).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['bad_verification_code', 'code_expired'],
+    ['incorrect_client_credentials', 'credentials_invalid'],
+    ['redirect_uri_mismatch', 'redirect_mismatch'],
+    ['something_else', 'exchange_failed'],
+  ])('maps the GitHub rejection %s to reason=%s', async (githubError, reason) => {
+    const { GitHubOAuthRejectedError } = await import('../../src/integrations/github.js');
+    exchangeOAuthCode.mockRejectedValue(new GitHubOAuthRejectedError(githubError));
+
+    await expect(completeGitHubAuthorization('state', 'code')).resolves.toContain(
+      `reason=${reason}`,
+    );
   });
 
   it('exchanges the code and stores the encrypted GitHub connection', async () => {
