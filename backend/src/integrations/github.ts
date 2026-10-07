@@ -298,12 +298,20 @@ export const createStarterRepository = async (
   if (!createRes.ok) {
     const errorBody = await createRes.text().catch(() => '');
     logger.error(
-      { status: createRes.status, body: errorBody },
+      { status: createRes.status, body: errorBody, template },
       'GitHub repository creation API returned non-2xx status',
     );
+    let githubMessage = '';
+    try {
+      githubMessage = (JSON.parse(errorBody) as { message?: string }).message ?? '';
+    } catch {
+      // body was not JSON
+    }
     throw new ApiError(
       HTTP_STATUS.BAD_GATEWAY,
-      'GitHub could not create the repository, please try again',
+      githubMessage
+        ? `GitHub could not create the repository (${createRes.status}): ${githubMessage}`
+        : `GitHub could not create the repository (${createRes.status}), please try again`,
     );
   }
 
