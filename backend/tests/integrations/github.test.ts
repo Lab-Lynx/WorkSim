@@ -159,6 +159,36 @@ describe('createStarterRepository', () => {
     );
   });
 
+  it('includes the GitHub status and message when repository creation is refused', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      text: async () => JSON.stringify({ message: 'Resource not accessible by integration' }),
+    } as Response);
+
+    await expect(
+      createStarterRepository({ ...input, starterTemplate: 'react' }),
+    ).rejects.toMatchObject({
+      statusCode: 502,
+      message: 'GitHub could not create the repository (403): Resource not accessible by integration',
+    });
+  });
+
+  it('falls back to the status alone when GitHub returns a non-JSON error body', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: async () => '<html>oops</html>',
+    } as Response);
+
+    await expect(
+      createStarterRepository({ ...input, starterTemplate: 'react' }),
+    ).rejects.toMatchObject({
+      statusCode: 502,
+      message: 'GitHub could not create the repository (500), please try again',
+    });
+  });
+
   it('rejects an unknown template without calling GitHub', async () => {
     await expect(createStarterRepository({ ...input, starterTemplate: 'rails' })).rejects.toMatchObject({
       statusCode: 400,
