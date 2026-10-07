@@ -95,7 +95,9 @@ export const createCheckout = async (userId: string): Promise<{ checkoutUrl: str
   const firstName = nameParts[0] || 'Customer';
   const lastName = nameParts.slice(1).join(' ') || undefined;
 
-  const callbackUrl = `${env.CLIENT_URL.replace(/\/+$/, '')}/api/v1/webhooks/chapa`;
+  // Chapa posts the webhook to the API, which lives on the same origin as the GitHub OAuth callback, not the frontend.
+  const apiOrigin = new URL(env.GITHUB_CALLBACK_URL).origin;
+  const callbackUrl = `${apiOrigin}/api/v1/webhooks/chapa`;
   const returnUrl = env.CHAPA_RETURN_URL;
 
   const { checkoutUrl } = await chapaIntegration.initializePayment({

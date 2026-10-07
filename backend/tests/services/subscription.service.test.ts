@@ -150,6 +150,7 @@ describe('subscription.service', () => {
           email: 'ada@example.com',
           firstName: 'Ada',
           lastName: 'Lovelace',
+          callbackUrl: expect.stringMatching(/^https?:\/\/[^/]+\/api\/v1\/webhooks\/chapa$/),
         }),
       );
       expect(result).toEqual({ checkoutUrl: 'https://checkout.chapa.co/test' });

@@ -45,6 +45,13 @@ export class GitHubTokenInvalidError extends GitHubProviderError {
   }
 }
 
+export class GitHubOAuthRejectedError extends ApiError {
+  constructor(readonly githubError: string | undefined) {
+    super(HTTP_STATUS.BAD_GATEWAY, 'Could not connect to GitHub');
+    this.name = 'GitHubOAuthRejectedError';
+  }
+}
+
 export interface GitHubOAuthIdentity {
   accessToken: string;
   scope: string;
@@ -78,7 +85,7 @@ export const exchangeOAuthCode = async (code: string): Promise<GitHubOAuthIdenti
 
   if (!tokenResponse.ok || !tokenPayload.access_token) {
     logger.warn({ reason: tokenPayload.error }, 'GitHub OAuth token exchange rejected');
-    throw new ApiError(HTTP_STATUS.BAD_GATEWAY, 'Could not connect to GitHub');
+    throw new GitHubOAuthRejectedError(tokenPayload.error);
   }
 
   const returnedScopeList = (tokenPayload.scope ?? '')

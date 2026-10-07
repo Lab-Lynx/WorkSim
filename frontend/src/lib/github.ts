@@ -56,6 +56,12 @@ export function getGitHubOAuthErrorMessage(reason: string | null): string {
       return 'Authentication session expired. Try connecting again.';
     case 'scope_invalid':
       return 'Work Simulator needs repository permission to work on tickets. Try connecting again.';
+    case 'code_expired':
+      return 'The GitHub sign-in link expired or was already used. Try connecting again.';
+    case 'credentials_invalid':
+      return 'GitHub rejected the app credentials. This is a server setup problem, so contact support.';
+    case 'redirect_mismatch':
+      return 'GitHub rejected the callback address. This is a server setup problem, so contact support.';
     case 'exchange_failed':
       return "Couldn't connect to GitHub. Try again.";
     default:

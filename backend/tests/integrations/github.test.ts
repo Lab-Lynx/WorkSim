@@ -44,6 +44,15 @@ describe('GitHub OAuth integration', () => {
     );
   });
 
+  it('surfaces the GitHub error code when the code exchange is rejected', async () => {
+    fetchMock.mockResolvedValueOnce(response({ error: 'bad_verification_code' }));
+
+    await expect(exchangeOAuthCode('code')).rejects.toMatchObject({
+      statusCode: 502,
+      githubError: 'bad_verification_code',
+    });
+  });
+
   it('rejects broader or missing scopes', async () => {
     fetchMock.mockResolvedValueOnce(
       response({ access_token: 'gho_secret', scope: 'repo,write:repo_hook' }),
