@@ -13,6 +13,9 @@ import { useCurrentTicket } from '@/hooks/tickets/useCurrentTicket';
 import GetTicketPanel from '@/components/ticket/GetTicketPanel';
 
 const LandingPage = lazy(() => import('@/pages/public/LandingPage'));
+const TermsPage = lazy(() => import('@/pages/public/TermsPage'));
+const PrivacyPage = lazy(() => import('@/pages/public/PrivacyPage'));
+const ContactPage = lazy(() => import('@/pages/public/ContactPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
@@ -81,6 +84,18 @@ const router = createBrowserRouter([
   {
     path: ROUTES.HOME,
     element: <Suspense fallback={<div className="min-h-screen bg-[#F5F5F5]" />}><LandingPage /></Suspense>,
+  },
+  {
+    path: ROUTES.TERMS,
+    element: <Suspense fallback={<div className="min-h-screen bg-[#F5F5F5]" />}><TermsPage /></Suspense>,
+  },
+  {
+    path: ROUTES.PRIVACY,
+    element: <Suspense fallback={<div className="min-h-screen bg-[#F5F5F5]" />}><PrivacyPage /></Suspense>,
+  },
+  {
+    path: ROUTES.CONTACT,
+    element: <Suspense fallback={<div className="min-h-screen bg-[#F5F5F5]" />}><ContactPage /></Suspense>,
   },
   {
     element: <PublicOnly />,

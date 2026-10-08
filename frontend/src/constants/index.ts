@@ -14,6 +14,9 @@ export const ROUTES = {
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
   VERIFY_EMAIL: '/verify-email',
+  TERMS: '/terms',
+  PRIVACY: '/privacy',
+  CONTACT: '/contact',
 } as const;
 
 export const QUERY_KEYS = {

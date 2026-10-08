@@ -121,17 +121,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
           end={item.label === 'Dashboard'}
           onClick={closeMobileMenu}
           className={({ isActive }) =>
-            navLinkClass(
-              {
-                isActive: item.ticketNav
-                  ? location.pathname.startsWith('/tickets/')
-                  : isActive,
-              },
-              collapsed,
+            cn(
+              navLinkClass(
+                {
+                  isActive: item.ticketNav
+                    ? location.pathname.startsWith('/tickets/')
+                    : isActive,
+                },
+                collapsed,
+              ),
+              'group'
             )
           }
         >
-          <item.icon className="size-4 shrink-0" />
+          <item.icon className="size-4 shrink-0 transition-transform duration-300 group-hover:-rotate-12" />
           <span className={cn(collapsed && 'sr-only')}>{item.label}</span>
         </NavLink>
       ))}
@@ -151,23 +154,23 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <NavLink
         to={ROUTES.SETTINGS}
         onClick={closeMobileMenu}
-        className={(args) => navLinkClass(args, collapsed)}
+        className={(args) => cn(navLinkClass(args, collapsed), 'group')}
       >
-        <Settings className="size-4 shrink-0" />
+        <Settings className="size-4 shrink-0 transition-transform duration-300 group-hover:-rotate-12" />
         <span className={cn(collapsed && 'sr-only')}>Settings</span>
       </NavLink>
       <ThemeToggle collapsed={collapsed} />
       <button
         type="button"
         className={cn(
-          'flex w-full items-center rounded-2xl py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive',
+          'group flex w-full items-center rounded-2xl py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive',
           collapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3',
         )}
         onClick={handleLogout}
         disabled={isLoggingOut}
         aria-label="Log out"
       >
-        <LogOut className="size-4 shrink-0" />
+        <LogOut className="size-4 shrink-0 transition-transform duration-300 group-hover:-rotate-12" />
         {!collapsed && (isLoggingOut ? 'Logging out...' : 'Log out')}
       </button>
     </div>
@@ -189,7 +192,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           className={cn(
-            'hidden min-h-0 shrink-0 flex-col overflow-hidden py-4 text-sidebar-foreground transition-[width] duration-300 ease-out md:flex',
+            'hidden min-h-0 shrink-0 flex-col overflow-hidden py-4 text-sidebar-foreground transition-[width] duration-300 ease-out md:flex animate-in fade-in duration-700',
             sidebarCollapsed ? 'w-16 px-2' : 'w-64 px-3',
           )}
         >
@@ -274,7 +277,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-transparent p-4 md:p-8">
               <div
                 key={location.pathname}
-                className="flex min-h-0 flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-400 fill-mode-both"
+                className="flex min-h-0 flex-col gap-6 animate-in fade-in duration-700 fill-mode-both"
               >
                 {children}
               </div>
