@@ -375,6 +375,25 @@ npx vitest
 npx vitest run --coverage
 ```
 
+### Test database isolation
+
+Integration suites `TRUNCATE` every table (including `User`), so they must never touch a real database. The test runner therefore **ignores `DATABASE_URL`** and uses only `TEST_DATABASE_URL`, falling back to `postgresql://postgres:postgres@localhost:5433/worksim_test`. Before any test runs, a guard refuses to start unless:
+
+- the host is local (`localhost`, `127.0.0.1`, `::1`, or a host listed in `TEST_DATABASE_ALLOWED_HOSTS`),
+- the database name contains a `test` segment (`worksim_test`, `test_db`),
+- `NODE_ENV` is not `production`,
+- and, for integration suites, the server itself reports a `current_database()` that looks like a test database.
+
+One-time local setup:
+
+```bash
+docker compose up -d db                              # new volumes also create worksim_test automatically
+docker compose exec db createdb -U postgres worksim_test   # only needed if your volume already existed
+npm run test:db:prepare                              # applies migrations to the test database only
+```
+
+Never point `TEST_DATABASE_URL` at a hosted database. For extra protection, give the production app a database role that does not have the `TRUNCATE` privilege.
+
 - **Authentication & Security Tests:** Verifies cookie flags, refresh token single-use rotation, CSRF origin verification, and password hashing.
 - **Middleware & Guard Tests:** Verifies correct short-circuiting on unpaid subscriptions, missing GitHub connections, or missing starter repos.
 - **Database & Concurrency Tests:** Tests atomic single-use token claiming under simulated race conditions.
