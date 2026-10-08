@@ -3,6 +3,9 @@ import app from './app.js';
 import { env } from './config/env.js';
 import { prisma } from './config/db.js';
 import logger from './utils/logger.js';
+import { captureServerError, flushSentry, initSentry } from './lib/observability/sentry.js';
+
+initSentry();
 
 let server: Server;
 
@@ -40,6 +43,7 @@ const handleShutdown = async (signal: string) => {
       logger.error(err, 'Database disconnect failed');
       finalExitCode = 1;
     } finally {
+      await flushSentry().catch(() => undefined);
       process.exit(finalExitCode);
     }
   };
@@ -89,11 +93,13 @@ process.on('SIGINT', () => handleShutdown('SIGINT'));
 // running the graceful shutdown / DB disconnect path above.
 process.on('uncaughtException', (err) => {
   logger.fatal(err, 'Uncaught exception — initiating shutdown');
+  captureServerError(err);
   void handleShutdown('uncaughtException');
 });
 
 process.on('unhandledRejection', (reason) => {
   logger.fatal(reason, 'Unhandled promise rejection — initiating shutdown');
+  captureServerError(reason);
   void handleShutdown('unhandledRejection');
 });
 

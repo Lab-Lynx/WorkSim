@@ -132,6 +132,58 @@ export const validateCredentials = async (
   return toSafeUser(user);
 };
 
+export const isGuestLoginEnabled = (): boolean =>
+  Boolean(env.GUEST_LOGIN_EMAIL && env.GUEST_LOGIN_PASSWORD);
+
+/**
+ * Signs in the demo account configured through GUEST_LOGIN_EMAIL / GUEST_LOGIN_PASSWORD.
+ * The account is created (already verified) on first use if it does not exist yet.
+ * Credentials are read server-side only and checked with the same path as a normal login.
+ */
+export const loginAsGuest = async (): Promise<SafeUser> => {
+  const email = env.GUEST_LOGIN_EMAIL;
+  const password = env.GUEST_LOGIN_PASSWORD;
+
+  if (!email || !password) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Guest login is not available');
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  const existing = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    const passwordHash = await bcrypt.hash(password, Number(env.BCRYPT_SALT_ROUNDS));
+    try {
+      await prisma.user.create({
+        data: {
+          name: 'Guest',
+          email: normalizedEmail,
+          passwordHash,
+          emailVerifiedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      // A concurrent first request may have created it already; anything else is a real failure.
+      if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) {
+        throw err;
+      }
+    }
+  }
+
+  try {
+    return await validateCredentials(normalizedEmail, password);
+  } catch (err) {
+    if (err instanceof ApiError && err.statusCode === HTTP_STATUS.UNAUTHORIZED) {
+      logger.error('Guest account exists but GUEST_LOGIN_PASSWORD does not match its password');
+      throw new ApiError(HTTP_STATUS.SERVICE_UNAVAILABLE, 'Guest login is temporarily unavailable');
+    }
+    throw err;
+  }
+};
+
 export const getUserById = async (id: string): Promise<SafeUser> => {
   const user = await prisma.user.findUnique({
     where: { id },

@@ -23,7 +23,10 @@ function isAbsoluteHttpsUrl(urlString: unknown): urlString is string {
   }
   try {
     const parsed = new URL(urlString);
-    return parsed.protocol === 'https:';
+    return (
+      parsed.protocol === 'https:' ||
+      (parsed.protocol === 'http:' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'))
+    );
   } catch {
     return false;
   }

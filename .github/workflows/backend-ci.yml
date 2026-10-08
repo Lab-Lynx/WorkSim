@@ -36,6 +36,8 @@ jobs:
     env:
       # CI-only sentinel values; never use these credentials outside tests.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      # Tests read only this one, and it must pass tests/setup/db-guard.ts.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       ACCESS_TOKEN_SECRET: ci-access-secret-not-for-production
       REFRESH_TOKEN_SECRET: ci-refresh-secret-not-for-production
       CLIENT_URL: http://localhost:5173
