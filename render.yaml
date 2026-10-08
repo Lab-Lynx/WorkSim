@@ -55,6 +55,10 @@ services:
       - key: GROQ_API_KEY
         sync: false
       # Optional configurations (uncomment/add in dashboard if needed)
+      # Demo login (sync: false, optional): GUEST_LOGIN_EMAIL, GUEST_LOGIN_PASSWORD
+      # Observability (all sync: false): SENTRY_DSN, SENTRY_ENVIRONMENT, SENTRY_TRACES_SAMPLE_RATE, METRICS_TOKEN
+      # AI fallback keys: GEMINI_API_KEY_2, GEMINI_MENTOR_API_KEY, GEMINI_MENTOR_API_KEY_2,
+      # GEMINI_TICKET_API_KEY, GEMINI_TICKET_API_KEY_2, GROQ_API_KEY_2 (all sync: false)
       # - key: CHAPA_PRICE
       #   sync: false
       # - key: CHAPA_CURRENCY

@@ -22,6 +22,7 @@ import { defaultLimiter } from './middlewares/rateLimiter.middleware.js';
 import csrfMiddleware from './middlewares/csrf.middleware.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 import router from './routes/index.js';
+import { httpMetricsMiddleware, metricsHandler } from './lib/observability/metrics.js';
 
 const app = express();
 
@@ -38,8 +39,14 @@ app.use(pinoHttp({
   genReqId: (req: IncomingMessage) => (typeof req.id === 'string' ? req.id : randomUUID()),
 }));
 
+app.use(httpMetricsMiddleware);
+
 // 🛡️ Security Middlewares
 app.use(helmet());
+
+// Token-protected Prometheus scrape endpoint; returns 404 unless METRICS_TOKEN is set.
+// Registered ahead of the rate limiter so scrapes are never throttled.
+app.get('/metrics', metricsHandler);
 app.use(
   cors({
     // credentials:true cannot pair with a wildcard "*" origin — the browser
@@ -109,7 +116,12 @@ app.use(express.static(frontendDistPath));
 // Must come AFTER static file serving and API routes
 app.use((req, res, next) => {
   // Skip if this is an API request or a direct file request
-  if (req.path.startsWith('/api/') || req.path.startsWith('/webhooks/') || req.path === '/health') {
+  if (
+    req.path.startsWith('/api/') ||
+    req.path.startsWith('/webhooks/') ||
+    req.path === '/health' ||
+    req.path === '/metrics'
+  ) {
     return next();
   }
   // For all other routes, serve the frontend index.html

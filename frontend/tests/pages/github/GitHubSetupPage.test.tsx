@@ -227,4 +227,65 @@ describe('GitHubSetupPage', () => {
             });
         });
     });
+
+    it('renders "Continue working" and "Create repo" buttons when repository is already created', () => {
+        vi.spyOn(useGitHubConnectionModule, 'useGitHubConnection').mockReturnValue({
+            data: {
+                connected: true,
+                githubUsername: 'octocat',
+                repo: {
+                    fullName: 'octocat/work-simulator',
+                    starterTemplate: 'react',
+                    defaultBranch: 'main',
+                },
+            },
+            isLoading: false,
+            refetch: mockRefetchConnection,
+        } as never);
+
+        renderPage();
+
+        const continueBtn = screen.getByRole('link', { name: /continue working/i });
+        expect(continueBtn).toBeInTheDocument();
+        expect(continueBtn).toHaveAttribute('href', '/tickets');
+
+        const createRepoBtn = screen.getByRole('button', { name: /create repo/i });
+        expect(createRepoBtn).toBeInTheDocument();
+    });
+
+    it('toggles repo creation form when user clicks "Create repo" and can cancel back', async () => {
+        vi.spyOn(useGitHubConnectionModule, 'useGitHubConnection').mockReturnValue({
+            data: {
+                connected: true,
+                githubUsername: 'octocat',
+                repo: {
+                    fullName: 'octocat/work-simulator',
+                    starterTemplate: 'react',
+                    defaultBranch: 'main',
+                },
+            },
+            isLoading: false,
+            refetch: mockRefetchConnection,
+        } as never);
+
+        renderPage();
+
+        const createRepoBtn = screen.getByRole('button', { name: /create repo/i });
+
+        await act(async () => {
+            fireEvent.click(createRepoBtn);
+        });
+
+        expect(screen.getByText(/current repository:/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /create repository/i })).toBeInTheDocument();
+
+        const cancelBtn = screen.getByRole('button', { name: /cancel/i });
+        await act(async () => {
+            fireEvent.click(cancelBtn);
+        });
+
+        expect(screen.queryByText(/current repository:/i)).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /continue working/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /create repo/i })).toBeInTheDocument();
+    });
 });

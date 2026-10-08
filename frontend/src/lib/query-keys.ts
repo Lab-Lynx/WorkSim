@@ -2,6 +2,7 @@ import type { SubmissionAttempt } from '@/types';
 
 export const queryKeys = {
   me: ['me'] as const,
+  guestLogin: ['auth', 'guest'] as const,
   subscription: ['subscription'] as const,
   payments: ['payments'] as const,
   githubConnection: ['github-connection'] as const,

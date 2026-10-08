@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import PasswordInput from '@/components/common/PasswordInput';
 import FormRootError from '@/components/common/FormRootError';
 import SubmitButton from '@/components/common/SubmitButton';
+import GuestLoginButton from '@/components/auth/GuestLoginButton';
 
 export default function RegisterPage(): React.JSX.Element {
   useDocumentTitle('Create account');
@@ -125,6 +126,8 @@ export default function RegisterPage(): React.JSX.Element {
           Create account
         </SubmitButton>
       </form>
+
+      <GuestLoginButton />
 
       <p className="mt-6 text-sm text-muted-foreground">
         Already have an account?{' '}

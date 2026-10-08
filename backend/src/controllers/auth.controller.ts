@@ -57,6 +57,28 @@ export const login = asyncHandler(async (req, res: Response) => {
     .json(new SuccessResponse(HTTP_STATUS.OK, 'Logged in', { user: toPublicUser(user) }));
 });
 
+/** Tells the UI whether to show the "Continue as guest" button. Reveals no credentials. */
+export const guestStatus = asyncHandler(async (_req, res: Response) => {
+  res
+    .status(HTTP_STATUS.OK)
+    .json(
+      new SuccessResponse(HTTP_STATUS.OK, 'Guest login status', {
+        enabled: authService.isGuestLoginEnabled(),
+      }),
+    );
+});
+
+/** Logs in the preconfigured demo account without the client sending any credentials. */
+export const guestLogin = asyncHandler(async (_req, res: Response) => {
+  const user = await authService.loginAsGuest();
+  const tokens = await authService.issueTokens(user);
+  setAuthCookies(res, tokens);
+
+  res
+    .status(HTTP_STATUS.OK)
+    .json(new SuccessResponse(HTTP_STATUS.OK, 'Logged in as guest', { user: toPublicUser(user) }));
+});
+
 export const refresh = asyncHandler(async (req: AuthRequest, res: Response) => {
   const rawRefreshToken = req.cookies?.refreshToken as string | undefined;
 

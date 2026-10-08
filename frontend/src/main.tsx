@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import '@/styles/globals.css';
 import App from './App.tsx';
 import { reloadOnceForChunkError } from '@/lib/chunk-error';
+import { initSentry } from '@/lib/observability/sentry';
+
+initSentry();
 
 window.addEventListener('vite:preloadError', (event) => {
   if (reloadOnceForChunkError()) event.preventDefault();

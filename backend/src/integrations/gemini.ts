@@ -1,6 +1,19 @@
 import { env } from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
+import {
+  collectApiKeys,
+  isQuotaExhaustionMessage,
+  markKeyExhausted,
+  orderKeysByAvailability,
+  parseRetryAfterMs,
+} from './api-keys.js';
+import {
+  recordAiKeyFallback,
+  recordAiRequest,
+  recordAiTokens,
+  type AiOperation,
+} from '../lib/observability/metrics.js';
 import type {
   MentorModelInput,
   TicketContent,
@@ -32,8 +45,11 @@ export class GeminiTimeoutError extends GeminiProviderError {
 }
 
 export class GeminiRateLimitError extends GeminiProviderError {
-  constructor(message = 'Gemini rate limit exceeded') {
+  readonly retryAfterMs?: number;
+
+  constructor(message = 'Gemini rate limit exceeded', retryAfterMs?: number) {
     super('rate_limit', message, 502);
+    this.retryAfterMs = retryAfterMs;
     this.name = 'GeminiRateLimitError';
     Object.setPrototypeOf(this, GeminiRateLimitError.prototype);
   }
@@ -80,8 +96,23 @@ interface GeminiApiResponse {
         text?: string;
       }>;
     };
+    finishReason?: unknown;
   }>;
+  promptFeedback?: {
+    blockReason?: unknown;
+  };
+  usageMetadata?: {
+    promptTokenCount?: unknown;
+    candidatesTokenCount?: unknown;
+  };
 }
+
+const readTokenCount = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+
+// Provider reason codes are short enum strings; cap length so nothing unexpected reaches the logs.
+const readReasonCode = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.length > 0 ? value.slice(0, 50) : undefined;
 
 interface RawTicketJson {
   title?: unknown;
@@ -108,11 +139,70 @@ const readProviderMessage = async (response: Response, apiKey: string): Promise<
 // Ticket generation produces a larger structured answer than a mentor hint, so it needs more headroom.
 const TICKET_GENERATION_MIN_TIMEOUT_MS = 30_000;
 
+const mentorApiKeys = (): string[] =>
+  collectApiKeys(
+    env.GEMINI_MENTOR_API_KEY,
+    env.GEMINI_MENTOR_API_KEY_2,
+    env.GEMINI_API_KEY,
+    env.GEMINI_API_KEY_2,
+  );
+
+const ticketApiKeys = (): string[] =>
+  collectApiKeys(
+    env.GEMINI_TICKET_API_KEY,
+    env.GEMINI_TICKET_API_KEY_2,
+    env.GEMINI_API_KEY,
+    env.GEMINI_API_KEY_2,
+  );
+
+/**
+ * Tries each key in order and moves on only when the key itself looks exhausted or rejected
+ * (rate limit, quota, invalid key, outage). Timeouts and malformed responses are not key problems,
+ * so they fail immediately instead of multiplying latency.
+ */
 async function executeGeminiRequest(
   payload: GeminiRequestPayload,
-  options: { minTimeoutMs?: number } = {},
+  options: { apiKeys: string[]; operation: AiOperation; minTimeoutMs?: number },
 ): Promise<string> {
-  const apiKey = env.GEMINI_API_KEY;
+  const { minTimeoutMs, operation } = options;
+  const apiKeys = orderKeysByAvailability(options.apiKeys);
+  let lastError: unknown;
+
+  for (const [index, apiKey] of apiKeys.entries()) {
+    try {
+      const text = await executeGeminiRequestWithKey(payload, apiKey, { minTimeoutMs, operation });
+      recordAiRequest('gemini', operation, 'success');
+      return text;
+    } catch (err: unknown) {
+      lastError = err;
+      const keyProblem = err instanceof GeminiRateLimitError || err instanceof GeminiOutageError;
+      if (keyProblem) {
+        markKeyExhausted(apiKey, err instanceof GeminiRateLimitError ? err.retryAfterMs : undefined);
+      }
+      if (!keyProblem || index === apiKeys.length - 1) {
+        recordAiRequest(
+          'gemini',
+          operation,
+          err instanceof GeminiProviderError ? err.causeType : 'error',
+        );
+        throw err;
+      }
+      recordAiKeyFallback('gemini', (err as GeminiProviderError).causeType);
+      logger.warn(
+        { cause: (err as GeminiProviderError).causeType, keyIndex: index, keyCount: apiKeys.length },
+        'Gemini key failed, trying fallback key',
+      );
+    }
+  }
+
+  throw lastError;
+}
+
+async function executeGeminiRequestWithKey(
+  payload: GeminiRequestPayload,
+  apiKey: string,
+  options: { minTimeoutMs?: number; operation: AiOperation },
+): Promise<string> {
   const model = env.GEMINI_MODEL;
   const timeoutMs = Math.max(
     env.AI_REQUEST_TIMEOUT_MS ?? env.GEMINI_REQUEST_TIMEOUT_MS,
@@ -161,7 +251,7 @@ async function executeGeminiRequest(
   if (!response.ok) {
     if (response.status === 429) {
       logger.error({ cause: 'rate_limit', statusCode: 429 }, 'Gemini rate limit exceeded');
-      throw new GeminiRateLimitError();
+      throw new GeminiRateLimitError(undefined, parseRetryAfterMs(response.headers));
     }
 
     if (response.status === 408) {
@@ -170,6 +260,13 @@ async function executeGeminiRequest(
     }
 
     const providerMessage = await readProviderMessage(response, apiKey);
+    if (isQuotaExhaustionMessage(providerMessage)) {
+      logger.error(
+        { cause: 'rate_limit', statusCode: response.status },
+        'Gemini key reported exhausted quota',
+      );
+      throw new GeminiRateLimitError(undefined, parseRetryAfterMs(response.headers));
+    }
     logger.error(
       { cause: 'outage', statusCode: response.status, providerMessage },
       'Gemini provider returned non-2xx status',
@@ -190,11 +287,28 @@ async function executeGeminiRequest(
   }
 
   const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const finishReason = readReasonCode(data?.candidates?.[0]?.finishReason);
+  const blockReason = readReasonCode(data?.promptFeedback?.blockReason);
 
   if (typeof candidateText !== 'string' || candidateText.trim().length === 0) {
-    logger.error({ cause: 'malformed_response' }, 'Gemini candidate text missing or empty');
+    logger.error(
+      { cause: 'malformed_response', finishReason, blockReason },
+      'Gemini candidate text missing or empty',
+    );
     throw new GeminiMalformedResponseError();
   }
+
+  if (finishReason && finishReason !== 'STOP') {
+    logger.warn({ finishReason }, 'Gemini response ended before a normal stop');
+  }
+
+  const inputTokens = readTokenCount(data?.usageMetadata?.promptTokenCount);
+  const outputTokens = readTokenCount(data?.usageMetadata?.candidatesTokenCount);
+  recordAiTokens('gemini', options.operation, model, { inputTokens, outputTokens });
+  logger.info(
+    { provider: 'gemini', operation: options.operation, model, inputTokens, outputTokens },
+    'ai_usage',
+  );
 
   return candidateText.trim();
 }
@@ -244,7 +358,7 @@ export async function callMentorModel(input: MentorModelInput): Promise<string> 
   };
 
   try {
-    return await executeGeminiRequest(payload);
+    return await executeGeminiRequest(payload, { apiKeys: mentorApiKeys(), operation: 'mentor' });
   } finally {
     logger.info(
       { operation: 'mentor', durationMs: Math.round(performance.now() - startedAt) },
@@ -311,6 +425,8 @@ export async function callTicketGenerationModel(
   };
 
   const rawResponse = await executeGeminiRequest(payload, {
+    apiKeys: ticketApiKeys(),
+    operation: 'ticket_generation',
     minTimeoutMs: TICKET_GENERATION_MIN_TIMEOUT_MS,
   });
 

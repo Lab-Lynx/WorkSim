@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import ApiError from '../../src/utils/ApiError.js';
@@ -85,6 +85,8 @@ vi.mock('../../src/utils/logger.js', () => ({
 const {
   registerUser,
   authenticateUser,
+  loginAsGuest,
+  isGuestLoginEnabled,
   revokeAllSessions,
   verifyEmail,
   resendVerificationEmail,
@@ -344,6 +346,109 @@ describe('auth.service (doc 9 §9.2.1)', () => {
       expect(logs).not.toContain('$2b$10$hashedpasswordstringsample');
 
       compareSpy.mockRestore();
+    });
+  });
+
+  describe('guest login', () => {
+    const guestEnv = env as unknown as {
+      GUEST_LOGIN_EMAIL?: string;
+      GUEST_LOGIN_PASSWORD?: string;
+    };
+    const originalEmail = guestEnv.GUEST_LOGIN_EMAIL;
+    const originalPassword = guestEnv.GUEST_LOGIN_PASSWORD;
+
+    const guestRow = { ...baseUserRow, name: 'Guest', email: 'guest@example.com' };
+
+    beforeEach(() => {
+      guestEnv.GUEST_LOGIN_EMAIL = 'Guest@Example.com';
+      guestEnv.GUEST_LOGIN_PASSWORD = 'guest-password-1';
+    });
+
+    afterEach(() => {
+      guestEnv.GUEST_LOGIN_EMAIL = originalEmail;
+      guestEnv.GUEST_LOGIN_PASSWORD = originalPassword;
+      vi.restoreAllMocks();
+    });
+
+    it('isGuestLoginEnabled is true only when both credentials are set', () => {
+      expect(isGuestLoginEnabled()).toBe(true);
+
+      guestEnv.GUEST_LOGIN_PASSWORD = undefined;
+      expect(isGuestLoginEnabled()).toBe(false);
+
+      guestEnv.GUEST_LOGIN_PASSWORD = 'guest-password-1';
+      guestEnv.GUEST_LOGIN_EMAIL = undefined;
+      expect(isGuestLoginEnabled()).toBe(false);
+    });
+
+    it('throws 404 when guest login is not configured', async () => {
+      guestEnv.GUEST_LOGIN_EMAIL = undefined;
+
+      await expect(loginAsGuest()).rejects.toMatchObject({
+        statusCode: HTTP_STATUS.NOT_FOUND,
+      });
+      expect(userFindUnique).not.toHaveBeenCalled();
+      expect(userCreate).not.toHaveBeenCalled();
+    });
+
+    it('logs in an existing guest account without creating a new one', async () => {
+      userFindUnique.mockResolvedValue(guestRow);
+      vi.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+
+      const user = await loginAsGuest();
+
+      expect(userCreate).not.toHaveBeenCalled();
+      expect(user.email).toBe('guest@example.com');
+      expect(user).not.toHaveProperty('passwordHash');
+    });
+
+    it('creates a verified guest account on first use, then signs in', async () => {
+      userFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(guestRow);
+      userCreate.mockResolvedValue(guestRow);
+      vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-guest' as never);
+      vi.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+
+      const user = await loginAsGuest();
+
+      expect(userCreate).toHaveBeenCalledTimes(1);
+      const data = userCreate.mock.calls[0][0].data;
+      expect(data.email).toBe('guest@example.com');
+      expect(data.passwordHash).toBe('hashed-guest');
+      expect(data.emailVerifiedAt).toBeInstanceOf(Date);
+      expect(user.email).toBe('guest@example.com');
+    });
+
+    it('tolerates a concurrent first-use creation (P2002)', async () => {
+      userFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(guestRow);
+      userCreate.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: 'test',
+        }),
+      );
+      vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-guest' as never);
+      vi.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+
+      await expect(loginAsGuest()).resolves.toMatchObject({ email: 'guest@example.com' });
+    });
+
+    it('rethrows unexpected creation errors', async () => {
+      userFindUnique.mockResolvedValue(null);
+      userCreate.mockRejectedValue(new Error('db down'));
+      vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-guest' as never);
+
+      await expect(loginAsGuest()).rejects.toThrow('db down');
+    });
+
+    it('returns 503 and logs when the stored guest password no longer matches', async () => {
+      userFindUnique.mockResolvedValue(guestRow);
+      vi.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+
+      await expect(loginAsGuest()).rejects.toMatchObject({
+        statusCode: HTTP_STATUS.SERVICE_UNAVAILABLE,
+      });
+      expect(loggerError).toHaveBeenCalled();
+      expect(JSON.stringify(allLoggerCalls())).not.toContain('guest-password-1');
     });
   });
 

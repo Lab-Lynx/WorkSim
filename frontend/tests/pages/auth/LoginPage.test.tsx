@@ -9,6 +9,8 @@ import { queryKeys } from '@/lib/query-keys';
 import { useAuthStore } from '@/store/auth.store';
 import type { User } from '@/types';
 
+vi.mock('@/components/auth/GuestLoginButton', () => ({ default: () => null }));
+
 const mockUser: User = {
     id: 'usr-123',
     name: 'Taylor Dev',

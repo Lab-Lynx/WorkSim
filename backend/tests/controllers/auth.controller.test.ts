@@ -15,8 +15,12 @@ const requestPasswordReset = vi.fn();
 const resetPassword = vi.fn();
 const changePassword = vi.fn();
 const sendVerificationEmail = vi.fn();
+const loginAsGuest = vi.fn();
+const isGuestLoginEnabled = vi.fn();
 
 vi.mock('../../src/services/auth.service.js', () => ({
+  loginAsGuest,
+  isGuestLoginEnabled,
   registerUser,
   issueTokens,
   validateCredentials,
@@ -45,6 +49,8 @@ vi.mock('../../src/utils/cookies.js', () => ({
 const {
   register,
   login,
+  guestLogin,
+  guestStatus,
   refresh,
   logout,
   logoutAll,
@@ -257,6 +263,45 @@ describe('auth.controller (EP-06–EP-10 + register verification)', () => {
 
     expect(next).toHaveBeenCalledWith(err);
     expect(clearAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('guestStatus reports whether guest login is enabled without exposing credentials', async () => {
+    isGuestLoginEnabled.mockReturnValue(true);
+    const res = mockRes();
+
+    await guestStatus({} as never, res as never, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { enabled: true } }),
+    );
+  });
+
+  it('guestLogin signs in the demo account, sets cookies and never returns passwordHash', async () => {
+    loginAsGuest.mockResolvedValue({ ...safeUser, passwordHash: 'secret' });
+    const res = mockRes();
+
+    await guestLogin({ body: {} } as never, res as never, vi.fn());
+
+    expect(loginAsGuest).toHaveBeenCalledTimes(1);
+    expect(issueTokens).toHaveBeenCalled();
+    expect(setAuthCookies).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
+    const payload = JSON.stringify(res.json.mock.calls[0][0]);
+    expect(payload).not.toContain('secret');
+    expect(payload).not.toContain('accessToken');
+  });
+
+  it('guestLogin forwards service errors to next and sets no cookies', async () => {
+    const error = new ApiError(HTTP_STATUS.NOT_FOUND, 'Guest login is not available');
+    loginAsGuest.mockRejectedValue(error);
+    const res = mockRes();
+    const next = vi.fn();
+
+    await guestLogin({ body: {} } as never, res as never, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+    expect(setAuthCookies).not.toHaveBeenCalled();
   });
 
   it('login validates credentials, sets cookies and returns 200 with user', async () => {

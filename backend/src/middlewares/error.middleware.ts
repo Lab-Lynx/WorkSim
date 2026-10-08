@@ -3,10 +3,15 @@ import ApiError from '../utils/ApiError.js';
 import { ErrorResponse } from '../utils/ApiResponse.js';
 import logger from '../utils/logger.js';
 import { env } from '../config/env.js';
+import { captureServerError } from '../lib/observability/sentry.js';
 
 const errorMiddleware = (err: Error, req: Request, res: Response, _next: NextFunction) => {
   // 1. Log the full Error Object (Pino captures the full stack trace cleanly)
   logger.error(err, `[${req.method}] ${req.path}`);
+  captureServerError(err, {
+    requestId: typeof req.id === 'string' ? req.id : undefined,
+    route: `${req.method} ${req.baseUrl}${req.route?.path ?? ''}`,
+  });
 
   // 2. Handle Known/Expected Operational Errors (ApiError)
   if (err instanceof ApiError) {

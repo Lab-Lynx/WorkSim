@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
+  ArrowRight,
   CheckCircle2,
   ExternalLink,
   GitBranch,
   GitPullRequest,
+  Plus,
 } from 'lucide-react';
 import { useSubmissions } from '@/hooks/submissions/useSubmissions';
 import { friendlyMessage } from '@/lib/api/friendly-error';
@@ -52,6 +54,7 @@ export default function GitHubSetupPage(): React.JSX.Element {
   const [isDisconnectDialogOpen, setIsDisconnectDialogOpen] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [repoError, setRepoError] = useState<UiError | null>(null);
+  const [isCreatingRepo, setIsCreatingRepo] = useState(false);
   const repoHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const connectionQuery = useGitHubConnection();
@@ -117,6 +120,7 @@ export default function GitHubSetupPage(): React.JSX.Element {
     setRepoError(null);
     try {
       await createRepoMutation.mutateAsync(values);
+      setIsCreatingRepo(false);
     } catch (error: unknown) {
       const mappedError = mapApiError(error);
       setRepoError(mappedError);
@@ -216,15 +220,76 @@ export default function GitHubSetupPage(): React.JSX.Element {
         </CardHeader>
         <CardContent className="flex flex-col gap-5" aria-label="Starter repository">
           <h2 className="sr-only">Starter repository</h2>
-          {connection.repo ? (
-            <RepoSummary ref={repoHeadingRef} repo={connection.repo} />
+          {connection.repo && !isCreatingRepo ? (
+            <div className="flex flex-col gap-5">
+              <RepoSummary ref={repoHeadingRef} repo={connection.repo} />
+              <div className="flex flex-wrap items-center gap-3">
+                <Button asChild className="gap-2">
+                  <Link to="/tickets">
+                    Continue working
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  type="button"
+                  className="gap-2"
+                  onClick={() => {
+                    setRepoError(null);
+                    setIsCreatingRepo(true);
+                  }}
+                >
+                  <Plus className="size-4" />
+                  Create repo
+                </Button>
+              </div>
+            </div>
           ) : (
-            <RepoCreateForm
-              onSubmit={handleCreateRepo}
-              isPending={createRepoMutation.isPending}
-              error={repoError}
-              blocked={blocked}
-            />
+            <div className="flex flex-col gap-5">
+              {connection.repo && isCreatingRepo && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 p-3">
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Current repository: </span>
+                    <span className="font-mono font-medium text-foreground">{connection.repo.fullName}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button asChild size="sm" variant="default" className="gap-1.5">
+                      <Link to="/tickets">
+                        Continue working
+                        <ArrowRight className="size-3.5" />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => {
+                        setRepoError(null);
+                        setIsCreatingRepo(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <RepoCreateForm
+                onSubmit={handleCreateRepo}
+                isPending={createRepoMutation.isPending}
+                error={repoError}
+                blocked={blocked}
+              />
+              {!connection.repo && (
+                <div className="flex items-center gap-3">
+                  <Button asChild variant="outline" size="sm" className="gap-2 text-muted-foreground">
+                    <Link to="/tickets">
+                      Continue working
+                      <ArrowRight className="size-3.5" />
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
