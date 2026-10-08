@@ -295,7 +295,7 @@ export default function TicketPage(): React.JSX.Element {
               </div>
             )}
           </div>
-          <div className="flex min-h-[520px] flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 lg:col-span-2">
+          <div className="flex h-[600px] flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 lg:col-span-2">
             <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-4">
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium">Mentor</span>
@@ -313,7 +313,7 @@ export default function TicketPage(): React.JSX.Element {
         </div>
       )}
       {activeTab === 'mentor' && (
-        <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+        <div className="h-[600px] rounded-xl bg-card p-4 ring-1 ring-foreground/10">
           <MentorPanel ticketId={ticket.id} mentor={phase.mentor} />
         </div>
       )}
