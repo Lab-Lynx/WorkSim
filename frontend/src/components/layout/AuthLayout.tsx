@@ -68,7 +68,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         <div className="relative hidden w-1/2 flex-col justify-center overflow-hidden bg-neutral-950 px-7 py-8 text-white sm:flex md:px-8">
           <div
             aria-hidden
-            className="pointer-events-none absolute -left-16 -top-24 size-56 rounded-full bg-white/10 blur-3xl"
+            className="pointer-events-none absolute -left-16 -top-24 size-56 rounded-full bg-white/30 blur-3xl"
           />
           <nav aria-label="Helpful links" className="relative z-10">
             <ul className="divide-y divide-white/10">

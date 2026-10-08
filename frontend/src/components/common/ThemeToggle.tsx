@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,20 @@ export default function ThemeToggle({
 
   const nextTheme = theme === 'dark' ? 'light' : 'dark';
 
+  const handleToggle = () => {
+    if (!document.startViewTransition) {
+      setTheme(nextTheme);
+      return;
+    }
+
+    document.startViewTransition(() => {
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      flushSync(() => {
+        setTheme(nextTheme);
+      });
+    });
+  };
+
   return (
     <Button
       type="button"
@@ -46,7 +61,7 @@ export default function ThemeToggle({
         collapsed && 'size-8',
         className,
       )}
-      onClick={() => setTheme(nextTheme)}
+      onClick={handleToggle}
       aria-label={`Switch to ${nextTheme} mode`}
       title={`Switch to ${nextTheme} mode`}
     >

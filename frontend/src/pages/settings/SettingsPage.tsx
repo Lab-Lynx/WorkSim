@@ -7,6 +7,7 @@ import { useGitHubConnection } from '@/hooks/github/useGitHubConnection';
 import { useUpdateProfile } from '@/hooks/auth/useUpdateProfile';
 import { useChangePassword } from '@/hooks/auth/useChangePassword';
 import { useLogoutAll } from '@/hooks/auth/useLogoutAll';
+import { useResendVerification } from '@/hooks/auth/useResendVerification';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { useToast } from '@/hooks/useToast';
 import { applyServerErrorToForm, SERVER_MESSAGES } from '@/lib/api/errors';
@@ -52,6 +53,7 @@ export default function SettingsPage(): React.JSX.Element {
   const updateProfile = useUpdateProfile();
   const changePassword = useChangePassword();
   const logoutAll = useLogoutAll();
+  const resendVerification = useResendVerification();
   const { toast } = useToast();
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
@@ -221,17 +223,33 @@ export default function SettingsPage(): React.JSX.Element {
                   <span className="truncate text-xs text-muted-foreground">{me?.email}</span>
                 </div>
               </div>
-              <Badge
-                variant="secondary"
-                className={
-                  me?.emailVerifiedAt ? 'shrink-0 gap-1.5 bg-primary/15 text-primary' : 'shrink-0 gap-1.5'
-                }
-              >
-                <span
-                  className={`size-1.5 rounded-full ${me?.emailVerifiedAt ? 'bg-primary' : 'bg-muted-foreground'}`}
-                />
-                {me?.emailVerifiedAt ? 'Verified' : 'Unverified'}
-              </Badge>
+              <div className="flex items-center gap-2">
+                {!me?.emailVerifiedAt ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    disabled={resendVerification.isPending || resendVerification.isCoolingDown}
+                    onClick={() => {
+                      if (me?.email) resendVerification.resend(me.email);
+                    }}
+                  >
+                    {resendVerification.isPending
+                      ? 'Sending...'
+                      : resendVerification.isCoolingDown
+                        ? `Resend in ${resendVerification.cooldownSeconds}s`
+                        : 'Resend'}
+                  </Button>
+                ) : (
+                  <Badge
+                    variant="secondary"
+                    className="shrink-0 gap-1.5 bg-primary/15 text-primary"
+                  >
+                    <span className="size-1.5 rounded-full bg-primary" />
+                    Verified
+                  </Badge>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
