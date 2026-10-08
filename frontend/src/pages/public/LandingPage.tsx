@@ -34,6 +34,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
+import { PublicHeader } from '@/components/layout/PublicHeader';
+import { PublicFooter } from '@/components/layout/PublicFooter';
 
 const STEPS = [
   {
@@ -223,56 +225,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F5] text-neutral-950 selection:bg-neutral-900/10">
-      <header className="sticky top-0 z-40 border-b border-neutral-200/80 bg-[#F5F5F5]/90 backdrop-blur-md">
-        <nav
-          className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 lg:px-8"
-          aria-label="Main navigation"
-        >
-          <a href="#top" className="flex items-center" aria-label="WorkSim home">
-            <img
-              src="/logo.png"
-              alt="WorkSim"
-              className="h-[50px] w-auto object-contain max-sm:h-11"
-            />
-          </a>
-
-          <div className="hidden items-center gap-8 text-sm text-neutral-500 md:flex">
-            <a href="#how-it-works" className="transition-colors hover:text-neutral-950">
-              How it Works
-            </a>
-            <a href="#pricing" className="transition-colors hover:text-neutral-950">
-              Pricing
-            </a>
-            <a href="#features" className="transition-colors hover:text-neutral-950">
-              Features
-            </a>
-            <a href="#credentials" className="transition-colors hover:text-neutral-950">
-              Credentials
-            </a>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden rounded-full text-neutral-600 hover:bg-neutral-200/70 hover:text-neutral-950 sm:inline-flex"
-              asChild
-            >
-              <Link to={ROUTES.LOGIN}>Log in</Link>
-            </Button>
-            <Button
-              size="sm"
-              className="rounded-full bg-neutral-950 px-4 text-white hover:bg-neutral-800"
-              asChild
-            >
-              <Link to={ROUTES.REGISTER}>
-                Get Started
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-          </div>
-        </nav>
-      </header>
+      <PublicHeader />
 
       <main id="top">
         <section className="px-6 pb-16 pt-14 lg:px-8 lg:pb-24 lg:pt-20" id="start">
@@ -843,22 +796,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-neutral-200 px-6 py-8 lg:px-8">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 text-sm text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
-          <a href="#top" className="flex items-center" aria-label="WorkSim home">
-            <img src="/logo.png" alt="WorkSim" className="h-[50px] w-auto object-contain" />
-          </a>
-          <p>© {new Date().getFullYear()} WorkSim. Practice experience is not employer certification.</p>
-          <div className="flex gap-5">
-            <a href="#credentials" className="transition hover:text-neutral-950">
-              Credentials note
-            </a>
-            <Link to={ROUTES.LOGIN} className="transition hover:text-neutral-950">
-              Log in
-            </Link>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }
