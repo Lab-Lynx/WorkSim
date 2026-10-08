@@ -9,6 +9,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { buildLoginRedirect } from '@/lib/navigation';
 import { ApplyStoredTheme } from '@/components/common/ThemeToggle';
 import { Assistant } from '@/components/Assistant';
+import Toaster from '@/components/common/Toaster';
 
 function clearLegacyAuthStorage(): void {
   for (const storage of [localStorage, sessionStorage]) {
@@ -50,6 +51,7 @@ function App() {
         <ApplyStoredTheme />
         <RouterProvider router={router} />
         <Assistant />
+        <Toaster />
       </QueryClientProvider>
     </ErrorBoundary>
   );

@@ -90,6 +90,13 @@ const envSchema = z.object({
   // Pending team decision: branch naming convention remains configurable.
   BRANCH_NAME_PREFIX: z.string().min(1).optional(),
 
+  // Error tracking. Leave unset to disable Sentry entirely.
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_ENVIRONMENT: z.string().min(1).optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+  // Bearer token required to scrape /metrics. Leave unset to keep /metrics disabled (404).
+  METRICS_TOKEN: z.string().min(16).optional(),
+
   // Only needed if frontend and backend share a parent domain in production
   // (e.g. api.example.com / app.example.com) and you want the cookie valid
   // across both. Leave unset for fully separate domains or local dev.
