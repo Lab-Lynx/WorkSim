@@ -48,6 +48,14 @@ const envSchema = z.object({
 
   GEMINI_API_KEY: z.string().min(1),
   GROQ_API_KEY: z.string().min(1),
+  // Optional fallback keys, tried in order when the previous key is rate limited or rejected.
+  // Mentor and ticket-generation keys are tried before the shared GEMINI_API_KEY pair.
+  GEMINI_API_KEY_2: z.string().optional(),
+  GEMINI_MENTOR_API_KEY: z.string().optional(),
+  GEMINI_MENTOR_API_KEY_2: z.string().optional(),
+  GEMINI_TICKET_API_KEY: z.string().optional(),
+  GEMINI_TICKET_API_KEY_2: z.string().optional(),
+  GROQ_API_KEY_2: z.string().optional(),
   // Pending team decision: provider model names remain deployment-configurable.
   GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
   GROQ_MODEL: z.string().min(1).default('openai/gpt-oss-120b'),
