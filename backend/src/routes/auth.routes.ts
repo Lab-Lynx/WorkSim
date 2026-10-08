@@ -23,6 +23,8 @@ router.post(
   authController.register,
 );
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
+router.get('/guest', authController.guestStatus);
+router.post('/guest', authLimiter, authController.guestLogin);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authMiddleware, authController.logout);
 router.post('/logout-all', authMiddleware, authController.logoutAll);

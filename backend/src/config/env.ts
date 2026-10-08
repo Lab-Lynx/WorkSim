@@ -97,6 +97,11 @@ const envSchema = z.object({
   // Bearer token required to scrape /metrics. Leave unset to keep /metrics disabled (404).
   METRICS_TOKEN: z.string().min(16).optional(),
 
+  // Demo account for judges/reviewers. Guest login is enabled only when BOTH are set.
+  // The credentials stay server-side; the browser never receives them.
+  GUEST_LOGIN_EMAIL: z.string().email().optional(),
+  GUEST_LOGIN_PASSWORD: z.string().min(8).optional(),
+
   // Only needed if frontend and backend share a parent domain in production
   // (e.g. api.example.com / app.example.com) and you want the cookie valid
   // across both. Leave unset for fully separate domains or local dev.

@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import PasswordInput from '@/components/common/PasswordInput';
 import FormRootError from '@/components/common/FormRootError';
 import SubmitButton from '@/components/common/SubmitButton';
+import GuestLoginButton from '@/components/auth/GuestLoginButton';
 
 export const LOGIN_NOTICE_MESSAGES: Record<string, string> = {
   session_expired: 'Your session expired. Log in again.',
@@ -139,6 +140,8 @@ export default function LoginPage(): React.JSX.Element {
           Log in
         </SubmitButton>
       </form>
+
+      <GuestLoginButton />
 
       <p className="mt-6 text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
