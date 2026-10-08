@@ -3,6 +3,7 @@ import { RefreshCw, TriangleAlert } from 'lucide-react';
 import ErrorPage from '@/components/common/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { isChunkLoadError, reloadOnceForChunkError } from '@/lib/chunk-error';
+import { captureClientError } from '@/lib/observability/sentry';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -27,9 +28,12 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Replace with real error reporting (Sentry, LogRocket, etc.) in production
     console.error('Uncaught error:', error, errorInfo);
-    if (isChunkLoadError(error)) reloadOnceForChunkError();
+    if (isChunkLoadError(error)) {
+      reloadOnceForChunkError();
+      return;
+    }
+    captureClientError(error, { componentStack: errorInfo.componentStack ?? '' });
   }
 
   render() {

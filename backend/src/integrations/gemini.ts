@@ -8,6 +8,12 @@ import {
   orderKeysByAvailability,
   parseRetryAfterMs,
 } from './api-keys.js';
+import {
+  recordAiKeyFallback,
+  recordAiRequest,
+  recordAiTokens,
+  type AiOperation,
+} from '../lib/observability/metrics.js';
 import type {
   MentorModelInput,
   TicketContent,
@@ -95,7 +101,14 @@ interface GeminiApiResponse {
   promptFeedback?: {
     blockReason?: unknown;
   };
+  usageMetadata?: {
+    promptTokenCount?: unknown;
+    candidatesTokenCount?: unknown;
+  };
 }
+
+const readTokenCount = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
 
 // Provider reason codes are short enum strings; cap length so nothing unexpected reaches the logs.
 const readReasonCode = (value: unknown): string | undefined =>
@@ -149,22 +162,32 @@ const ticketApiKeys = (): string[] =>
  */
 async function executeGeminiRequest(
   payload: GeminiRequestPayload,
-  options: { apiKeys: string[]; minTimeoutMs?: number },
+  options: { apiKeys: string[]; operation: AiOperation; minTimeoutMs?: number },
 ): Promise<string> {
-  const { minTimeoutMs } = options;
+  const { minTimeoutMs, operation } = options;
   const apiKeys = orderKeysByAvailability(options.apiKeys);
   let lastError: unknown;
 
   for (const [index, apiKey] of apiKeys.entries()) {
     try {
-      return await executeGeminiRequestWithKey(payload, apiKey, { minTimeoutMs });
+      const text = await executeGeminiRequestWithKey(payload, apiKey, { minTimeoutMs, operation });
+      recordAiRequest('gemini', operation, 'success');
+      return text;
     } catch (err: unknown) {
       lastError = err;
       const keyProblem = err instanceof GeminiRateLimitError || err instanceof GeminiOutageError;
       if (keyProblem) {
         markKeyExhausted(apiKey, err instanceof GeminiRateLimitError ? err.retryAfterMs : undefined);
       }
-      if (!keyProblem || index === apiKeys.length - 1) throw err;
+      if (!keyProblem || index === apiKeys.length - 1) {
+        recordAiRequest(
+          'gemini',
+          operation,
+          err instanceof GeminiProviderError ? err.causeType : 'error',
+        );
+        throw err;
+      }
+      recordAiKeyFallback('gemini', (err as GeminiProviderError).causeType);
       logger.warn(
         { cause: (err as GeminiProviderError).causeType, keyIndex: index, keyCount: apiKeys.length },
         'Gemini key failed, trying fallback key',
@@ -178,7 +201,7 @@ async function executeGeminiRequest(
 async function executeGeminiRequestWithKey(
   payload: GeminiRequestPayload,
   apiKey: string,
-  options: { minTimeoutMs?: number } = {},
+  options: { minTimeoutMs?: number; operation: AiOperation },
 ): Promise<string> {
   const model = env.GEMINI_MODEL;
   const timeoutMs = Math.max(
@@ -279,6 +302,14 @@ async function executeGeminiRequestWithKey(
     logger.warn({ finishReason }, 'Gemini response ended before a normal stop');
   }
 
+  const inputTokens = readTokenCount(data?.usageMetadata?.promptTokenCount);
+  const outputTokens = readTokenCount(data?.usageMetadata?.candidatesTokenCount);
+  recordAiTokens('gemini', options.operation, model, { inputTokens, outputTokens });
+  logger.info(
+    { provider: 'gemini', operation: options.operation, model, inputTokens, outputTokens },
+    'ai_usage',
+  );
+
   return candidateText.trim();
 }
 
@@ -327,7 +358,7 @@ export async function callMentorModel(input: MentorModelInput): Promise<string> 
   };
 
   try {
-    return await executeGeminiRequest(payload, { apiKeys: mentorApiKeys() });
+    return await executeGeminiRequest(payload, { apiKeys: mentorApiKeys(), operation: 'mentor' });
   } finally {
     logger.info(
       { operation: 'mentor', durationMs: Math.round(performance.now() - startedAt) },
@@ -395,6 +426,7 @@ export async function callTicketGenerationModel(
 
   const rawResponse = await executeGeminiRequest(payload, {
     apiKeys: ticketApiKeys(),
+    operation: 'ticket_generation',
     minTimeoutMs: TICKET_GENERATION_MIN_TIMEOUT_MS,
   });
 

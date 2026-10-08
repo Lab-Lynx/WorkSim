@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /billing
+Disallow: /payment
+Disallow: /github
+Disallow: /profile
+Disallow: /settings
+Disallow: /submissions
+Disallow: /tickets
+Disallow: /reset-password
+Disallow: /verify-email

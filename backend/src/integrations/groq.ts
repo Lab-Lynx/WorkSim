@@ -8,6 +8,7 @@ import {
   orderKeysByAvailability,
   parseRetryAfterMs,
 } from './api-keys.js';
+import { recordAiKeyFallback, recordAiRequest, recordAiTokens } from '../lib/observability/metrics.js';
 import type {
   EvaluationInput,
   EvaluatorCategoryScores,
@@ -101,14 +102,24 @@ async function executeGroqRequest(messages: GroqChatMessage[]): Promise<string> 
   // malformed responses are not key problems and fail immediately.
   for (const [index, apiKey] of apiKeys.entries()) {
     try {
-      return await executeGroqRequestWithKey(messages, apiKey);
+      const text = await executeGroqRequestWithKey(messages, apiKey);
+      recordAiRequest('groq', 'evaluator', 'success');
+      return text;
     } catch (err: unknown) {
       lastError = err;
       const keyProblem = err instanceof GroqRateLimitError || err instanceof GroqOutageError;
       if (keyProblem) {
         markKeyExhausted(apiKey, err instanceof GroqRateLimitError ? err.retryAfterMs : undefined);
       }
-      if (!keyProblem || index === apiKeys.length - 1) throw err;
+      if (!keyProblem || index === apiKeys.length - 1) {
+        recordAiRequest(
+          'groq',
+          'evaluator',
+          err instanceof GroqProviderError ? err.causeType : 'error',
+        );
+        throw err;
+      }
+      recordAiKeyFallback('groq', (err as GroqProviderError).causeType);
       logger.warn(
         { cause: (err as GroqProviderError).causeType, keyIndex: index, keyCount: apiKeys.length },
         'Groq key failed, trying fallback key',
@@ -216,6 +227,10 @@ async function executeGroqRequestWithKey(
       };
       finish_reason?: unknown;
     }>;
+    usage?: {
+      prompt_tokens?: unknown;
+      completion_tokens?: unknown;
+    };
   };
   const messageContent = responseObj?.choices?.[0]?.message?.content;
   const rawFinishReason = responseObj?.choices?.[0]?.finish_reason;
@@ -236,6 +251,13 @@ async function executeGroqRequestWithKey(
   if (finishReason && finishReason !== 'stop') {
     logger.warn({ finishReason }, 'Groq response ended before a normal stop');
   }
+
+  const toCount = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+  const inputTokens = toCount(responseObj?.usage?.prompt_tokens);
+  const outputTokens = toCount(responseObj?.usage?.completion_tokens);
+  recordAiTokens('groq', 'evaluator', model, { inputTokens, outputTokens });
+  logger.info({ provider: 'groq', operation: 'evaluator', model, inputTokens, outputTokens }, 'ai_usage');
 
   return messageContent.trim();
 }
