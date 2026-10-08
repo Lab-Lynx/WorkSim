@@ -101,7 +101,7 @@ const baseTicket = {
   templateKey: 'react-add-button',
   status: TicketStatus.assigned,
   content,
-  branchName: 'ticket/react-add-button-abcd',
+  branchName: 'ticket-react-add-button-abcd',
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   completedAt: null,
@@ -170,7 +170,7 @@ describe('ticket.service', () => {
       expect(result.status).toBe(TicketStatus.assigned);
       expect(result.templateKey).toBe(template.key);
       expect(result.content).toEqual(content);
-      expect(result.branchName).toMatch(/^ticket\/react-add-button-/);
+      expect(result.branchName).toMatch(/^ticket-react-add-button-/);
       expect(createTicketBranch).toHaveBeenCalledWith(
         'user-1',
         result.branchName,
@@ -584,7 +584,7 @@ describe('ticket.service', () => {
         ticketCreate.mockResolvedValue({
           ...baseTicket,
           id: 'ticket-2',
-          branchName: 'ticket/react-add-button-new',
+          branchName: 'ticket-react-add-button-new',
         });
 
         const result = await abandonTicket('user-1', 'ticket-1');

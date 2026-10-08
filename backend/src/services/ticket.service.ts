@@ -55,7 +55,7 @@ const toTicketRecord = (row: {
 const buildBranchName = (templateKey: string): string => {
   const prefix = env.BRANCH_NAME_PREFIX?.replace(/\/$/, '') || 'ticket';
   const suffix = randomBytes(4).toString('hex');
-  return `${prefix}/${templateKey}-${suffix}`;
+  return `${prefix}-${templateKey}-${suffix}`;
 };
 
 const findActiveTicket = async (userId: string) =>
