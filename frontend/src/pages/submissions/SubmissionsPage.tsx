@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CircleAlert, ExternalLink, Info, Loader2 } from 'lucide-react';
+import { CircleAlert, ExternalLink, Info } from 'lucide-react';
 import { useSubmissions } from '@/hooks/submissions/useSubmissions';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { friendlyMessage } from '@/lib/api/friendly-error';
@@ -167,12 +167,9 @@ export default function SubmissionsPage() {
       </h1>
 
       {submissions.isLoading ? (
-        <div
-          role="status"
-          aria-label="Loading submissions"
-          className="flex items-center gap-2 py-6 text-sm text-muted-foreground"
-        >
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Loading submissions…
+        <div role="status" aria-label="Loading submissions" className="space-y-4">
+          <div className="h-[200px] w-full animate-pulse rounded-xl bg-muted" />
+          <div className="h-[200px] w-full animate-pulse rounded-xl bg-muted" />
         </div>
       ) : submissions.isError ? (
         <ErrorState

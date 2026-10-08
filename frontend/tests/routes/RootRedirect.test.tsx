@@ -71,7 +71,6 @@ describe("FE-066: RootRedirect (doc 10 §10.14, doc 6 A-38, doc 11 §11.2.11)", 
         renderRootRedirect(queryClient, ["/"]);
 
         expect(screen.getByRole("status", { name: /loading application/i })).toBeInTheDocument();
-        expect(screen.getByText("Loading...")).toBeInTheDocument();
         expect(screen.queryByTestId("dashboard-page")).not.toBeInTheDocument();
         expect(screen.queryByTestId("location-display")).not.toBeInTheDocument();
     });

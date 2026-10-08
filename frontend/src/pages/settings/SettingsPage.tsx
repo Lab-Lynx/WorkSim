@@ -125,12 +125,16 @@ export default function SettingsPage(): React.JSX.Element {
       </h1>
 
       {meQuery.isPending && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Loading account details…
-        </p>
+        <div role="status" aria-label="Loading account details" className="flex items-center space-x-4 animate-pulse">
+          <div className="size-12 rounded-full bg-muted" />
+          <div className="space-y-2">
+            <div className="h-4 w-32 rounded bg-muted" />
+            <div className="h-3 w-24 rounded bg-muted" />
+          </div>
+        </div>
       )}
 
-      <div className="grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid items-start grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Profile — wide */}
         <Card className="md:col-span-2">
           <CardHeader>
@@ -138,7 +142,11 @@ export default function SettingsPage(): React.JSX.Element {
           </CardHeader>
           <CardContent>
             <div className="mb-5 flex items-center gap-4">
-              <Avatar fallback={initials(me?.name)} />
+              <Avatar fallback={initials(me?.name)} className="size-12" />
+              <div className="flex flex-col">
+                <span className="text-lg font-semibold">{me?.name || 'User'}</span>
+                <span className="text-sm text-muted-foreground">{me?.email}</span>
+              </div>
             </div>
             <form
               onSubmit={profileForm.handleSubmit(saveProfile)}

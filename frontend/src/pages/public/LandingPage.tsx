@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -169,6 +169,39 @@ function priceLabel(cycle: BillingCycle, monthly: number) {
   return { amount: monthly * 10, suffix: '/year' };
 }
 
+function ScrollReveal({ children, delay = 0, className }: { children: React.ReactNode, delay?: number, className?: string }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "transition-all duration-700 ease-out transform-gpu will-change-transform",
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8",
+        className
+      )}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function LandingPage() {
   useDocumentTitle('WorkSim');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
@@ -318,7 +351,7 @@ export default function LandingPage() {
         </section>
 
         <section id="how-it-works" className="px-6 py-16 lg:px-8 lg:py-24">
-          <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          <ScrollReveal className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div>
               <Badge
                 variant="outline"
@@ -435,11 +468,11 @@ export default function LandingPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </ScrollReveal>
         </section>
 
         <section id="pricing" className="px-6 py-16 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-6xl">
+          <ScrollReveal className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-2xl text-center">
               <Badge
                 variant="outline"
@@ -618,11 +651,11 @@ export default function LandingPage() {
                 </CardContent>
               </Card>
             </div>
-          </div>
+          </ScrollReveal>
         </section>
 
         <section id="features" className="px-6 py-16 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-6xl">
+          <ScrollReveal className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-2xl text-center">
               <Badge
                 variant="outline"
@@ -690,7 +723,7 @@ export default function LandingPage() {
                 );
               })}
             </div>
-          </div>
+          </ScrollReveal>
         </section>
 
         <section
@@ -698,7 +731,7 @@ export default function LandingPage() {
           aria-labelledby="testimonials-heading"
           className="border-y border-neutral-200 bg-[#F5F5F5] px-6 py-16 lg:px-8 lg:py-24"
         >
-          <div className="mx-auto max-w-6xl">
+          <ScrollReveal className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-400">
                 From practitioners
@@ -751,11 +784,11 @@ export default function LandingPage() {
                 <a href="#credentials">About credentials</a>
               </Button>
             </div>
-          </div>
+          </ScrollReveal>
         </section>
 
         <section id="credentials" className="px-6 pb-16 lg:px-8 lg:pb-24">
-          <div className="mx-auto max-w-6xl">
+          <ScrollReveal className="mx-auto max-w-6xl">
             <Card className="relative overflow-hidden rounded-[2rem] border-0 bg-neutral-950 text-white shadow-none ring-0">
               <div className="pointer-events-none absolute -right-16 -top-24 size-56 rounded-full bg-white/30 blur-3xl" />
               <CardContent className="relative grid gap-10 p-8 sm:p-10 lg:grid-cols-[1.2fr_0.8fr] lg:p-12">
@@ -806,7 +839,7 @@ export default function LandingPage() {
                 </ul>
               </CardContent>
             </Card>
-          </div>
+          </ScrollReveal>
         </section>
       </main>
 

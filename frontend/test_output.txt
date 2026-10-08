@@ -1,0 +1,182 @@
+
+ RUN  v4.1.10 /home/kira07sj/Documents/Kira Files/Projects/Stark Hackthon/WorkSim/frontend
+
+ ✓ tests/components/layout/EmailVerificationBanner.test.tsx (6 tests) 376ms
+ ✓ tests/integration/session-expiry.integration.test.tsx (3 tests) 798ms
+     ✓ redirects an expired cached session with a notice and clears the cache  673ms
+ ✓ tests/integration/route-gates.integration.test.tsx (3 tests) 796ms
+     ✓ sends an anonymous visitor from a protected route to login with a safe return path  643ms
+ ❯ tests/pages/public/LandingPage.test.tsx (3 tests | 3 failed) 609ms
+     × renders the brand, hero headline, and primary CTAs 375ms
+     × links Get Started / Start Building to register 112ms
+     × exposes how-it-works, pricing, features, and testimonials sections 113ms
+ ✓ tests/pages/github/GitHubSetupPage.test.tsx (7 tests) 1015ms
+ ✓ tests/integration/github-flow.integration.test.tsx (2 tests) 1231ms
+     ✓ renders a safe OAuth failure and removes callback details from the URL  898ms
+     ✓ shows a retryable provider error without rendering a repository that was not created  327ms
+ ✓ tests/hooks/mentor/useSendMentorMessage.test.tsx (16 tests) 1344ms
+ ✓ tests/integration/mentor-flow.integration.test.tsx (2 tests) 850ms
+     ✓ sends one message and renders mentor content as literal text  749ms
+ ✓ tests/hooks/billing/useStartCheckout.test.tsx (15 tests) 1253ms
+ ✓ tests/pages/billing/BillingPage.test.tsx (8 tests) 570ms
+ ✓ tests/pages/settings/SettingsPage.test.tsx (5 tests) 669ms
+ ✓ tests/hooks/github/useCreateRepo.test.tsx (13 tests) 1181ms
+ ✓ tests/components/layout/AppLayout.test.tsx (9 tests) 701ms
+ ✓ tests/hooks/submissions/useSubmission.test.tsx (11 tests) 1032ms
+ ✓ tests/pages/auth/LoginPage.test.tsx (20 tests) 1041ms
+ ✓ tests/integration/auth-flow.integration.test.tsx (2 tests) 1071ms
+     ✓ logs in and returns to the requested protected route  683ms
+     ✓ shows the generic forgot-password confirmation without leaking reset details  384ms
+ ✓ tests/integration/billing-flow.integration.test.tsx (3 tests) 816ms
+     ✓ confirms access only after the API reports an active subscription  644ms
+ ✓ tests/integration/submission-flow.integration.test.tsx (2 tests) 962ms
+     ✓ shows attempt one as feedback-only and never renders scores  530ms
+     ✓ shows attempt-two API scores and fetches the diff only when opened  428ms
+ ✓ tests/hooks/submissions/useSubmitWork.test.tsx (12 tests) 1017ms
+ ✓ tests/hooks/tickets/useAbandonTicket.test.tsx (10 tests) 840ms
+ ✓ tests/hooks/tickets/useAssignTicket.test.tsx (12 tests) 1032ms
+ ✓ tests/hooks/billing/useSubscription.test.tsx (11 tests) 991ms
+ ✓ tests/hooks/tickets/useTicket.test.tsx (11 tests) 774ms
+ ✓ tests/integration/ticket-lifecycle.integration.test.tsx (2 tests) 956ms
+     ✓ starts an assigned ticket and submits exactly the first attempt  870ms
+ ✓ tests/hooks/auth/useVerifyEmail.test.tsx (8 tests) 839ms
+ ✓ tests/hooks/submissions/useRetrySubmission.test.tsx (11 tests) 922ms
+ ✓ tests/hooks/tickets/useStartTicket.test.tsx (11 tests) 932ms
+ ✓ tests/integration/security-accessibility.integration.test.tsx (1 test) 769ms
+     ✓ renders API text literally, exposes a focusable page heading, and keeps auth in cookies  763ms
+ ✓ tests/hooks/profile/useExperienceProfile.test.tsx (10 tests) 800ms
+ ✓ tests/hooks/github/useGitHubConnect.test.tsx (9 tests) 788ms
+ ✓ tests/hooks/billing/usePayments.test.tsx (10 tests) 769ms
+ ✓ tests/hooks/billing/useCancelSubscription.test.tsx (8 tests) 704ms
+ ✓ tests/hooks/auth/useResetPassword.test.tsx (7 tests) 680ms
+ ✓ tests/hooks/auth/useRegister.test.tsx (6 tests) 597ms
+ ✓ tests/pages/auth/RegisterPage.test.tsx (5 tests) 537ms
+ ✓ tests/hooks/auth/useChangePassword.test.tsx (6 tests) 611ms
+ ✓ tests/hooks/mentor/useMentorMessages.test.tsx (9 tests) 615ms
+ ✓ tests/hooks/auth/useForgotPassword.test.tsx (6 tests) 625ms
+ ✓ tests/hooks/github/useGitHubConnection.test.tsx (8 tests) 615ms
+ ✓ tests/components/common/ConfirmDialog.test.tsx (6 tests) 755ms
+     ✓ renders correctly when open is true  447ms
+ ✓ tests/pages/auth/VerifyEmailPage.test.tsx (8 tests) 825ms
+     ✓ renders instructions and email resend form when no token is present in search parameters  499ms
+ ✓ tests/pages/profile/ExperienceProfilePage.test.tsx (4 tests) 730ms
+     ✓ always renders the practice record notice while loading  433ms
+ ✓ tests/pages/auth/ResetPasswordPage.test.tsx (6 tests) 862ms
+     ✓ renders invalid link state when token query parameter is missing  399ms
+ ❯ tests/routes/PublicOnly.test.tsx (7 tests | 1 failed) 673ms
+     × PublicOnly — pending: shows FullPageLoader while useMe is pending 376ms
+     ✓ PublicOnly — authenticated: redirects to /dashboard with replace when no 'from' is present 43ms
+     ✓ PublicOnly — authenticated: redirects to the safe 'from' path when provided 43ms
+     ✓ PublicOnly — authenticated: falls back to /dashboard if 'from' is unsafe / open redirect 43ms
+     ✓ PublicOnly — error: renders public children when useMe returns 401 42ms
+     ✓ PublicOnly — error: renders public children when useMe encounters a network or 5xx error 71ms
+     ✓ PublicOnly — outlet support: renders Outlet when children prop is omitted 44ms
+ ✓ tests/pages/dashboard/DashboardPage.test.tsx (4 tests) 773ms
+ ✓ tests/components/github/RepoCreateForm.test.tsx (7 tests) 564ms
+ ✓ tests/pages/tickets/TicketPage.test.tsx (3 tests) 596ms
+     ✓ renders the ticket title and phase action, then starts the ticket through its hook  427ms
+ ✓ tests/hooks/tickets/useCurrentTicket.test.tsx (7 tests) 547ms
+ ✓ tests/hooks/auth/useMe.test.tsx (7 tests) 521ms
+ ✓ tests/hooks/github/useDisconnectGitHub.test.tsx (6 tests) 517ms
+ ✓ tests/hooks/auth/useLogout.test.tsx (5 tests) 507ms
+ ✓ tests/hooks/auth/useLogin.test.tsx (5 tests) 530ms
+ ✓ tests/hooks/auth/useLogoutAll.test.tsx (5 tests) 504ms
+ ✓ tests/hooks/useUnsavedChangesWarning.test.tsx (8 tests) 429ms
+     ✓ useUnsavedChangesWarning — dirty navigation: blocks navigation to a different pathname and exposes confirm/cancel controls (Doc 10 §10.13, Doc 11 §11.2.10)  318ms
+ ❯ tests/routes/RequireAuth.test.tsx (5 tests | 1 failed) 533ms
+     × RequireAuth — pending: shows FullPageLoader while useMe is pending 249ms
+     ✓ RequireAuth — first-load 401: redirects to buildLoginRedirect(pathname + search) with replace and no session expired notice 43ms
+     ✓ RequireAuth — network/5xx: shows centered ErrorState with Retry button and does not redirect 151ms
+     ✓ RequireAuth — success: renders protected children 43ms
+     ✓ RequireAuth — outlet support: renders Outlet when children prop is omitted 43ms
+ ✓ tests/components/common/PasswordInput.test.tsx (6 tests) 322ms
+ ✓ tests/components/ticket/MentorComposer.test.tsx (3 tests) 372ms
+ ✓ tests/hooks/useDocumentTitle.test.tsx (9 tests) 423ms
+ ✓ tests/components/ticket/BranchInstructions.test.tsx (2 tests) 335ms
+     ✓ renders safe repository and branch links with copy actions  313ms
+ ✓ tests/components/common/SubmitButton.test.tsx (5 tests) 329ms
+ ✓ tests/hooks/auth/useUpdateProfile.test.tsx (5 tests) 442ms
+ ✓ tests/pages/RouteErrorPage.test.tsx (4 tests) 428ms
+     ✓ shows a retry page for unexpected errors without leaking the error  346ms
+ ✓ tests/components/dashboard/CurrentTicketCard.test.tsx (4 tests) 382ms
+ ✓ tests/components/ticket/DiffViewer.test.tsx (5 tests) 240ms
+ ✓ tests/components/common/ErrorState.test.tsx (4 tests) 269ms
+ ✓ tests/components/common/ErrorBoundary.test.tsx (3 tests) 377ms
+ ✓ tests/components/dashboard/SetupChecklist.test.tsx (3 tests) 310ms
+ ✓ tests/pages/submissions/SubmissionsPage.test.tsx (6 tests) 389ms
+ ✓ tests/components/ticket/MentorMessageList.test.tsx (4 tests) 303ms
+ ✓ tests/components/billing/PaymentHistory.test.tsx (4 tests) 293ms
+ ✓ tests/pages/auth/ForgotPasswordPage.test.tsx (4 tests) 448ms
+     ✓ renders the initial forgot password form  305ms
+ ✓ tests/components/ticket/TicketHeader.test.tsx (1 test) 366ms
+     ✓ renders a focusable ticket title, phase status, category, and difficulty  361ms
+ ✓ tests/components/github/GitHubConnectionCard.test.tsx (7 tests) 411ms
+ ✓ tests/pages/NotFoundPage.test.tsx (3 tests) 335ms
+ ✓ tests/hooks/useSetupProgress.test.tsx (10 tests) 398ms
+ ✓ tests/components/github/RepoSummary.test.tsx (4 tests) 483ms
+     ✓ renders the repository object in a focusable heading  373ms
+ ✓ tests/components/ticket/TicketActionBar.test.tsx (4 tests) 419ms
+     ✓ delegates the phase primary action without owning a mutation  320ms
+ ✓ tests/components/ticket/TicketDetails.test.tsx (3 tests) 250ms
+ ✓ tests/components/billing/SubscriptionCard.test.tsx (6 tests) 502ms
+     ✓ renders from parent data and delegates checkout without making an HTTP request  389ms
+ ❯ tests/routes/RootRedirect.test.tsx (4 tests | 1 failed) 392ms
+     × RootRedirect — pending: shows FullPageLoader while useMe is pending 237ms
+     ✓ RootRedirect — success: redirects to /dashboard with replace 44ms
+     ✓ RootRedirect — 401 error: redirects to /login with replace and no from parameter 44ms
+     ✓ RootRedirect — network/5xx error: redirects to /login with replace and no from parameter 62ms
+ ✓ tests/components/common/ExternalLink.test.tsx (5 tests) 544ms
+     ✓ renders valid https and http URLs as clickable links with safe target and rel attributes  458ms
+ ✓ tests/components/ticket/MentorPanel.test.tsx (3 tests) 328ms
+ ✓ tests/components/layout/SubscriptionBanner.test.tsx (5 tests) 492ms
+     ✓ renders canceled subscription banner with access expiration date  332ms
+ ✓ tests/components/common/ThemeToggle.test.tsx (1 test) 365ms
+     ✓ switches and persists the selected theme  358ms
+ ✓ tests/pages/billing/CheckoutReturnPage.test.tsx (6 tests) 696ms
+     ✓ renders success state when subscription access is confirmed  322ms
+ ✓ tests/components/common/CopyButton.test.tsx (5 tests) 487ms
+     ✓ renders accessible copy button with initial label  365ms
+ ✓ tests/components/ticket/GetTicketPanel.test.tsx (2 tests) 452ms
+     ✓ assigns a ticket and opens it  357ms
+ ✓ tests/components/common/FormRootError.test.tsx (4 tests) 264ms
+ ✓ tests/components/profile/ExperienceItem.test.tsx (3 tests) 479ms
+     ✓ renders ticket metadata, final score breakdown, and feedback history link  352ms
+ ✓ tests/components/ticket/SubmissionsPanel.test.tsx (5 tests) 318ms
+ ✓ tests/components/layout/AuthLayout.test.tsx (3 tests) 218ms
+ ✓ tests/components/common/EmptyState.test.tsx (5 tests) 276ms
+ ✓ tests/components/ticket/SubmissionCard.test.tsx (2 tests) 560ms
+     ✓ loads and renders the diff when requested  435ms
+ ✓ tests/components/ticket/ScoreBreakdown.test.tsx (5 tests) 441ms
+ ✓ tests/components/common/StatusBadge.test.tsx (15 tests) 329ms
+ ❯ tests/components/layout/FullPageLoader.test.tsx (2 tests | 1 failed) 206ms
+     × renders accessible status role and default loading text 197ms
+     ✓ renders the full-page container layout 5ms
+ ✓ tests/hooks/auth/useResendVerification.test.tsx (13 tests) 121ms
+ ✓ tests/hooks/submissions/useSubmissions.test.tsx (3 tests) 152ms
+ ✓ tests/hooks/useSessionBootstrap.test.tsx (3 tests) 172ms
+ ✓ tests/components/ticket/EvaluationView.test.tsx (4 tests) 94ms
+ ✓ tests/lib/api/client.test.ts (24 tests) 76ms
+ ✓ tests/components/profile/PracticeRecordNotice.test.tsx (1 test) 43ms
+ ✓ tests/components/Assistant.test.tsx (20 tests) 43ms
+ ✓ tests/components/common/UserCard.test.tsx (1 test) 88ms
+ ✓ tests/hooks/useFocusPageHeading.test.tsx (2 tests) 51ms
+ ✓ tests/lib/api/errors.test.ts (29 tests) 48ms
+ ✓ tests/lib/navigation.test.ts (82 tests) 19ms
+ ✓ tests/index.test.tsx (14 tests) 49ms
+ ✓ tests/schemas/auth.schemas.test.ts (10 tests) 17ms
+ ✓ tests/lib/subscription-view.test.ts (15 tests) 15ms
+ ✓ tests/schemas/github.schemas.test.ts (16 tests) 17ms
+ ✓ tests/lib/ticket-phase.test.ts (25 tests) 18ms
+ ✓ tests/lib/github.test.ts (26 tests) 15ms
+ ✓ tests/lib/format.test.ts (17 tests) 18ms
+ ✓ tests/lib/chunk-error.test.ts (9 tests) 17ms
+ ✓ tests/lib/query-keys.test.ts (3 tests) 8ms
+ ✓ tests/config/app.config.test.ts (3 tests) 8ms
+ ✓ tests/config/rubric.test.ts (2 tests) 9ms
+ ✓ tests/lib/api/friendly-error.test.ts (5 tests) 6ms
+
+ Test Files  5 failed | 114 passed (119)
+      Tests  7 failed | 900 passed (907)
+   Start at  23:57:15
+   Duration  151.12s (transform 4.99s, setup 20.61s, import 51.35s, tests 59.37s, environment 134.37s)
+

@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
 import RequireAuth from './RequireAuth';
 import PublicOnly from './PublicOnly';
 import AppLayout from '@/components/layout/AppLayout';
@@ -49,9 +49,21 @@ function PaymentReturnAlias() {
 
 function PageLoader() {
   return (
-    <div className="flex flex-col items-center justify-center py-12 space-y-3 text-center" role="status">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
+    <div className="space-y-6 py-2" role="status" aria-label="Loading page">
+      <div className="h-8 w-1/4 animate-pulse rounded-md bg-muted" />
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="h-48 w-full animate-pulse rounded-xl bg-muted/60" />
+        <div className="h-48 w-full animate-pulse rounded-xl bg-muted/60" />
+      </div>
+      <div className="h-64 w-full animate-pulse rounded-xl bg-muted/60" />
+    </div>
+  );
+}
+
+function AuthLoader() {
+  return (
+    <div className="flex h-svh w-full items-center justify-center bg-background" role="status" aria-label="Loading page">
+      <LoaderCircle className="size-8 animate-spin text-muted-foreground" />
     </div>
   );
 }
@@ -60,32 +72,42 @@ const withSuspense = (element: React.ReactNode) => (
   <Suspense fallback={<PageLoader />}>{element}</Suspense>
 );
 
+
+
 const router = createBrowserRouter([
   {
     errorElement: <RouteErrorPage />,
     children: [
   {
     path: ROUTES.HOME,
-    element: withSuspense(<LandingPage />),
+    element: <Suspense fallback={<div className="min-h-screen bg-[#F5F5F5]" />}><LandingPage /></Suspense>,
   },
   {
     element: <PublicOnly />,
     children: [
       {
-        element: <AuthLayout />,
+        element: (
+          <Suspense fallback={<AuthLoader />}>
+            <AuthLayout />
+          </Suspense>
+        ),
         children: [
-          { path: ROUTES.LOGIN, element: withSuspense(<LoginPage />) },
-          { path: ROUTES.REGISTER, element: withSuspense(<RegisterPage />) },
-          { path: ROUTES.FORGOT_PASSWORD, element: withSuspense(<ForgotPasswordPage />) },
+          { path: ROUTES.LOGIN, element: <LoginPage /> },
+          { path: ROUTES.REGISTER, element: <RegisterPage /> },
+          { path: ROUTES.FORGOT_PASSWORD, element: <ForgotPasswordPage /> },
         ],
       },
     ],
   },
   {
-    element: <AuthLayout />,
+    element: (
+      <Suspense fallback={<AuthLoader />}>
+        <AuthLayout />
+      </Suspense>
+    ),
     children: [
-      { path: ROUTES.RESET_PASSWORD, element: withSuspense(<ResetPasswordPage />) },
-      { path: ROUTES.VERIFY_EMAIL, element: withSuspense(<VerifyEmailPage />) },
+      { path: ROUTES.RESET_PASSWORD, element: <ResetPasswordPage /> },
+      { path: ROUTES.VERIFY_EMAIL, element: <VerifyEmailPage /> },
     ],
   },
   {

@@ -88,7 +88,6 @@ describe('FE-064: RequireAuth (doc 10 §10.14, doc 11 §11.2.11, doc 11 §11.9)'
         renderRequireAuth(queryClient);
 
         expect(screen.getByRole('status', { name: /loading application/i })).toBeInTheDocument();
-        expect(screen.getByText('Loading...')).toBeInTheDocument();
         expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
     });
 

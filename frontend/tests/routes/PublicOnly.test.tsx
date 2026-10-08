@@ -88,7 +88,6 @@ describe("FE-065: PublicOnly (doc 10 §10.14, doc 11 §11.2.11, doc 11 §11.9)",
         renderPublicOnly(queryClient, ["/login"]);
 
         expect(screen.getByRole("status", { name: /loading application/i })).toBeInTheDocument();
-        expect(screen.getByText("Loading...")).toBeInTheDocument();
         expect(screen.queryByTestId("public-content")).not.toBeInTheDocument();
         expect(screen.queryByTestId("dashboard-page")).not.toBeInTheDocument();
     });
