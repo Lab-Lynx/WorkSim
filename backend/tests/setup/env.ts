@@ -1,5 +1,5 @@
 process.env.NODE_ENV ??= 'test';
-process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5432/worksim_test';
+process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@localhost:5433/worksim_test';
 process.env.ACCESS_TOKEN_SECRET ??= 'test_access_token_secret_placeholder_at_least_32_chars';
 process.env.REFRESH_TOKEN_SECRET ??= 'test_refresh_token_secret_placeholder_at_least_32_chars';
 process.env.CLIENT_URL ??= 'http://localhost:5173';
