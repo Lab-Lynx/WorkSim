@@ -1,0 +1,84 @@
+# Code owners for Work Simulator.
+#
+# Each owner is automatically requested for review on PRs that touch the paths
+# below. When several patterns match a file, the LAST matching pattern wins, so
+# keep general rules at the top and specific rules at the bottom.
+#
+# Team
+#   @Messibre     Lead, architecture, AI
+#   @kirub07sj    Backend and database core, main UI/UX design
+#   @TsiOnshime   Backend external APIs (GitHub, payments, email)
+#   @RuthInTech   Frontend hooks and data layer, voxide integration
+#   @fenet-as     Frontend components and pages
+
+# Default: the lead reviews anything not matched below.
+*                                   @Messibre
+
+# Repo-level governance, CI/CD and deployment
+/.github/                           @Messibre
+/.husky/                            @Messibre
+/AGENTS.md                          @Messibre
+/render.yaml                        @Messibre
+/docs/                              @Messibre
+
+# ---------------------------------------------------------------------------
+# Backend: core API and database
+# ---------------------------------------------------------------------------
+/backend/                           @kirub07sj
+/backend/prisma/                    @kirub07sj @Messibre
+/backend/src/config/                @kirub07sj @Messibre
+/backend/src/middlewares/           @kirub07sj @Messibre
+
+# ---------------------------------------------------------------------------
+# Backend: external APIs (GitHub, Chapa payments, Resend email)
+# ---------------------------------------------------------------------------
+/backend/src/integrations/github.ts             @TsiOnshime
+/backend/src/integrations/chapa.ts              @TsiOnshime
+/backend/src/integrations/resend.ts             @TsiOnshime
+/backend/src/services/github.service.ts         @TsiOnshime
+/backend/src/services/payment-settlement.service.ts @TsiOnshime
+/backend/src/services/subscription.service.ts   @TsiOnshime
+/backend/src/services/webhook.service.ts        @TsiOnshime @Messibre
+/backend/src/services/email.service.ts          @TsiOnshime
+/backend/src/emails/                            @TsiOnshime
+
+# ---------------------------------------------------------------------------
+# Backend: AI (Gemini, Groq, mentor, evaluation, ticket generation, pipeline)
+# ---------------------------------------------------------------------------
+/backend/src/integrations/gemini.ts             @Messibre
+/backend/src/integrations/groq.ts               @Messibre
+/backend/src/integrations/api-keys.ts           @Messibre
+/backend/src/services/mentor.service.ts         @Messibre
+/backend/src/services/evaluation.service.ts     @Messibre
+/backend/src/services/ticket-generation.service.ts @Messibre
+/backend/src/services/submission-pipeline.ts    @Messibre @kirub07sj
+/backend/src/ticket-templates/                  @Messibre
+/backend/tests/integrations/                    @Messibre @TsiOnshime
+
+# ---------------------------------------------------------------------------
+# Frontend: hooks, data layer, voxide integration
+# ---------------------------------------------------------------------------
+/frontend/                          @fenet-as
+/frontend/src/hooks/                @RuthInTech
+/frontend/src/lib/                  @RuthInTech
+/frontend/src/store/                @RuthInTech
+/frontend/src/schemas/              @RuthInTech
+/frontend/src/types/                @RuthInTech
+/frontend/src/config/               @RuthInTech
+/frontend/src/constants/            @RuthInTech
+/frontend/src/utils/                @RuthInTech
+
+# ---------------------------------------------------------------------------
+# Frontend: components, pages, routing, styling
+# ---------------------------------------------------------------------------
+/frontend/src/components/           @fenet-as
+/frontend/src/pages/                @fenet-as
+/frontend/src/routes/               @fenet-as @RuthInTech
+/frontend/src/App.tsx               @fenet-as @RuthInTech
+/frontend/src/main.tsx              @RuthInTech @fenet-as
+
+# Design system and visual identity: UI/UX owner reviews alongside components
+/frontend/src/components/ui/        @fenet-as @kirub07sj
+/frontend/src/styles/               @fenet-as @kirub07sj
+/frontend/index.html                @fenet-as @kirub07sj
+/frontend/public/                   @fenet-as @kirub07sj
