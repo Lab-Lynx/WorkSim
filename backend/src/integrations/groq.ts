@@ -1,6 +1,14 @@
 import { env } from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
+import {
+  collectApiKeys,
+  isQuotaExhaustionMessage,
+  markKeyExhausted,
+  orderKeysByAvailability,
+  parseRetryAfterMs,
+} from './api-keys.js';
+import { recordAiKeyFallback, recordAiRequest, recordAiTokens } from '../lib/observability/metrics.js';
 import type {
   EvaluationInput,
   EvaluatorCategoryScores,
@@ -31,8 +39,11 @@ export class GroqTimeoutError extends GroqProviderError {
 }
 
 export class GroqRateLimitError extends GroqProviderError {
-  constructor(message = 'Groq rate limit exceeded') {
+  readonly retryAfterMs?: number;
+
+  constructor(message = 'Groq rate limit exceeded', retryAfterMs?: number) {
     super('rate_limit', message, 502);
+    this.retryAfterMs = retryAfterMs;
     this.name = 'GroqRateLimitError';
     Object.setPrototypeOf(this, GroqRateLimitError.prototype);
   }
@@ -68,12 +79,61 @@ interface GroqChatCompletionPayload {
   temperature?: number;
 }
 
+// Used only to classify the failure; the text is never logged or returned to callers.
+const readProviderMessage = async (response: Response, apiKey: string): Promise<string> => {
+  try {
+    const body = (await response.json()) as { error?: { message?: unknown } };
+    const message = typeof body?.error?.message === 'string' ? body.error.message : '';
+    return message.split(apiKey).join('[redacted]').slice(0, 200);
+  } catch {
+    return '';
+  }
+};
+
 /**
  * Execute Groq Chat Completions API call with sanitized error handling and logging.
  * Never logs prompt contents or raw error objects containing API keys or user code.
  */
 async function executeGroqRequest(messages: GroqChatMessage[]): Promise<string> {
-  const apiKey = env.GROQ_API_KEY;
+  const apiKeys = orderKeysByAvailability(collectApiKeys(env.GROQ_API_KEY, env.GROQ_API_KEY_2));
+  let lastError: unknown;
+
+  // Move to the next key only when this one looks exhausted or rejected; timeouts and
+  // malformed responses are not key problems and fail immediately.
+  for (const [index, apiKey] of apiKeys.entries()) {
+    try {
+      const text = await executeGroqRequestWithKey(messages, apiKey);
+      recordAiRequest('groq', 'evaluator', 'success');
+      return text;
+    } catch (err: unknown) {
+      lastError = err;
+      const keyProblem = err instanceof GroqRateLimitError || err instanceof GroqOutageError;
+      if (keyProblem) {
+        markKeyExhausted(apiKey, err instanceof GroqRateLimitError ? err.retryAfterMs : undefined);
+      }
+      if (!keyProblem || index === apiKeys.length - 1) {
+        recordAiRequest(
+          'groq',
+          'evaluator',
+          err instanceof GroqProviderError ? err.causeType : 'error',
+        );
+        throw err;
+      }
+      recordAiKeyFallback('groq', (err as GroqProviderError).causeType);
+      logger.warn(
+        { cause: (err as GroqProviderError).causeType, keyIndex: index, keyCount: apiKeys.length },
+        'Groq key failed, trying fallback key',
+      );
+    }
+  }
+
+  throw lastError;
+}
+
+async function executeGroqRequestWithKey(
+  messages: GroqChatMessage[],
+  apiKey: string,
+): Promise<string> {
   const model = env.GROQ_MODEL;
   const timeoutMs =
     env.SUBMISSION_EVALUATOR_TIMEOUT_MS ??
@@ -129,12 +189,20 @@ async function executeGroqRequest(messages: GroqChatMessage[]): Promise<string> 
   if (!response.ok) {
     if (response.status === 429) {
       logger.error({ cause: 'rate_limit', statusCode: 429 }, 'Groq rate limit exceeded');
-      throw new GroqRateLimitError();
+      throw new GroqRateLimitError(undefined, parseRetryAfterMs(response.headers));
     }
 
     if (response.status === 408) {
       logger.error({ cause: 'timeout', statusCode: 408 }, 'Groq request timed out');
       throw new GroqTimeoutError();
+    }
+
+    if (isQuotaExhaustionMessage(await readProviderMessage(response, apiKey))) {
+      logger.error(
+        { cause: 'rate_limit', statusCode: response.status },
+        'Groq key reported exhausted quota',
+      );
+      throw new GroqRateLimitError(undefined, parseRetryAfterMs(response.headers));
     }
 
     logger.error(
@@ -157,14 +225,39 @@ async function executeGroqRequest(messages: GroqChatMessage[]): Promise<string> 
       message?: {
         content?: string;
       };
+      finish_reason?: unknown;
     }>;
+    usage?: {
+      prompt_tokens?: unknown;
+      completion_tokens?: unknown;
+    };
   };
   const messageContent = responseObj?.choices?.[0]?.message?.content;
+  const rawFinishReason = responseObj?.choices?.[0]?.finish_reason;
+  // Provider reason codes are short enum strings; cap length so nothing unexpected reaches the logs.
+  const finishReason =
+    typeof rawFinishReason === 'string' && rawFinishReason.length > 0
+      ? rawFinishReason.slice(0, 50)
+      : undefined;
 
   if (typeof messageContent !== 'string' || messageContent.trim().length === 0) {
-    logger.error({ cause: 'malformed_response' }, 'Groq message content missing or empty');
+    logger.error(
+      { cause: 'malformed_response', finishReason },
+      'Groq message content missing or empty',
+    );
     throw new GroqMalformedResponseError();
   }
+
+  if (finishReason && finishReason !== 'stop') {
+    logger.warn({ finishReason }, 'Groq response ended before a normal stop');
+  }
+
+  const toCount = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+  const inputTokens = toCount(responseObj?.usage?.prompt_tokens);
+  const outputTokens = toCount(responseObj?.usage?.completion_tokens);
+  recordAiTokens('groq', 'evaluator', model, { inputTokens, outputTokens });
+  logger.info({ provider: 'groq', operation: 'evaluator', model, inputTokens, outputTokens }, 'ai_usage');
 
   return messageContent.trim();
 }

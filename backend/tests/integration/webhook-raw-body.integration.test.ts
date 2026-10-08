@@ -2,8 +2,20 @@ import 'dotenv/config';
 import http from 'node:http';
 import crypto from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Express } from 'express';
+
+// This suite checks body parsing, not persistence. Without a stubbed database the login
+// request below returns 500 whenever Postgres is unreachable (e.g. CI without a DB service),
+// masking the 401 the parser path is supposed to produce.
+vi.mock('../../src/config/db.js', () => ({
+  prisma: {
+    user: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+  },
+}));
 
 /**
  * Doc 7 §7.2.9, §7.8; Doc 7 §7.9 items 83–84; Doc 9 §9.3.3 & §9.4
