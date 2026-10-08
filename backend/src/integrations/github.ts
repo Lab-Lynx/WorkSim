@@ -146,59 +146,73 @@ export async function createBranch(input: {
 }): Promise<void> {
   if (!input.accessToken || process.env.NODE_ENV === 'test') return;
 
-  try {
-    const refRes = await fetch(
-      `https://api.github.com/repos/${input.owner}/${input.repo}/git/ref/heads/${input.baseBranch}`,
-      {
-        headers: {
-          Authorization: `Bearer ${input.accessToken}`,
-          Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'WorkSim',
+  const maxAttempts = 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const refRes = await fetch(
+        `https://api.github.com/repos/${input.owner}/${input.repo}/git/ref/heads/${input.baseBranch}`,
+        {
+          headers: {
+            Authorization: `Bearer ${input.accessToken}`,
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'WorkSim',
+          },
         },
-      },
-    );
-
-    if (refRes.status === 401) {
-      throw new GitHubTokenInvalidError();
-    }
-
-    const refData = (await refRes.json().catch(() => null)) as {
-      object?: { sha?: string };
-    } | null;
-
-    if (!refRes.ok || !refData?.object?.sha) {
-      const detail = describeGitHubFailure(refRes.status, refData);
-      logger.error(
-        { status: refRes.status, repo: `${input.owner}/${input.repo}`, base: input.baseBranch },
-        'GitHub base branch lookup failed',
       );
-      throw new GitHubProviderError(
-        `Failed to read branch '${input.baseBranch}' of ${input.owner}/${input.repo}${detail}`,
-      );
-    }
 
-    const createRes = await fetch(
-      `https://api.github.com/repos/${input.owner}/${input.repo}/git/refs`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${input.accessToken}`,
-          Accept: 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'WorkSim',
+      if (refRes.status === 401) {
+        throw new GitHubTokenInvalidError();
+      }
+
+      const refData = (await refRes.json().catch(() => null)) as {
+        object?: { sha?: string };
+      } | null;
+
+      if (!refRes.ok || !refData?.object?.sha) {
+        const detail = describeGitHubFailure(refRes.status, refData);
+        logger.error(
+          { status: refRes.status, repo: `${input.owner}/${input.repo}`, base: input.baseBranch },
+          'GitHub base branch lookup failed',
+        );
+        throw new GitHubProviderError(
+          `Failed to read branch '${input.baseBranch}' of ${input.owner}/${input.repo}${detail}`,
+        );
+      }
+
+      const createRes = await fetch(
+        `https://api.github.com/repos/${input.owner}/${input.repo}/git/refs`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${input.accessToken}`,
+            Accept: 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'WorkSim',
+          },
+          body: JSON.stringify({
+            ref: `refs/heads/${input.branchName}`,
+            sha: refData.object.sha,
+          }),
         },
-        body: JSON.stringify({
-          ref: `refs/heads/${input.branchName}`,
-          sha: refData.object.sha,
-        }),
-      },
-    );
+      );
 
-    if (createRes.status === 401) {
-      throw new GitHubTokenInvalidError();
-    }
+      if (createRes.status === 401) {
+        throw new GitHubTokenInvalidError();
+      }
 
-    if (!createRes.ok) {
+      if (createRes.ok) {
+        return;
+      }
+
+      if (createRes.status === 422 && attempt < maxAttempts) {
+        logger.info(
+          { attempt, repo: `${input.owner}/${input.repo}` },
+          'GitHub 422 on branch creation, retrying...',
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        continue;
+      }
+
       const body = (await createRes.json().catch(() => null)) as { message?: string } | null;
       const detail = describeGitHubFailure(createRes.status, body);
       logger.error(
@@ -206,10 +220,10 @@ export async function createBranch(input: {
         'GitHub ticket branch creation failed',
       );
       throw new GitHubProviderError(`Failed to create ticket branch${detail}`);
+    } catch (err) {
+      if (err instanceof GitHubProviderError) throw err;
+      throw new GitHubProviderError('Failed to create ticket branch', err);
     }
-  } catch (err) {
-    if (err instanceof GitHubProviderError) throw err;
-    throw new GitHubProviderError('Failed to create ticket branch', err);
   }
 }
 
