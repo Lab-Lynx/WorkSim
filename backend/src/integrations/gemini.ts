@@ -1,7 +1,13 @@
 import { env } from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
-import { collectApiKeys } from './api-keys.js';
+import {
+  collectApiKeys,
+  isQuotaExhaustionMessage,
+  markKeyExhausted,
+  orderKeysByAvailability,
+  parseRetryAfterMs,
+} from './api-keys.js';
 import type {
   MentorModelInput,
   TicketContent,
@@ -33,8 +39,11 @@ export class GeminiTimeoutError extends GeminiProviderError {
 }
 
 export class GeminiRateLimitError extends GeminiProviderError {
-  constructor(message = 'Gemini rate limit exceeded') {
+  readonly retryAfterMs?: number;
+
+  constructor(message = 'Gemini rate limit exceeded', retryAfterMs?: number) {
     super('rate_limit', message, 502);
+    this.retryAfterMs = retryAfterMs;
     this.name = 'GeminiRateLimitError';
     Object.setPrototypeOf(this, GeminiRateLimitError.prototype);
   }
@@ -142,7 +151,8 @@ async function executeGeminiRequest(
   payload: GeminiRequestPayload,
   options: { apiKeys: string[]; minTimeoutMs?: number },
 ): Promise<string> {
-  const { apiKeys, minTimeoutMs } = options;
+  const { minTimeoutMs } = options;
+  const apiKeys = orderKeysByAvailability(options.apiKeys);
   let lastError: unknown;
 
   for (const [index, apiKey] of apiKeys.entries()) {
@@ -151,6 +161,9 @@ async function executeGeminiRequest(
     } catch (err: unknown) {
       lastError = err;
       const keyProblem = err instanceof GeminiRateLimitError || err instanceof GeminiOutageError;
+      if (keyProblem) {
+        markKeyExhausted(apiKey, err instanceof GeminiRateLimitError ? err.retryAfterMs : undefined);
+      }
       if (!keyProblem || index === apiKeys.length - 1) throw err;
       logger.warn(
         { cause: (err as GeminiProviderError).causeType, keyIndex: index, keyCount: apiKeys.length },
@@ -215,7 +228,7 @@ async function executeGeminiRequestWithKey(
   if (!response.ok) {
     if (response.status === 429) {
       logger.error({ cause: 'rate_limit', statusCode: 429 }, 'Gemini rate limit exceeded');
-      throw new GeminiRateLimitError();
+      throw new GeminiRateLimitError(undefined, parseRetryAfterMs(response.headers));
     }
 
     if (response.status === 408) {
@@ -224,6 +237,13 @@ async function executeGeminiRequestWithKey(
     }
 
     const providerMessage = await readProviderMessage(response, apiKey);
+    if (isQuotaExhaustionMessage(providerMessage)) {
+      logger.error(
+        { cause: 'rate_limit', statusCode: response.status },
+        'Gemini key reported exhausted quota',
+      );
+      throw new GeminiRateLimitError(undefined, parseRetryAfterMs(response.headers));
+    }
     logger.error(
       { cause: 'outage', statusCode: response.status, providerMessage },
       'Gemini provider returned non-2xx status',

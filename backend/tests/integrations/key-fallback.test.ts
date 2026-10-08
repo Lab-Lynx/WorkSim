@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '../../src/config/env.js';
-import { collectApiKeys } from '../../src/integrations/api-keys.js';
+import {
+  collectApiKeys,
+  isQuotaExhaustionMessage,
+  markKeyExhausted,
+  orderKeysByAvailability,
+  parseRetryAfterMs,
+  resetKeyCooldowns,
+} from '../../src/integrations/api-keys.js';
 import {
   callMentorModel,
   callTicketGenerationModel,
@@ -66,6 +73,9 @@ const evaluationInput: EvaluationInput = {
 const failure = (status: number): Response =>
   ({ ok: false, status, json: async () => ({ error: { message: 'nope' } }) }) as unknown as Response;
 
+const failureWithMessage = (status: number, message: string): Response =>
+  ({ ok: false, status, json: async () => ({ error: { message } }) }) as unknown as Response;
+
 const geminiText = (text: string): Response =>
   ({
     ok: true,
@@ -99,6 +109,7 @@ describe('AI provider API key fallback', () => {
   const originalKeys: Partial<Record<(typeof KEY_FIELDS)[number], string | undefined>> = {};
 
   beforeEach(() => {
+    resetKeyCooldowns();
     originalFetch = globalThis.fetch;
     for (const field of KEY_FIELDS) {
       originalKeys[field] = env[field];
@@ -119,6 +130,98 @@ describe('AI provider API key fallback', () => {
   describe('collectApiKeys', () => {
     it('drops blank, missing and duplicate keys while keeping order', () => {
       expect(collectApiKeys('a', undefined, '  ', 'b', 'a', ' c ')).toEqual(['a', 'b', 'c']);
+    });
+  });
+
+  describe('key cooldown helpers', () => {
+    it('moves a recently exhausted key behind healthy ones without dropping it', () => {
+      markKeyExhausted('a', 1_000, 0);
+      expect(orderKeysByAvailability(['a', 'b'], 500)).toEqual(['b', 'a']);
+      expect(orderKeysByAvailability(['a', 'b'], 1_500)).toEqual(['a', 'b']);
+    });
+
+    it('keeps the original order when every key is cooling down', () => {
+      markKeyExhausted('a', 1_000, 0);
+      markKeyExhausted('b', 1_000, 0);
+      expect(orderKeysByAvailability(['a', 'b'], 500)).toEqual(['a', 'b']);
+    });
+
+    it('reads a numeric Retry-After header and ignores anything else', () => {
+      const headers = (value: string | null) => ({ get: () => value });
+      expect(parseRetryAfterMs(headers('30'))).toBe(30_000);
+      expect(parseRetryAfterMs(headers('Wed, 21 Oct 2026 07:28:00 GMT'))).toBeUndefined();
+      expect(parseRetryAfterMs(headers(null))).toBeUndefined();
+      expect(parseRetryAfterMs(undefined)).toBeUndefined();
+    });
+
+    it('recognises quota and rate-limit wording but not unrelated errors', () => {
+      expect(isQuotaExhaustionMessage('You exceeded your current quota')).toBe(true);
+      expect(isQuotaExhaustionMessage('RESOURCE_EXHAUSTED')).toBe(true);
+      expect(isQuotaExhaustionMessage('Rate limit reached for model')).toBe(true);
+      expect(isQuotaExhaustionMessage('API key not valid')).toBe(false);
+      expect(isQuotaExhaustionMessage('')).toBe(false);
+    });
+  });
+
+  describe('exhausted key handling', () => {
+    it('Gemini: tries the healthy key first on the next request after a key is exhausted', async () => {
+      env.GEMINI_API_KEY_2 = 'shared-2';
+      const first = vi
+        .fn()
+        .mockResolvedValueOnce(failure(429))
+        .mockResolvedValueOnce(geminiText('First.'));
+      globalThis.fetch = first;
+      await callMentorModel(mentorInput);
+      expect(usedGeminiKeys(first)).toEqual(['shared-1', 'shared-2']);
+
+      const second = vi.fn().mockResolvedValue(geminiText('Second.'));
+      globalThis.fetch = second;
+      await callMentorModel(mentorInput);
+      expect(usedGeminiKeys(second)).toEqual(['shared-2']);
+    });
+
+    it('Gemini: treats a 403 quota message as exhaustion and falls back', async () => {
+      env.GEMINI_API_KEY_2 = 'shared-2';
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(failureWithMessage(403, 'You exceeded your current quota'))
+        .mockResolvedValueOnce(geminiText('Hint.'));
+      globalThis.fetch = fetchMock;
+
+      await expect(callMentorModel(mentorInput)).resolves.toBe('Hint.');
+      expect(usedGeminiKeys(fetchMock)).toEqual(['shared-1', 'shared-2']);
+    });
+
+    it('Gemini: reports a rate-limit error when every key reports exhausted quota', async () => {
+      env.GEMINI_API_KEY_2 = 'shared-2';
+      globalThis.fetch = vi.fn().mockResolvedValue(failureWithMessage(403, 'Quota exceeded for metric'));
+
+      await expect(callMentorModel(mentorInput)).rejects.toThrow(GeminiRateLimitError);
+    });
+
+    it('Groq: tries the healthy key first on the next request after a key is exhausted', async () => {
+      env.GROQ_API_KEY_2 = 'groq-2';
+      const first = vi.fn().mockResolvedValueOnce(failure(429)).mockResolvedValueOnce(groqFeedback());
+      globalThis.fetch = first;
+      await callEvaluatorModel(evaluationInput);
+      expect(usedGroqKeys(first)).toEqual(['groq-1', 'groq-2']);
+
+      const second = vi.fn().mockResolvedValue(groqFeedback());
+      globalThis.fetch = second;
+      await callEvaluatorModel(evaluationInput);
+      expect(usedGroqKeys(second)).toEqual(['groq-2']);
+    });
+
+    it('Groq: treats a non-429 quota message as exhaustion and falls back', async () => {
+      env.GROQ_API_KEY_2 = 'groq-2';
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(failureWithMessage(403, 'Rate limit reached for model on tokens per day'))
+        .mockResolvedValueOnce(groqFeedback());
+      globalThis.fetch = fetchMock;
+
+      await callEvaluatorModel(evaluationInput);
+      expect(usedGroqKeys(fetchMock)).toEqual(['groq-1', 'groq-2']);
     });
   });
 
