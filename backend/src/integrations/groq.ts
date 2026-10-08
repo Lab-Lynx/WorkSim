@@ -157,13 +157,27 @@ async function executeGroqRequest(messages: GroqChatMessage[]): Promise<string> 
       message?: {
         content?: string;
       };
+      finish_reason?: unknown;
     }>;
   };
   const messageContent = responseObj?.choices?.[0]?.message?.content;
+  const rawFinishReason = responseObj?.choices?.[0]?.finish_reason;
+  // Provider reason codes are short enum strings; cap length so nothing unexpected reaches the logs.
+  const finishReason =
+    typeof rawFinishReason === 'string' && rawFinishReason.length > 0
+      ? rawFinishReason.slice(0, 50)
+      : undefined;
 
   if (typeof messageContent !== 'string' || messageContent.trim().length === 0) {
-    logger.error({ cause: 'malformed_response' }, 'Groq message content missing or empty');
+    logger.error(
+      { cause: 'malformed_response', finishReason },
+      'Groq message content missing or empty',
+    );
     throw new GroqMalformedResponseError();
+  }
+
+  if (finishReason && finishReason !== 'stop') {
+    logger.warn({ finishReason }, 'Groq response ended before a normal stop');
   }
 
   return messageContent.trim();

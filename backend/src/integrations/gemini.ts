@@ -80,8 +80,16 @@ interface GeminiApiResponse {
         text?: string;
       }>;
     };
+    finishReason?: unknown;
   }>;
+  promptFeedback?: {
+    blockReason?: unknown;
+  };
 }
+
+// Provider reason codes are short enum strings; cap length so nothing unexpected reaches the logs.
+const readReasonCode = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.length > 0 ? value.slice(0, 50) : undefined;
 
 interface RawTicketJson {
   title?: unknown;
@@ -190,10 +198,19 @@ async function executeGeminiRequest(
   }
 
   const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const finishReason = readReasonCode(data?.candidates?.[0]?.finishReason);
+  const blockReason = readReasonCode(data?.promptFeedback?.blockReason);
 
   if (typeof candidateText !== 'string' || candidateText.trim().length === 0) {
-    logger.error({ cause: 'malformed_response' }, 'Gemini candidate text missing or empty');
+    logger.error(
+      { cause: 'malformed_response', finishReason, blockReason },
+      'Gemini candidate text missing or empty',
+    );
     throw new GeminiMalformedResponseError();
+  }
+
+  if (finishReason && finishReason !== 'STOP') {
+    logger.warn({ finishReason }, 'Gemini response ended before a normal stop');
   }
 
   return candidateText.trim();
