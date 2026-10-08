@@ -64,7 +64,7 @@ export default function MentorMessageList({
 	}, [messages.length, pending]);
 
 	return (
-		<div role="log" aria-live="polite" className="flex min-h-48 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+		<div role="log" aria-live="polite" className="scrollbar-thin flex min-h-48 flex-1 flex-col gap-4 overflow-y-auto pr-1">
 			{messages.map((message) => (
 				<Bubble
 					key={message.id}
