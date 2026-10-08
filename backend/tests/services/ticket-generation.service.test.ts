@@ -7,6 +7,15 @@ import {
 
 const generateTicketWording = vi.fn();
 const callTicketGenerationModel = vi.fn();
+const starterRepoFindUnique = vi.fn();
+const ticketFindMany = vi.fn();
+
+vi.mock('../../src/config/db.js', () => ({
+  prisma: {
+    starterRepo: { findUnique: starterRepoFindUnique },
+    ticket: { findMany: ticketFindMany },
+  },
+}));
 
 vi.mock('../../src/integrations/gemini.js', () => ({
   generateTicketWording,
@@ -26,6 +35,8 @@ const template = loadTicketTemplate('react-add-button');
 describe('ticket-generation.service (Doc 8 §8.7; Doc 9 §9.2.7; FR-31)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    starterRepoFindUnique.mockResolvedValue({ starterTemplate: 'react' });
+    ticketFindMany.mockResolvedValue([]);
     if (typeof resetTicketTemplateSelectionStrategy === 'function') {
       resetTicketTemplateSelectionStrategy();
     }
@@ -100,6 +111,42 @@ describe('ticket-generation.service (Doc 8 §8.7; Doc 9 §9.2.7; FR-31)', () => 
     it('selectNextTicketTemplate — no side effects (no DB writes)', async () => {
       const selection = await selectNextTicketTemplate('user-no-writes');
       expect(selection).toBeDefined();
+    });
+
+    it.each([
+      ['react', 'react-'],
+      ['node_express', 'node-'],
+      ['django', 'django-'],
+    ])('selectNextTicketTemplate — %s repo only gets %s templates', async (stack, prefix) => {
+      starterRepoFindUnique.mockResolvedValue({ starterTemplate: stack });
+      const selection = await selectNextTicketTemplate('user-stack');
+      expect(selection.templateKey.startsWith(prefix)).toBe(true);
+    });
+
+    it('selectNextTicketTemplate — skips templates the user already completed', async () => {
+      starterRepoFindUnique.mockResolvedValue({ starterTemplate: 'node_express' });
+      ticketFindMany.mockResolvedValue([{ templateKey: 'node-add-route' }]);
+      const selection = await selectNextTicketTemplate('user-done-one');
+      expect(selection.templateKey.startsWith('node-')).toBe(true);
+      expect(selection.templateKey).not.toBe('node-add-route');
+    });
+
+    it('selectNextTicketTemplate — repeats the least recently completed once all are done', async () => {
+      starterRepoFindUnique.mockResolvedValue({ starterTemplate: 'node_express' });
+      // newest first
+      ticketFindMany.mockResolvedValue([
+        { templateKey: 'node-service-feature' },
+        { templateKey: 'node-add-validation' },
+        { templateKey: 'node-add-route' },
+      ]);
+      const selection = await selectNextTicketTemplate('user-all-done');
+      expect(selection.templateKey).toBe('node-add-route');
+    });
+
+    it('selectNextTicketTemplate — falls back to all templates when no repo exists', async () => {
+      starterRepoFindUnique.mockResolvedValue(null);
+      const selection = await selectNextTicketTemplate('user-no-repo');
+      expect(loadTicketTemplate(selection.templateKey).key).toBe(selection.templateKey);
     });
   });
 
