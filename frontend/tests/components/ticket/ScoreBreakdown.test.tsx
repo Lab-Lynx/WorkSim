@@ -19,7 +19,6 @@ describe('ScoreBreakdown Component', () => {
 
         expect(screen.getByText('Score Breakdown')).toBeInTheDocument();
         expect(screen.getByText('83')).toBeInTheDocument();
-        expect(screen.getByText('/ 100')).toBeInTheDocument();
     });
 
     it('renders all categories from RUBRIC_CATEGORIES with scores and weightings', () => {

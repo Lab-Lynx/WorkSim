@@ -13,8 +13,8 @@ export function ScoreTrendChart({ data }: { data: ScoreTrendPoint[] }) {
         <AreaChart data={data} margin={{ left: -20, right: 12, top: 12, bottom: 0 }}>
           <defs>
             <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
+              <stop offset="100%" stopColor="#f97316" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
@@ -46,7 +46,7 @@ export function ScoreTrendChart({ data }: { data: ScoreTrendPoint[] }) {
           <Area
             dataKey="score"
             type="monotone"
-            stroke="var(--primary)"
+            stroke="#f97316"
             strokeWidth={2}
             fill="url(#scoreFill)"
           />

@@ -235,3 +235,28 @@
   --status-in-progress-bg: color-mix(in oklch, var(--primary) 16%, transparent);
   --status-in-progress-text: var(--primary);
 }
+
+/* Theme Transition */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2;
+  animation: theme-sweep 0.7s ease-in-out;
+}
+
+@keyframes theme-sweep {
+  from {
+    clip-path: circle(0% at 0% 100%);
+  }
+  to {
+    clip-path: circle(150% at 0% 100%);
+  }
+}

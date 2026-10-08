@@ -7,9 +7,8 @@ describe('FullPageLoader', () => {
     render(<FullPageLoader />);
 
     // Renders accessible status/loading container for screen readers
-    const statusElement = screen.getByRole('status');
+    const statusElement = screen.getByRole('status', { name: /loading application/i });
     expect(statusElement).toBeInTheDocument();
-    expect(statusElement).toHaveTextContent(/loading/i);
   });
 
   it('renders the full-page container layout', () => {

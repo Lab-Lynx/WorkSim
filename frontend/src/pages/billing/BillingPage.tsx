@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useSubscription } from '@/hooks/billing/useSubscription';
 import { usePayments } from '@/hooks/billing/usePayments';
 import { useStartCheckout } from '@/hooks/billing/useStartCheckout';
@@ -101,12 +101,8 @@ export function BillingPage() {
         </CardHeader>
         <CardContent>
           {subscription.isLoading ? (
-            <div
-              role="status"
-              aria-label="Loading subscription"
-              className="flex items-center gap-2 py-6 text-sm text-muted-foreground"
-            >
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Loading subscription…
+            <div role="status" aria-label="Loading subscription" className="space-y-4">
+              <div className="h-24 w-full animate-pulse rounded-xl bg-muted" />
             </div>
           ) : subscription.isError || !subscription.data ? (
             <ErrorState
@@ -135,12 +131,9 @@ export function BillingPage() {
         </CardHeader>
         <CardContent>
           {payments.isLoading ? (
-            <div
-              role="status"
-              aria-label="Loading payment history"
-              className="flex items-center gap-2 py-6 text-sm text-muted-foreground"
-            >
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Loading payments…
+            <div role="status" aria-label="Loading payment history" className="space-y-4">
+              <div className="h-16 w-full animate-pulse rounded-xl bg-muted" />
+              <div className="h-16 w-full animate-pulse rounded-xl bg-muted" />
             </div>
           ) : payments.isError ? (
             <ErrorState

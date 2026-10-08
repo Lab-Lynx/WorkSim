@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
+  ArrowUpRight,
   Bot,
   Check,
+  ChevronDown,
   CircleCheck,
   FolderGit2,
   GitBranch,
   GitPullRequest,
   GraduationCap,
   Layers,
-  MessageCircle,
+  MoreHorizontal,
   Play,
   Quote,
   Sparkles,
@@ -151,6 +153,13 @@ const PRACTITIONER_FEATURES = [
   'Experience profile with public work history',
 ] as const;
 
+const MENTOR_FEEDBACK = [
+  'Nice direction. Before you push, what happens when the cursor no longer points to a record?',
+  'Consider using a cursor-based approach instead of offset for better performance on large tables.',
+  'Make sure to update the loading state while fetching the next page.',
+  'Great job handling the edge case where the requested page is empty.',
+] as const;
+
 type BillingCycle = 'monthly' | 'annual';
 
 function priceLabel(cycle: BillingCycle, monthly: number) {
@@ -160,10 +169,57 @@ function priceLabel(cycle: BillingCycle, monthly: number) {
   return { amount: monthly * 10, suffix: '/year' };
 }
 
+function ScrollReveal({ children, delay = 0, className }: { children: React.ReactNode, delay?: number, className?: string }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "transition-all duration-700 ease-out transform-gpu will-change-transform",
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8",
+        className
+      )}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function LandingPage() {
   useDocumentTitle('WorkSim');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const practitionerPrice = priceLabel(billingCycle, 450);
+
+  const [feedbackIndex, setFeedbackIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setFeedbackIndex((prev) => (prev + 1) % MENTOR_FEEDBACK.length);
+        setIsAnimating(false);
+      }, 500);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#F5F5F5] text-neutral-950 selection:bg-neutral-900/10">
@@ -244,7 +300,7 @@ export default function LandingPage() {
               <div className="absolute inset-[20%] rounded-full border border-dashed border-neutral-300/80" />
               <div className="absolute inset-[34%] rounded-full border border-dashed border-neutral-300/60" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex size-20 items-center justify-center rounded-3xl bg-neutral-950 shadow-xl shadow-neutral-950/15 transition-transform duration-300 hover:scale-105">
+                <div className="flex size-20 items-center justify-center rounded-3xl bg-neutral-950 shadow-xl shadow-neutral-950/20 transition-transform duration-300 hover:scale-105">
                   <img src="/icon.png" alt="" className="size-12 object-contain invert" />
                 </div>
               </div>
@@ -295,7 +351,7 @@ export default function LandingPage() {
         </section>
 
         <section id="how-it-works" className="px-6 py-16 lg:px-8 lg:py-24">
-          <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          <ScrollReveal className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div>
               <Badge
                 variant="outline"
@@ -348,62 +404,75 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <Card className="rounded-3xl border-0 bg-white p-2 shadow-sm ring-1 ring-neutral-200/80">
-              <CardContent className="space-y-3 p-4 sm:p-5">
+            <Card 
+              className="relative overflow-hidden rounded-[2rem] border-0 p-8 shadow-xl flex flex-col justify-between -rotate-2 hover:rotate-0 transition duration-500 ease-out hover:shadow-2xl transform-gpu will-change-transform"
+              style={{ backgroundColor: '#111111' }}
+            >
+              {/* Background gradient */}
+              <div 
+                className="absolute inset-0 opacity-60"
+                style={{ 
+                  background: 'radial-gradient(circle at 0% 20%, #f97316 0%, #9a3412 40%, transparent 70%)' 
+                }}
+              />
+              
+              <CardContent className="relative flex flex-col h-full p-0">
+                {/* Header */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="flex size-9 items-center justify-center rounded-xl bg-neutral-100 text-neutral-950">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex size-8 items-center justify-center rounded-xl bg-white text-neutral-950">
                       <Ticket className="size-4" aria-hidden />
                     </span>
-                    <div>
-                      <p className="text-sm font-medium text-neutral-950">ENG-184</p>
-                      <p className="text-xs text-neutral-500">Active ticket</p>
-                    </div>
+                    <span className="font-medium text-white/90">ENG-184</span>
                   </div>
-                  <Badge className="rounded-full bg-neutral-950 text-white hover:bg-neutral-950">
-                    96%
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <button className="flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/10">
+                      Active ticket <ChevronDown className="size-3" />
+                    </button>
+                    <button className="flex size-[28px] items-center justify-center rounded-full border border-white/20 text-white/80 transition-colors hover:bg-white/10">
+                      <MoreHorizontal className="size-4" />
+                    </button>
+                  </div>
                 </div>
 
-                <p className="font-heading text-lg font-medium leading-snug text-neutral-950">
-                  Add pagination to the activity feed
-                </p>
-
-                <div className="space-y-3 pt-2">
-                  {[
-                    { label: 'Requirements', value: 92 },
-                    { label: 'Code quality', value: 88 },
-                    { label: 'Testing', value: 79 },
-                  ].map((row) => (
-                    <div key={row.label}>
-                      <div className="mb-1.5 flex items-center justify-between text-xs">
-                        <span className="text-neutral-500">{row.label}</span>
-                        <span className="font-medium text-neutral-950">{row.value}%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-neutral-100">
-                        <div
-                          className="h-full rounded-full bg-neutral-950"
-                          style={{ width: `${row.value}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                {/* Big Number */}
+                <div className="mt-16 flex items-start gap-2">
+                  <span className="text-[5.5rem] leading-none font-light tracking-tight text-white">96%</span>
+                  <ArrowUpRight className="mt-3 size-7 text-orange-400 stroke-[2.5]" />
                 </div>
 
-                <div className="flex items-start gap-2 rounded-2xl bg-neutral-100 p-3">
-                  <MessageCircle className="mt-0.5 size-4 shrink-0 text-neutral-950" aria-hidden />
-                  <p className="text-xs leading-5 text-neutral-500">
-                    Nice direction. Before you push, what happens when the cursor no longer points
-                    to a record?
+                {/* Text Content */}
+                <div className="mt-16 space-y-4">
+                  <p className="text-xl font-medium leading-snug text-white/90">
+                    Add pagination to the activity feed
                   </p>
+                  <p 
+                    className={cn(
+                      "text-sm leading-relaxed text-white/50 transition-all duration-500 min-h-[60px]",
+                      isAnimating ? "opacity-0 -translate-y-2" : "opacity-100 translate-y-0"
+                    )}
+                  >
+                    {MENTOR_FEEDBACK[feedbackIndex]}
+                  </p>
+                </div>
+
+                {/* Pagination Dots */}
+                <div className="mt-8 flex gap-2">
+                  <div className="h-1 flex-1 rounded-full bg-white/20" />
+                  <div className="h-1 flex-1 rounded-full bg-white" />
+                  <div className="h-1 flex-1 rounded-full bg-white/20" />
+                  <div className="h-1 flex-1 rounded-full bg-white/20" />
+                  <div className="h-1 flex-1 rounded-full bg-white/20" />
+                  <div className="h-1 flex-1 rounded-full bg-white/20" />
+                  <div className="h-1 flex-1 rounded-full bg-white/20" />
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </ScrollReveal>
         </section>
 
         <section id="pricing" className="px-6 py-16 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-6xl">
+          <ScrollReveal className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-2xl text-center">
               <Badge
                 variant="outline"
@@ -453,7 +522,7 @@ export default function LandingPage() {
             </div>
 
             <div className="mt-12 grid gap-5 lg:grid-cols-3">
-              <Card className="rounded-3xl border-0 bg-neutral-200/60 shadow-none ring-0">
+              <Card className="rounded-3xl border-0 bg-gradient-to-br from-white to-neutral-200 shadow-none ring-0">
                 <CardHeader className="gap-3">
                   <span className="flex size-10 items-center justify-center rounded-2xl bg-neutral-950 text-white">
                     <Sparkles className="size-5" aria-hidden />
@@ -496,8 +565,9 @@ export default function LandingPage() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-3xl border-0 bg-neutral-950 text-white shadow-lg shadow-neutral-950/20 ring-0">
-                <CardHeader className="gap-3">
+              <Card className="relative overflow-hidden rounded-3xl border-0 bg-neutral-950 text-white shadow-lg shadow-neutral-950/20 ring-0">
+                <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-orange-600/30 blur-3xl" />
+                <CardHeader className="relative gap-3">
                   <div className="flex items-start justify-between gap-3">
                     <span className="flex size-10 items-center justify-center rounded-2xl bg-white/10 text-white">
                       <Ticket className="size-5" aria-hidden />
@@ -539,7 +609,7 @@ export default function LandingPage() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-3xl border-0 bg-neutral-200/60 shadow-none ring-0">
+              <Card className="rounded-3xl border border-neutral-200/60 bg-white shadow-sm ring-0">
                 <CardHeader className="gap-3">
                   <span className="flex size-10 items-center justify-center rounded-2xl bg-neutral-950 text-white">
                     <GraduationCap className="size-5" aria-hidden />
@@ -559,7 +629,7 @@ export default function LandingPage() {
                 <CardContent>
                   <Button
                     variant="secondary"
-                    className="w-full rounded-full bg-white text-neutral-950 hover:bg-neutral-100"
+                    className="w-full rounded-full bg-neutral-100 text-neutral-950 hover:bg-neutral-200"
                     asChild
                   >
                     <Link to={ROUTES.REGISTER}>Talk to us</Link>
@@ -581,11 +651,11 @@ export default function LandingPage() {
                 </CardContent>
               </Card>
             </div>
-          </div>
+          </ScrollReveal>
         </section>
 
         <section id="features" className="px-6 py-16 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-6xl">
+          <ScrollReveal className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-2xl text-center">
               <Badge
                 variant="outline"
@@ -653,7 +723,7 @@ export default function LandingPage() {
                 );
               })}
             </div>
-          </div>
+          </ScrollReveal>
         </section>
 
         <section
@@ -661,7 +731,7 @@ export default function LandingPage() {
           aria-labelledby="testimonials-heading"
           className="border-y border-neutral-200 bg-[#F5F5F5] px-6 py-16 lg:px-8 lg:py-24"
         >
-          <div className="mx-auto max-w-6xl">
+          <ScrollReveal className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-400">
                 From practitioners
@@ -714,13 +784,14 @@ export default function LandingPage() {
                 <a href="#credentials">About credentials</a>
               </Button>
             </div>
-          </div>
+          </ScrollReveal>
         </section>
 
         <section id="credentials" className="px-6 pb-16 lg:px-8 lg:pb-24">
-          <div className="mx-auto max-w-6xl">
-            <Card className="overflow-hidden rounded-[2rem] border-0 bg-neutral-950 text-white shadow-none ring-0">
-              <CardContent className="grid gap-10 p-8 sm:p-10 lg:grid-cols-[1.2fr_0.8fr] lg:p-12">
+          <ScrollReveal className="mx-auto max-w-6xl">
+            <Card className="relative overflow-hidden rounded-[2rem] border-0 bg-neutral-950 text-white shadow-none ring-0">
+              <div className="pointer-events-none absolute -right-16 -top-24 size-56 rounded-full bg-white/30 blur-3xl" />
+              <CardContent className="relative grid gap-10 p-8 sm:p-10 lg:grid-cols-[1.2fr_0.8fr] lg:p-12">
                 <div>
                   <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
                     Practice experience is not a promise of employment.
@@ -768,7 +839,7 @@ export default function LandingPage() {
                 </ul>
               </CardContent>
             </Card>
-          </div>
+          </ScrollReveal>
         </section>
       </main>
 

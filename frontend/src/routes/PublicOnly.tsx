@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate, Outlet, useSearchParams } from "react-router-dom";
 import { useMe } from "@/hooks/auth/useMe";
-import FullPageLoader from "@/components/layout/FullPageLoader";
+import { LoaderCircle } from "lucide-react";
 import { getSafeRedirectPath } from "@/lib/navigation";
 
 export interface PublicOnlyProps {
@@ -22,7 +22,11 @@ export function PublicOnly({ children }: PublicOnlyProps) {
     const [searchParams] = useSearchParams();
 
     if (isPending) {
-        return <FullPageLoader />;
+        return (
+            <div className="flex h-svh w-full items-center justify-center bg-background" role="status" aria-label="Loading application">
+                <LoaderCircle className="size-8 animate-spin text-muted-foreground" />
+            </div>
+        );
     }
 
     if (isSuccess) {

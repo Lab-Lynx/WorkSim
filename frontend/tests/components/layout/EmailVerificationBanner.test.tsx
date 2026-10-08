@@ -108,7 +108,7 @@ describe('EmailVerificationBanner', () => {
     });
 
     const { rerender } = render(<EmailVerificationBanner />);
-    let resendBtn = screen.getByRole('button');
+    let resendBtn = screen.getByRole('button', { name: /resend|sending/i });
     expect(resendBtn).toBeDisabled();
 
     // Cooldown state
@@ -122,12 +122,12 @@ describe('EmailVerificationBanner', () => {
     });
 
     rerender(<EmailVerificationBanner />);
-    resendBtn = screen.getByRole('button');
+    resendBtn = screen.getByRole('button', { name: /resend/i });
     expect(resendBtn).toBeDisabled();
     expect(resendBtn).toHaveTextContent(/45/);
   });
 
-  it('is non-dismissible and contains no close/dismiss controls', () => {
+  it('is dismissible and contains a close control', () => {
     mockUseMe.mockReturnValue({
       data: { id: '1', email: 'unverified@example.com', emailVerifiedAt: null },
       isLoading: false,
@@ -135,7 +135,11 @@ describe('EmailVerificationBanner', () => {
 
     render(<EmailVerificationBanner />);
 
-    expect(screen.queryByRole('button', { name: /close|dismiss/i })).not.toBeInTheDocument();
+    const closeBtn = screen.getByRole('button', { name: /close/i });
+    expect(closeBtn).toBeInTheDocument();
+    
+    fireEvent.click(closeBtn);
+    expect(screen.queryByRole('region', { name: /email verification/i })).not.toBeInTheDocument();
   });
 
   it('displays error or success messages from useResendVerification', () => {
