@@ -1,6 +1,7 @@
 import { env } from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
+import { collectApiKeys } from './api-keys.js';
 import type {
   EvaluationInput,
   EvaluatorCategoryScores,
@@ -73,7 +74,32 @@ interface GroqChatCompletionPayload {
  * Never logs prompt contents or raw error objects containing API keys or user code.
  */
 async function executeGroqRequest(messages: GroqChatMessage[]): Promise<string> {
-  const apiKey = env.GROQ_API_KEY;
+  const apiKeys = collectApiKeys(env.GROQ_API_KEY, env.GROQ_API_KEY_2);
+  let lastError: unknown;
+
+  // Move to the next key only when this one looks exhausted or rejected; timeouts and
+  // malformed responses are not key problems and fail immediately.
+  for (const [index, apiKey] of apiKeys.entries()) {
+    try {
+      return await executeGroqRequestWithKey(messages, apiKey);
+    } catch (err: unknown) {
+      lastError = err;
+      const keyProblem = err instanceof GroqRateLimitError || err instanceof GroqOutageError;
+      if (!keyProblem || index === apiKeys.length - 1) throw err;
+      logger.warn(
+        { cause: (err as GroqProviderError).causeType, keyIndex: index, keyCount: apiKeys.length },
+        'Groq key failed, trying fallback key',
+      );
+    }
+  }
+
+  throw lastError;
+}
+
+async function executeGroqRequestWithKey(
+  messages: GroqChatMessage[],
+  apiKey: string,
+): Promise<string> {
   const model = env.GROQ_MODEL;
   const timeoutMs =
     env.SUBMISSION_EVALUATOR_TIMEOUT_MS ??
@@ -157,13 +183,27 @@ async function executeGroqRequest(messages: GroqChatMessage[]): Promise<string> 
       message?: {
         content?: string;
       };
+      finish_reason?: unknown;
     }>;
   };
   const messageContent = responseObj?.choices?.[0]?.message?.content;
+  const rawFinishReason = responseObj?.choices?.[0]?.finish_reason;
+  // Provider reason codes are short enum strings; cap length so nothing unexpected reaches the logs.
+  const finishReason =
+    typeof rawFinishReason === 'string' && rawFinishReason.length > 0
+      ? rawFinishReason.slice(0, 50)
+      : undefined;
 
   if (typeof messageContent !== 'string' || messageContent.trim().length === 0) {
-    logger.error({ cause: 'malformed_response' }, 'Groq message content missing or empty');
+    logger.error(
+      { cause: 'malformed_response', finishReason },
+      'Groq message content missing or empty',
+    );
     throw new GroqMalformedResponseError();
+  }
+
+  if (finishReason && finishReason !== 'stop') {
+    logger.warn({ finishReason }, 'Groq response ended before a normal stop');
   }
 
   return messageContent.trim();

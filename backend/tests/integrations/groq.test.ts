@@ -551,6 +551,57 @@ describe('Groq Integration Adapter (Doc 8 §8.10, Doc 9 §9.2.10)', () => {
       await expect(callEvaluatorModel(mockAttempt1Input)).rejects.toThrow(GroqMalformedResponseError);
     });
 
+    it('logs the finish reason when the model stops early, then treats unparseable output as malformed', async () => {
+      const warnLoggerSpy = vi.spyOn(logger, 'warn');
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: '{"feedback": "cut off mid' }, finish_reason: 'length' }],
+        }),
+      } as unknown as Response);
+
+      await expect(callEvaluatorModel(mockAttempt1Input)).rejects.toThrow(GroqMalformedResponseError);
+      expect(warnLoggerSpy).toHaveBeenCalledWith(
+        { finishReason: 'length' },
+        expect.any(String),
+      );
+    });
+
+    it('logs the finish reason when content is empty', async () => {
+      const errorLoggerSpy = vi.spyOn(logger, 'error');
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: '' }, finish_reason: 'content_filter' }] }),
+      } as unknown as Response);
+
+      await expect(callEvaluatorModel(mockAttempt1Input)).rejects.toThrow(GroqMalformedResponseError);
+      expect(errorLoggerSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ cause: 'malformed_response', finishReason: 'content_filter' }),
+        expect.any(String),
+      );
+    });
+
+    it('does not log a warning for a normal stop', async () => {
+      const warnLoggerSpy = vi.spyOn(logger, 'warn');
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: { content: JSON.stringify({ feedback: 'Fine.', scores: null }) },
+              finish_reason: 'stop',
+            },
+          ],
+        }),
+      } as unknown as Response);
+
+      await callEvaluatorModel(mockAttempt1Input);
+      expect(warnLoggerSpy).not.toHaveBeenCalled();
+    });
+
     it('throws GroqMalformedResponseError when response JSON parsing fails', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,

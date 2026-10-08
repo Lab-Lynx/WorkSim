@@ -272,6 +272,54 @@ describe('Gemini Integration Adapter (doc 8 §8.8, §8.7, doc 9 §9.2.10)', () =
       );
     });
 
+    it('Gemini — safety-blocked prompt is logged with its block reason and still fails as malformed', async () => {
+      const errorLoggerSpy = vi.spyOn(logger, 'error');
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ promptFeedback: { blockReason: 'SAFETY' } }),
+      } as unknown as Response);
+
+      await expect(callMentorModel(mockMentorInput)).rejects.toThrow(GeminiMalformedResponseError);
+      expect(errorLoggerSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ cause: 'malformed_response', blockReason: 'SAFETY' }),
+        expect.any(String),
+      );
+    });
+
+    it('Gemini — response cut off by the length limit is logged but still returned', async () => {
+      const warnLoggerSpy = vi.spyOn(logger, 'warn');
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            { content: { parts: [{ text: 'A partial hint' }] }, finishReason: 'MAX_TOKENS' },
+          ],
+        }),
+      } as unknown as Response);
+
+      await expect(callMentorModel(mockMentorInput)).resolves.toBe('A partial hint');
+      expect(warnLoggerSpy).toHaveBeenCalledWith(
+        { finishReason: 'MAX_TOKENS' },
+        expect.any(String),
+      );
+    });
+
+    it('Gemini — normal STOP finish does not log a warning', async () => {
+      const warnLoggerSpy = vi.spyOn(logger, 'warn');
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: 'Complete hint.' }] }, finishReason: 'STOP' }],
+        }),
+      } as unknown as Response);
+
+      await callMentorModel(mockMentorInput);
+      expect(warnLoggerSpy).not.toHaveBeenCalled();
+    });
+
     it('Gemini — key and prompt not leaked in error messages or logs', async () => {
       const errorLoggerSpy = vi.spyOn(logger, 'error');
       const warnLoggerSpy = vi.spyOn(logger, 'warn');

@@ -1,6 +1,7 @@
 import { env } from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
+import { collectApiKeys } from './api-keys.js';
 import type {
   MentorModelInput,
   TicketContent,
@@ -80,8 +81,16 @@ interface GeminiApiResponse {
         text?: string;
       }>;
     };
+    finishReason?: unknown;
   }>;
+  promptFeedback?: {
+    blockReason?: unknown;
+  };
 }
+
+// Provider reason codes are short enum strings; cap length so nothing unexpected reaches the logs.
+const readReasonCode = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.length > 0 ? value.slice(0, 50) : undefined;
 
 interface RawTicketJson {
   title?: unknown;
@@ -108,11 +117,56 @@ const readProviderMessage = async (response: Response, apiKey: string): Promise<
 // Ticket generation produces a larger structured answer than a mentor hint, so it needs more headroom.
 const TICKET_GENERATION_MIN_TIMEOUT_MS = 30_000;
 
+const mentorApiKeys = (): string[] =>
+  collectApiKeys(
+    env.GEMINI_MENTOR_API_KEY,
+    env.GEMINI_MENTOR_API_KEY_2,
+    env.GEMINI_API_KEY,
+    env.GEMINI_API_KEY_2,
+  );
+
+const ticketApiKeys = (): string[] =>
+  collectApiKeys(
+    env.GEMINI_TICKET_API_KEY,
+    env.GEMINI_TICKET_API_KEY_2,
+    env.GEMINI_API_KEY,
+    env.GEMINI_API_KEY_2,
+  );
+
+/**
+ * Tries each key in order and moves on only when the key itself looks exhausted or rejected
+ * (rate limit, quota, invalid key, outage). Timeouts and malformed responses are not key problems,
+ * so they fail immediately instead of multiplying latency.
+ */
 async function executeGeminiRequest(
   payload: GeminiRequestPayload,
+  options: { apiKeys: string[]; minTimeoutMs?: number },
+): Promise<string> {
+  const { apiKeys, minTimeoutMs } = options;
+  let lastError: unknown;
+
+  for (const [index, apiKey] of apiKeys.entries()) {
+    try {
+      return await executeGeminiRequestWithKey(payload, apiKey, { minTimeoutMs });
+    } catch (err: unknown) {
+      lastError = err;
+      const keyProblem = err instanceof GeminiRateLimitError || err instanceof GeminiOutageError;
+      if (!keyProblem || index === apiKeys.length - 1) throw err;
+      logger.warn(
+        { cause: (err as GeminiProviderError).causeType, keyIndex: index, keyCount: apiKeys.length },
+        'Gemini key failed, trying fallback key',
+      );
+    }
+  }
+
+  throw lastError;
+}
+
+async function executeGeminiRequestWithKey(
+  payload: GeminiRequestPayload,
+  apiKey: string,
   options: { minTimeoutMs?: number } = {},
 ): Promise<string> {
-  const apiKey = env.GEMINI_API_KEY;
   const model = env.GEMINI_MODEL;
   const timeoutMs = Math.max(
     env.AI_REQUEST_TIMEOUT_MS ?? env.GEMINI_REQUEST_TIMEOUT_MS,
@@ -190,10 +244,19 @@ async function executeGeminiRequest(
   }
 
   const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const finishReason = readReasonCode(data?.candidates?.[0]?.finishReason);
+  const blockReason = readReasonCode(data?.promptFeedback?.blockReason);
 
   if (typeof candidateText !== 'string' || candidateText.trim().length === 0) {
-    logger.error({ cause: 'malformed_response' }, 'Gemini candidate text missing or empty');
+    logger.error(
+      { cause: 'malformed_response', finishReason, blockReason },
+      'Gemini candidate text missing or empty',
+    );
     throw new GeminiMalformedResponseError();
+  }
+
+  if (finishReason && finishReason !== 'STOP') {
+    logger.warn({ finishReason }, 'Gemini response ended before a normal stop');
   }
 
   return candidateText.trim();
@@ -244,7 +307,7 @@ export async function callMentorModel(input: MentorModelInput): Promise<string> 
   };
 
   try {
-    return await executeGeminiRequest(payload);
+    return await executeGeminiRequest(payload, { apiKeys: mentorApiKeys() });
   } finally {
     logger.info(
       { operation: 'mentor', durationMs: Math.round(performance.now() - startedAt) },
@@ -311,6 +374,7 @@ export async function callTicketGenerationModel(
   };
 
   const rawResponse = await executeGeminiRequest(payload, {
+    apiKeys: ticketApiKeys(),
     minTimeoutMs: TICKET_GENERATION_MIN_TIMEOUT_MS,
   });
 
