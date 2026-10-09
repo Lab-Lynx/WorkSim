@@ -41,23 +41,38 @@ Platforms like LeetCode, HackerRank, and Codewars test isolated algorithmic puzz
 
 ```mermaid
 flowchart TD
-    A[1. Register & Verify Email] --> B[2. Subscribe via Chapa]
-    B --> C[3. Connect GitHub OAuth]
-    C --> D[4. Generate Starter Repository\nReact / Node / Django]
-    D --> E[5. Receive Structured AI Ticket]
-    E --> F[6. Implement Code on Git Branch]
+    A[1. Register & Verify Email] --> C[2. Connect GitHub OAuth\nNo subscription needed]
+    C --> D[3. Generate Starter Repository\nReact / Node / Django]
+    D --> E[4. Receive Structured AI Ticket\n3 free tickets included]
+    E --> F[5. Implement Code on Git Branch]
     F <-->|Stuck? 4-Stage Progressive Hints| G[Senior AI Mentor]
-    F --> H[7. Push PR & Trigger GitHub Actions CI]
-    H --> I[8. Attempt 1: AI Code Review\nFeedback Only - No Score]
-    I --> J[9. Iterate, Refactor & Push Updates]
-    J --> K[10. Attempt 2: Final Evaluation\nFixed 4-Part Rubric Score]
-    K --> L[11. Work-Sample Portfolio Profile]
-    L --> E
+    F --> H[6. Push PR & Trigger GitHub Actions CI]
+    H --> I[7. Attempt 1: AI Code Review\nFeedback Only - No Score]
+    I --> J[8. Iterate, Refactor & Push Updates]
+    J --> K[9. Attempt 2: Final Evaluation\nFixed 4-Part Rubric Score]
+    K --> L[10. Work-Sample Portfolio Profile]
+    L --> M{Free tickets left?}
+    M -->|Yes| E
+    M -->|No| N[Subscribe via Chapa\nUnlimited tickets]
+    N --> E
 ```
 
+### Free Trial & Subscription
+
+Every account starts with a **free trial of 3 tickets**. You can try the whole loop before paying anything:
+
+- **No subscription is needed to onboard.** Registering, connecting GitHub, creating your starter repository, working a ticket, using the AI mentor, and submitting pull requests are all available on the free trial.
+- **The limit is 3 tickets in total, per account.** Every ticket ever assigned counts, **including abandoned ones**, so abandoning a ticket does not give you a replacement. Your remaining count is shown on the dashboard (for example, "2 of 3 free tickets left").
+- **A subscription is only asked for when you request a 4th ticket.** The API then answers `402 Payment Required` and the app sends you to Chapa hosted checkout. Tickets you have already started can always be finished and submitted.
+- **Subscribers get unlimited tickets** for the length of their paid period. Payments are confirmed by HMAC-verified Chapa webhooks, never by the browser redirect alone.
+
+### Trying It Without Signing Up (Guest Login)
+
+The login and register pages include a **Continue as guest** button that signs in to a pre-provisioned demo account, so reviewers can explore the product without creating an account. It is enabled only when the backend has `GUEST_LOGIN_EMAIL` and `GUEST_LOGIN_PASSWORD` set (see `backend/.env.example`); when they are unset the button is hidden. The guest account is an ordinary user, so it is subject to the same 3-ticket free trial.
+
 ### The Platform Loop
-1. **Secure Onboarding & Subscription:** Developers register, verify their email, and activate a subscription via Chapa hosted checkout (cryptographically verified by webhooks).
-2. **Real GitHub Ecosystem Integration:** Connecting their real GitHub account via OAuth automatically generates an authentic repository from chosen starter templates (**React SPA**, **Node.js/Express API**, or **Django**), complete with configured GitHub Actions CI workflows.
+1. **Secure Onboarding:** Developers register and verify their email, then start immediately with 3 free tickets. A Chapa hosted-checkout subscription (cryptographically verified by webhooks) is only required to go beyond the free trial.
+2. **Real GitHub Ecosystem Integration:** Connecting their real GitHub account via OAuth (available to free-trial users too) automatically generates an authentic repository from the starter template matching their stack (**React SPA**, **Node.js/Express API**, or **Django**), complete with configured GitHub Actions CI workflows.
 3. **Structured AI Ticket Generation:** Tickets are not freeform hallucinations. The platform authors strict structural templates (target files, acceptance criteria, test checklists), and Google Gemini dynamically fills domain-specific scenarios. Every ticket is guaranteed to reference real files and be testable.
 4. **Progressive Hint AI Mentor:** A senior engineer simulator designed to prevent cheating and develop problem-solving stamina. It enforces four sequential hint stages:
    - *Stage 1:* Diagnostic inquiry (*"What have you tried so far?"*)
@@ -318,7 +333,21 @@ npm run dev:frontend
    npm run lint:frontend && npm run test:frontend
    npm run lint:backend && npm run test:backend
    ```
-5. Open a Pull Request. CI must pass and code review approval is required prior to merge.
+5. Open a Pull Request using the repository template. CI must pass and a review from the relevant code owner (see [`.github/CODEOWNERS`](.github/CODEOWNERS)) is required prior to merge.
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full workflow. Report vulnerabilities privately as described in [`SECURITY.md`](SECURITY.md), never in a public issue.
+
+### Further Documentation
+
+| Document | Contents |
+|---|---|
+| [`docs/SETUP.md`](docs/SETUP.md) | Team setup and Git workflow |
+| [`docs/work-simulator-requirements.md`](docs/work-simulator-requirements.md) | Product requirements |
+| [`docs/work-simulator-api-spec.md`](docs/work-simulator-api-spec.md) | REST API specification |
+| [`docs/work-simulator-database.md`](docs/work-simulator-database.md) | Database design and constraints |
+| [`docs/decisions-log.md`](docs/decisions-log.md) | Architectural decisions |
+| [`backend/README.md`](backend/README.md) | Backend API, route surface and test setup |
+| [`frontend/README.md`](frontend/README.md) | Frontend architecture and scripts |
 
 ---
 

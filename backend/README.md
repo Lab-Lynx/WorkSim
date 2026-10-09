@@ -18,7 +18,7 @@
 
 The Work Simulator Backend API manages all platform operations, simulating an enterprise engineering workflow for junior developers:
 - **Cookie-Based Authentication & Session Management:** Zero-token client model using rotating httpOnly cookies.
-- **Payment & Subscription Lifecycle:** Chapa hosted checkout orchestration with cryptographic HMAC webhook verification.
+- **Free Trial & Subscription Lifecycle:** Every account gets 3 free tickets with no subscription needed to connect GitHub or use the mentor; after that, Chapa hosted checkout (with cryptographic HMAC webhook verification) unlocks unlimited tickets.
 - **GitHub Integration Service:** OAuth handshake, AES-256-GCM encrypted token persistence, starter repository provisioning, and GitHub Actions CI webhooks.
 - **Controlled Ticket Generation:** Structural templating combined with Google Gemini for reproducible, testable software engineering tasks.
 - **AI Mentorship Engine:** State-machine driven, 4-stage progressive hints preventing code copy-pasting.
@@ -51,7 +51,7 @@ The backend strictly enforces a layered architecture to maintain clear boundarie
 graph TD
     Client[HTTP Client / Frontend] --> Middlewares[Middlewares Pipeline\n• Request ID & Pino\n• Helmet & Strict CORS\n• Raw Webhook / JSON Parser\n• CSRF Origin Validator\n• Rate Limiters]
     Middlewares --> Routes[Routes Layer\nEndpoint definitions & Guard binding]
-    Routes --> Guards[Access Guards\nauthMiddleware -> requirePaidAccess\n-> requireGitHub -> requireStarterRepo]
+    Routes --> Guards[Access Guards\nauthMiddleware -> requireGitHub\n-> requireStarterRepo]
     Guards --> Validators[Zod Validation\nbody, params, req.validatedQuery]
     Validators --> Controllers[Controllers Layer\nHTTP parsing & ApiResponse shaping]
     Controllers --> Services[Services Layer\nBusiness logic & External APIs]
@@ -86,15 +86,24 @@ flowchart TD
 
     subgraph AuthPipeline [Authentication & Authorization Chain]
         RateLimiter --> AuthMw[authMiddleware:\nVerify httpOnly Access Cookie]
-        AuthMw --> PaidGuard[requirePaidAccess:\nVerify Active Subscription]
-        PaidGuard --> GitHubGuard[requireGitHubConnection:\nVerify Linked Account]
+        AuthMw --> GitHubGuard[requireGitHubConnection:\nVerify Linked Account]
         GitHubGuard --> RepoGuard[requireStarterRepo:\nVerify Cloned Repository]
     end
 
     subgraph CoreExecution [Protected Business Logic]
-        RepoGuard --> Service[Service Execution\n• AES-256-GCM Token Decryption\n• Atomic SQL Transactions\n• AI Budget Guards]
+        RepoGuard --> Service[Service Execution\n• AES-256-GCM Token Decryption\n• Atomic SQL Transactions\n• AI Budget Guards\n• Free-trial / subscription ticket gate]
     end
 ```
+
+### Free trial and the subscription gate
+
+Subscription is **not** an access guard on the route chain. Every authenticated user can connect GitHub, create a starter repository, chat with the mentor and submit pull requests. The only place the subscription is enforced is ticket assignment (`POST /tickets`), inside `ticket.service.ts`, via `assertCanAssignTicket` in `subscription.service.ts`:
+
+1. If the user has a subscription whose `currentPeriodEnd` is in the future, they are allowed (unlimited tickets).
+2. Otherwise they get `FREE_TICKET_LIMIT` tickets (`3`, defined in `src/constants/index.ts`). Usage is `COUNT(Ticket WHERE userId)`, so **abandoned tickets count too** and cannot be used to farm free tickets.
+3. When the free tickets are used up, the API responds `402 Payment Required`: `You have used your 3 free tickets. An active subscription is required to continue`.
+
+`GET /subscriptions/me` returns a `freeTickets` object (`limit`, `used`, `remaining`) that the frontend uses for the dashboard counter. A `requirePaidAccess` middleware exists in `access.middleware.ts` but is intentionally not attached to any route; do not add it to the GitHub, mentor or submission routes, because that would put the paywall in front of the free trial.
 
 ### 1. Dual Cookie Authentication & Token Rotation
 - **Zero-Token Response Policy:** Tokens are never returned in JSON bodies or accessible to JavaScript.
@@ -261,31 +270,38 @@ All routes are mounted under `/api/v1`:
 |---|---|---|---|---|
 | **Auth** | `POST` | `/auth/register` | Public | Register new user, set cookies, send verification email |
 | | `POST` | `/auth/login` | Public | Authenticate user credentials, issue cookies |
+| | `GET` | `/auth/guest` | Public | Report whether guest login is configured |
+| | `POST` | `/auth/guest` | Public | Sign in to the pre-provisioned guest account for demos and judging |
 | | `POST` | `/auth/refresh` | Public | Rotate refresh token cookie, issue new access cookie |
 | | `POST` | `/auth/logout` | Authenticated | Revoke refresh token in DB, clear auth cookies |
 | | `POST` | `/auth/logout-all`| Authenticated | Invalidate all active sessions for current user |
 | | `GET` | `/auth/me` | Authenticated | Return public profile of currently authenticated user |
 | | `POST` | `/auth/verify-email` | Public | Consume email verification token |
+| | `POST` | `/auth/resend-verification` | Public | Resend the verification email (same response whether or not the account exists) |
 | | `POST` | `/auth/forgot-password`| Public | Request password reset email |
 | | `POST` | `/auth/reset-password` | Public | Consume reset token and set new password |
-| **Billing** | `GET` | `/subscriptions/current` | Authenticated | Get active subscription status and renewal date |
-| | `POST` | `/subscriptions/checkout`| Authenticated + Verified | Initialize Chapa checkout URL |
-| | `POST` | `/subscriptions/cancel` | Authenticated + Sub | Cancel subscription at end of billing period |
+| | `POST` | `/auth/change-password` | Authenticated | Change password (requires the current password) |
+| **Users** | `GET` / `PATCH` | `/users/me` | Authenticated | Read or update the signed-in user's profile and display name |
+| **Billing** | `GET` | `/subscriptions/me` | Authenticated | Subscription status, renewal date and free-ticket usage (`freeTickets`) |
+| | `POST` | `/subscriptions/checkout`| Authenticated | Initialize Chapa checkout URL (needed only after the 3 free tickets) |
+| | `POST` | `/subscriptions/cancel` | Authenticated | Cancel subscription at end of billing period |
 | | `GET` | `/payments` | Authenticated | List historical payment receipts |
-| **GitHub** | `GET` | `/github/connect` | Authenticated + Sub | Generate GitHub OAuth authorize URL |
-| | `POST` | `/github/callback`| Authenticated + Sub | Exchange OAuth code, encrypt and store access token |
-| | `GET` | `/github/status` | Authenticated | Check GitHub link status and repository details |
-| | `POST` | `/github/repo` | Authenticated + Sub + GH | Create starter repository from template |
-| **Tickets** | `POST` | `/tickets` | Authenticated + Sub + GH + Repo | Assign new structured AI ticket |
+| **GitHub** | `GET` | `/github/connect` | Authenticated | Generate GitHub OAuth authorize URL (free trial included) |
+| | `GET` | `/github/callback`| Public (signed `state`) | OAuth redirect target: exchange code, encrypt and store access token |
+| | `GET` | `/github/connection` | Authenticated | Check GitHub link status |
+| | `DELETE` | `/github/connection` | Authenticated | Disconnect GitHub |
+| | `POST` | `/github/repo` | Authenticated | Create starter repository from the chosen template |
+| **Tickets** | `POST` | `/tickets` | Authenticated + GH + Repo | Assign new structured AI ticket. Enforces the free-trial / subscription gate (`402` after 3 free tickets) |
 | | `GET` | `/tickets/current` | Authenticated | Get current active ticket details |
 | | `GET` | `/tickets/:ticketId` | Authenticated | Get ticket details and submission history |
-| | `POST` | `/tickets/:ticketId/start` | Authenticated + Sub | Transition ticket status to in_progress |
-| | `POST` | `/tickets/:ticketId/abandon` | Authenticated + Sub + GH + Repo | Abandon active ticket |
-| **Mentor** | `POST` | `/tickets/:ticketId/mentor/messages` | Authenticated + Sub | Send message to AI mentor (progressive hint) |
+| | `POST` | `/tickets/:ticketId/start` | Authenticated | Transition ticket status to in_progress |
+| | `POST` | `/tickets/:ticketId/abandon` | Authenticated + GH + Repo | Abandon active ticket (still counts toward the free limit) |
+| **Mentor** | `POST` | `/tickets/:ticketId/mentor/messages` | Authenticated | Send message to AI mentor (progressive hint). Rate limited |
 | | `GET` | `/tickets/:ticketId/mentor/messages` | Authenticated | Fetch full mentor chat transcript |
-| **Submissions** | `POST` | `/tickets/:ticketId/submissions` | Authenticated + Sub + GH + Repo | Submit PR attempt (triggers CI evaluation) |
+| **Submissions** | `GET` | `/submissions` | Authenticated | List the user's submissions |
+| | `POST` | `/tickets/:ticketId/submissions` | Authenticated + GH + Repo | Submit PR attempt (triggers CI evaluation) |
 | | `GET` | `/tickets/:ticketId/submissions/:attempt` | Authenticated | Get submission details, diff, and evaluation |
-| | `POST` | `/tickets/:ticketId/submissions/:attempt/retry` | Authenticated + Sub | Retry failed evaluation pipeline |
+| | `POST` | `/tickets/:ticketId/submissions/:attempt/retry` | Authenticated | Retry failed evaluation pipeline |
 | **Profile** | `GET` | `/profile` | Authenticated | Fetch completed ticket history, diffs, and rubric scores |
 | **Webhooks** | `POST` | `/webhooks/chapa` | Public (HMAC Verified) | Process Chapa payment confirmations |
 | | `POST` | `/webhooks/github`| Public (HMAC Verified) | Process GitHub Actions `workflow_run` CI results |
@@ -320,7 +336,11 @@ Populate `.env` with:
 - `ACCESS_TOKEN_SECRET` & `REFRESH_TOKEN_SECRET`: Distinct secrets for JWTs.
 - `GITHUB_TOKEN_ENCRYPTION_KEY`: High-entropy encryption secret for OAuth tokens.
 - `CLIENT_URL`: Exact URL of the frontend (e.g. `http://localhost:5173`).
-- API keys: `GEMINI_API_KEY`, `GROQ_API_KEY`, `CHAPA_SECRET_KEY`, `CHAPA_WEBHOOK_SECRET`, `GITHUB_WEBHOOK_SECRET`.
+- GitHub OAuth: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_CALLBACK_URL` (the API's `/api/v1/github/callback`), `GITHUB_WEBHOOK_SECRET`.
+- Payments (needed only for the paid tier, not the free trial): `CHAPA_SECRET_KEY`, `CHAPA_WEBHOOK_SECRET`, `CHAPA_RETURN_URL`; optionally `CHAPA_PRICE` and `CHAPA_CURRENCY` (defaults `29` ETB).
+- AI keys: `GEMINI_API_KEY`, `GROQ_API_KEY`.
+- `TEST_DATABASE_URL`: a separate, local test database (see [Test database isolation](#test-database-isolation)).
+- Optional guest login for demos and judging: `GUEST_LOGIN_EMAIL` and `GUEST_LOGIN_PASSWORD`. Create that account once (register it normally); the guest button signs in to it and is hidden when these are unset.
 
 ### 3. Run Database Migrations
 ```bash
