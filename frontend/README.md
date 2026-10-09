@@ -18,9 +18,10 @@
 ## 📖 Overview
 
 The Work Simulator Frontend is the primary interface for junior software developers. It provides an authentic corporate developer experience featuring:
-- **Guided Authentication & Verification Flow:** Registration, email verification, and password recovery.
-- **Subscription Checkout & Billing Management:** Seamless integration with Chapa hosted checkouts.
-- **GitHub OAuth & Repository Hub:** Connect personal GitHub accounts and spin up starter repositories across multiple tech tracks.
+- **Guided Authentication & Verification Flow:** Registration, email verification, password recovery, and a one-click **Continue as guest** button on the login and register pages for demos and judging (shown only when the backend has guest login configured).
+- **3-Ticket Free Trial:** New accounts can connect GitHub, create a starter repository, use the mentor and work tickets with no subscription. The dashboard shows how many of the 3 free tickets remain; abandoned tickets still count.
+- **Subscription Checkout & Billing Management:** Chapa hosted checkout, offered once the free tickets are used up (the API answers `402` when a 4th ticket is requested).
+- **GitHub OAuth & Repository Hub:** Connect personal GitHub accounts and spin up a starter repository matching your stack (React, Node/Express or Django). Available to free-trial users.
 - **Interactive Ticket Workspace:** Detailed ticket views, acceptance criteria, touched files, and test checklists.
 - **Real-Time Senior AI Mentorship:** Progressive 4-stage hint console with adaptive guidance.
 - **Pull Request & Evaluation Center:** Real-time CI test tracking, structured code review feedback, and multi-dimensional rubric score visualizations.
@@ -229,6 +230,8 @@ VITE_API_URL=http://localhost:3000/api/v1
 VITE_APP_NAME=Work Simulator
 VITE_APP_ENV=development
 ```
+
+`VITE_SENTRY_DSN` is optional; leave it empty to disable error tracking. The backend must be running and its `CLIENT_URL` must exactly match the frontend origin (`http://localhost:5173`), otherwise cookie-based auth will silently fail.
 
 ### 3. Start Development Server
 ```bash
